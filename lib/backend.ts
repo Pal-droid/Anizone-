@@ -1,4 +1,4 @@
-export const BACKEND_BASE = process.env.BACKEND_BASE || "https://zestful-hyacinthe-anizone1-ddb25b4a.koyeb.app"
+export const BACKEND_BASE = process.env.BACKEND_BASE || "https://stale-nananne-anizonee-3fa1a732.koyeb.app/"
 
 export const JWT_COOKIE = "azjwt"
 
