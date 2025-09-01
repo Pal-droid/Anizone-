@@ -21,7 +21,11 @@ export default function WatchPage() {
     const slug = path.split("/").pop() || ""
     const namePart = path.split("/").at(2) || slug
     const name = namePart.replace(/\.([A-Za-z0-9_-]+)$/, "").replace(/-/g, " ")
-    setTitle(name ? name : "Anime")
+    const capitalizedName = name
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ")
+    setTitle(capitalizedName ? capitalizedName : "Anime")
 
     // Try to get sources from sessionStorage (set by search page)
     try {

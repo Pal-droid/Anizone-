@@ -395,3 +395,105 @@ export function parseLatestEpisodes(html: string): { [key: string]: SearchItem[]
 
   return results
 }
+
+export type ScheduleItem = {
+  id: string
+  time: string
+  title: string
+  episode: string
+  href: string
+  image?: string
+}
+
+export type DaySchedule = {
+  date: string
+  dayName: string
+  items: ScheduleItem[]
+}
+
+export function parseSchedule(html: string): DaySchedule[] {
+  const $ = load(html)
+  const schedule: DaySchedule[] = []
+
+  // Extract the date range from the page
+  const dateRangeText = $(".widget-schedule-page .widget-body p").first().text().trim()
+
+  // Parse each day section
+  $(".costr").each((_, dayHeader) => {
+    const $dayHeader = $(dayHeader)
+    const dayName = $dayHeader.find(".day-header").text().trim()
+
+    if (!dayName || dayName === "USCITE INDETERMINATE") return
+
+    const items: ScheduleItem[] = []
+
+    // Find the next calendario-aw section after this day header
+    const $scheduleSection = $dayHeader.next(".calendario-aw")
+
+    $scheduleSection.find(".widget.boxcalendario").each((_, el) => {
+      const $item = $(el)
+
+      const $link = $item.find("a").first()
+      const href = $link.attr("href") || ""
+      const title = $link.attr("title") || ""
+
+      const episode = $item.find(".episodio-calendario").text().trim()
+      const time = $item.find(".hour").text().replace("Trasmesso alle ", "").trim()
+
+      // Extract image from background style
+      const $imgDiv = $item.find(".img-anime")
+      const bgStyle = $imgDiv.attr("style") || ""
+      const imageMatch = bgStyle.match(/url$$([^)]+)$$/)
+      const image = imageMatch ? imageMatch[1] : ""
+
+      if (title && href && episode && time) {
+        items.push({
+          id: `${dayName}-${time}-${title}`,
+          time,
+          title,
+          episode,
+          href: `/watch?path=${href.replace("/play/", "").replace(/\.[^.]+$/, "")}`,
+          image: image.replace(/['"]/g, ""),
+        })
+      }
+    })
+
+    // Sort items by time
+    items.sort((a, b) => {
+      const parseTime = (timeStr: string) => {
+        const [hours, minutes] = timeStr.split(":").map((n) => Number.parseInt(n))
+        return hours * 60 + minutes
+      }
+      return parseTime(a.time) - parseTime(b.time)
+    })
+
+    if (items.length > 0) {
+      schedule.push({
+        date: "", // We'll set this in the API
+        dayName,
+        items,
+      })
+    }
+  })
+
+  return schedule
+}
+
+export async function fetchScheduleForDate(date?: string): Promise<DaySchedule[]> {
+  try {
+    const scheduleUrl = `${ANIMEWORLD_BASE}/schedule`
+    const res = await fetch(scheduleUrl, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) AnizoneBot/1.0 Safari/537.36",
+        "Accept-Language": "it-IT,it;q=0.9",
+      },
+    })
+
+    const html = await res.text()
+    return parseSchedule(html)
+  } catch (error) {
+    console.error("Error fetching schedule:", error)
+    return []
+  }
+}

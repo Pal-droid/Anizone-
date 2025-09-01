@@ -59,29 +59,44 @@ export function AnimeContentSections() {
     return (
       <div className="overflow-x-auto">
         <div className="flex gap-3 pb-2" style={{ width: `${Math.max(items.length * 140, 700)}px` }}>
-          {items.map((item, index) => (
-            <Link key={index} href={item.href} className="group flex-shrink-0 w-32">
-              <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-neutral-900">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={item.image || "/placeholder.svg"}
-                  alt={item.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                  loading="lazy"
-                />
-                {item.isDub && (
-                  <div className="absolute top-2 right-2">
-                    <Badge variant="secondary" className="text-xs px-1 py-0">
-                      DUB
-                    </Badge>
-                  </div>
-                )}
-              </div>
-              <h3 className="text-sm font-medium mt-2 line-clamp-2 group-hover:text-primary transition-colors">
-                {item.title}
-              </h3>
-            </Link>
-          ))}
+          {items.map((item, index) => {
+            const animePath = (() => {
+              try {
+                const u = new URL(item.href)
+                return u.pathname
+              } catch {
+                return item.href
+              }
+            })()
+
+            return (
+              <Link
+                key={index}
+                href={`/watch?path=${encodeURIComponent(animePath)}`}
+                className="group flex-shrink-0 w-32"
+              >
+                <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-neutral-900">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={item.image || "/placeholder.svg"}
+                    alt={item.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                    loading="lazy"
+                  />
+                  {item.isDub && (
+                    <div className="absolute top-2 right-2">
+                      <Badge variant="secondary" className="text-xs px-1 py-0">
+                        DUB
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+                <h3 className="text-sm font-medium mt-2 line-clamp-2 group-hover:text-primary transition-colors">
+                  {item.title}
+                </h3>
+              </Link>
+            )
+          })}
         </div>
       </div>
     )

@@ -9,7 +9,7 @@ import { MangaCard } from "@/components/manga-card"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { GENRES } from "@/lib/genre-map"
 import Link from "next/link"
-import { ArrowLeft, Film, BookOpen, Search, List } from "lucide-react"
+import { ArrowLeft, Film, BookOpen, Search, List, Calendar } from "lucide-react"
 
 type Source = {
   name: string
@@ -250,6 +250,13 @@ export default function SearchPage() {
           >
             <List size={20} />
             <span>Liste</span>
+          </Link>
+          <Link
+            href="/schedule"
+            className="flex flex-col items-center gap-1 p-2 text-xs hover:text-primary transition-colors"
+          >
+            <Calendar size={20} />
+            <span>Calendario</span>
           </Link>
         </div>
       </nav>

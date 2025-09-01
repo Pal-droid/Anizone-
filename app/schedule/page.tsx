@@ -1,12 +1,8 @@
 import Link from "next/link"
-import { Search, List, Film, BookOpen, Calendar } from "lucide-react"
-import { MangaHero } from "@/components/manga-hero"
-import { LatestMangaChapters } from "@/components/latest-manga-chapters"
-import { MangaGenres } from "@/components/manga-genres"
+import { Search, List, Film, BookOpen, Calendar, ArrowLeft } from "lucide-react"
+import { ScheduleCalendar } from "@/components/schedule-calendar"
 
-export default function MangaPage() {
-  console.log("[v0] Manga homepage is loading")
-
+export default function SchedulePage() {
   return (
     <main className="min-h-screen pb-16">
       <header className="border-b sticky top-0 bg-background/80 backdrop-blur z-10">
@@ -14,34 +10,35 @@ export default function MangaPage() {
           <Link href="/" className="text-lg font-extrabold tracking-tight">
             Anizone
           </Link>
-          <nav className="text-sm flex items-center gap-4">
-            <Link href="/lists" className="flex items-center gap-1 hover:text-primary transition-colors">
-              <List size={16} />
-              <span className="hidden sm:inline">Liste</span>
-            </Link>
-            <Link href="/search" className="flex items-center gap-1 hover:text-primary transition-colors">
-              <Search size={16} />
-              <span className="hidden sm:inline">Cerca</span>
-            </Link>
-          </nav>
+          <Link href="/" className="flex items-center gap-1 hover:text-primary transition-colors">
+            <ArrowLeft size={16} />
+            <span className="hidden sm:inline">Home</span>
+          </Link>
         </div>
       </header>
 
       <section className="px-4 py-4 space-y-6">
-        <MangaHero />
+        <div className="rounded-lg bg-neutral-950 text-white p-5">
+          <h1 className="text-xl font-bold">Calendario Anime</h1>
+          <p className="text-xs text-neutral-300 mt-1">
+            Scopri quando escono i nuovi episodi dei tuoi anime preferiti.
+          </p>
+        </div>
 
-        <LatestMangaChapters />
-
-        <MangaGenres />
+        <ScheduleCalendar />
       </section>
 
+      {/* Bottom navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t z-20">
         <div className="flex items-center justify-around py-2">
           <Link href="/" className="flex flex-col items-center gap-1 p-2 text-xs hover:text-primary transition-colors">
             <Film size={20} />
             <span>Anime</span>
           </Link>
-          <Link href="/manga" className="flex flex-col items-center gap-1 p-2 text-xs text-primary">
+          <Link
+            href="/manga"
+            className="flex flex-col items-center gap-1 p-2 text-xs hover:text-primary transition-colors"
+          >
             <BookOpen size={20} />
             <span>Manga</span>
           </Link>
@@ -59,10 +56,7 @@ export default function MangaPage() {
             <List size={20} />
             <span>Liste</span>
           </Link>
-          <Link
-            href="/schedule"
-            className="flex flex-col items-center gap-1 p-2 text-xs hover:text-primary transition-colors"
-          >
+          <Link href="/schedule" className="flex flex-col items-center gap-1 p-2 text-xs text-primary">
             <Calendar size={20} />
             <span>Calendario</span>
           </Link>

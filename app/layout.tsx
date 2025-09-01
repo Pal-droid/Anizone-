@@ -5,9 +5,12 @@ import { GeistMono } from "geist/font/mono"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "v0 App",
-  description: "Created with v0",
+  title: "Anizone - Guarda anime in italiano",
+  description: "Trova e guarda anime con episodi sub/dub ITA",
   generator: "v0.dev",
+  icons: {
+    icon: "/favicon.ico",
+  },
 }
 
 export default function RootLayout({

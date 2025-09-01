@@ -1,19 +1,19 @@
 import Link from "next/link"
-import { Search, List, Film, BookOpen } from "lucide-react"
+import { Search, List, Film, BookOpen, Calendar } from "lucide-react"
 import HeroSearch from "@/components/hero-search"
 import { TopAnime } from "@/components/top-anime"
 import { ContinueWatching } from "@/components/continue-watching"
 import { DiscoverSections } from "@/components/discover"
 import { AnimeContentSections } from "@/components/anime-content-sections"
+import { AnimatedLogo } from "@/components/animated-logo"
+import { NewAdditions } from "@/components/new-additions"
 
 export default function HomePage() {
   return (
     <main className="min-h-screen pb-16">
       <header className="border-b sticky top-0 bg-background/80 backdrop-blur z-10">
         <div className="px-4 py-3 flex items-center justify-between">
-          <Link href="/" className="text-lg font-extrabold tracking-tight">
-            Anizone
-          </Link>
+          <AnimatedLogo />
           <nav className="text-sm flex items-center gap-4">
             <Link href="/lists" className="flex items-center gap-1 hover:text-primary transition-colors">
               <List size={16} />
@@ -38,13 +38,14 @@ export default function HomePage() {
 
         <ContinueWatching />
         <AnimeContentSections />
+        <NewAdditions />
         <DiscoverSections />
         <TopAnime />
       </section>
 
       <nav className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t z-20">
         <div className="flex items-center justify-around py-2">
-          <Link href="/" className="flex flex-col items-center gap-1 p-2 text-xs hover:text-primary transition-colors">
+          <Link href="/" className="flex flex-col items-center gap-1 p-2 text-xs text-primary">
             <Film size={20} />
             <span>Anime</span>
           </Link>
@@ -68,6 +69,13 @@ export default function HomePage() {
           >
             <List size={20} />
             <span>Liste</span>
+          </Link>
+          <Link
+            href="/schedule"
+            className="flex flex-col items-center gap-1 p-2 text-xs hover:text-primary transition-colors"
+          >
+            <Calendar size={20} />
+            <span>Calendario</span>
           </Link>
         </div>
       </nav>

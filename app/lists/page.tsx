@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { AuthPanel } from "@/components/auth-panel"
-import { Film, BookOpen, Book, Search, List } from "lucide-react"
+import { Film, BookOpen, Book, Search, List, Calendar } from "lucide-react"
 
 type ListName = "planning" | "completed" | "current" | "dropped" | "repeating" | "paused"
 type ContentType = "anime" | "manga" | "light-novel"
@@ -170,6 +170,13 @@ export default function ListsPage() {
           <Link href="/lists" className="flex flex-col items-center gap-1 p-2 text-xs text-primary">
             <List size={20} />
             <span>Liste</span>
+          </Link>
+          <Link
+            href="/schedule"
+            className="flex flex-col items-center gap-1 p-2 text-xs hover:text-primary transition-colors"
+          >
+            <Calendar size={20} />
+            <span>Calendario</span>
           </Link>
         </div>
       </nav>

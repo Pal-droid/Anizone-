@@ -75,8 +75,8 @@ export function WatchInfo({ seriesPath }: { seriesPath: string }) {
           </CardHeader>
           <CardContent>
             <div className="w-full max-w-[100vw] overflow-x-hidden">
-              <div className="grid grid-cols-1 sm:grid-cols-[130px_1fr] gap-4 min-w-0">
-                <div className="sm:row-span-2">
+              <div className="grid grid-cols-[120px_1fr] sm:grid-cols-[130px_1fr] gap-4 min-w-0">
+                <div className="sm:justify-self-start flex items-center">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={meta.image || "/placeholder.svg?height=195&width=130&query=anime%20poster"}
@@ -85,10 +85,10 @@ export function WatchInfo({ seriesPath }: { seriesPath: string }) {
                     loading="lazy"
                   />
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex flex-col justify-start">
                   <div className="text-lg font-semibold">{meta.title}</div>
-                  {meta.jtitle ? <div className="text-sm text-muted-foreground">{meta.jtitle}</div> : null}
-                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                  {meta.jtitle ? <div className="text-sm text-muted-foreground mb-3">{meta.jtitle}</div> : null}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-muted-foreground">
                     {meta.rating ? (
                       <div>
                         Voto: <span className="font-medium text-foreground">{meta.rating}</span>
@@ -132,7 +132,7 @@ export function WatchInfo({ seriesPath }: { seriesPath: string }) {
                     ) : null}
                   </div>
                   {meta.genres?.length ? (
-                    <div className="mt-2 flex flex-wrap gap-2">
+                    <div className="mt-3 flex flex-wrap gap-2">
                       {meta.genres.map((g) => (
                         <span key={g.name} className="inline-flex text-xs border rounded px-2 py-0.5">
                           {g.name}
@@ -141,12 +141,13 @@ export function WatchInfo({ seriesPath }: { seriesPath: string }) {
                     </div>
                   ) : null}
                 </div>
-                {meta.description ? (
-                  <div className="sm:col-span-2 text-sm text-muted-foreground break-words min-w-0">
-                    {meta.description}
-                  </div>
-                ) : null}
               </div>
+              {meta.description ? (
+                <div className="mt-4 text-sm text-muted-foreground break-words">
+                  <div className="font-medium text-foreground mb-2">Trama:</div>
+                  {meta.description}
+                </div>
+              ) : null}
             </div>
           </CardContent>
         </Card>

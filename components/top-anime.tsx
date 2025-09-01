@@ -4,6 +4,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { AnimeCard } from "./anime-card"
 import { useEffect, useState } from "react"
+import { Eye, Star } from "lucide-react"
+import Link from "next/link"
 
 type TopItem = {
   rank: number
@@ -42,6 +44,95 @@ export function TopAnime() {
     })()
   }, [])
 
+  const renderRankingList = (items: TopItem[]) => {
+    if (!items || items.length === 0) {
+      return <div className="text-sm text-muted-foreground">Nessun elemento trovato.</div>
+    }
+
+    const [featured, ...rest] = items.slice(0, 6)
+
+    return (
+      <div className="space-y-4">
+        {/* Featured #1 item */}
+        {featured && (
+          <div className="flex gap-3 p-3 bg-gradient-to-r from-primary/5 to-transparent rounded-lg border">
+            <div className="relative shrink-0">
+              <img
+                src={featured.image || "/placeholder.svg"}
+                alt={featured.title}
+                className="w-16 h-24 object-cover rounded"
+                loading="lazy"
+              />
+              <div className="absolute -top-1 -left-1 w-6 h-6 bg-yellow-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                1
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <Link href={featured.href} className="hover:text-primary transition-colors">
+                <h3 className="font-semibold text-sm line-clamp-2 mb-1">{featured.title}</h3>
+              </Link>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                {featured.views && (
+                  <div className="flex items-center gap-1">
+                    <Eye size={12} />
+                    <span>{featured.views}</span>
+                  </div>
+                )}
+                {featured.rating && (
+                  <div className="flex items-center gap-1">
+                    <Star size={12} />
+                    <span>{featured.rating}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Rest of the rankings */}
+        <div className="space-y-2">
+          {rest.map((item) => (
+            <div
+              key={`${item.rank}-${item.href}`}
+              className="flex items-center gap-3 p-2 hover:bg-muted/50 rounded transition-colors"
+            >
+              <div className="flex items-center justify-center w-6 h-6 bg-muted text-muted-foreground text-xs font-medium rounded">
+                {item.rank}
+              </div>
+              <div className="relative shrink-0">
+                <img
+                  src={item.image || "/placeholder.svg"}
+                  alt={item.title}
+                  className="w-10 h-14 object-cover rounded"
+                  loading="lazy"
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <Link href={item.href} className="hover:text-primary transition-colors">
+                  <h4 className="font-medium text-sm line-clamp-1 mb-1">{item.title}</h4>
+                </Link>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  {item.views && (
+                    <div className="flex items-center gap-1">
+                      <Eye size={10} />
+                      <span>{item.views}</span>
+                    </div>
+                  )}
+                  {item.rating && (
+                    <div className="flex items-center gap-1">
+                      <Star size={10} />
+                      <span>{item.rating}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   const renderRow = (items: TopItem[]) => {
     if (!items || items.length === 0) {
       return <div className="text-sm text-muted-foreground">Nessun elemento trovato.</div>
@@ -68,11 +159,15 @@ export function TopAnime() {
       <CardContent>
         {error ? <div className="text-sm text-red-600">{error}</div> : null}
         {!data ? (
-          <div className="flex gap-3 overflow-x-auto no-scrollbar">
-            {Array.from({ length: 10 }).map((_, i) => (
-              <div key={i} className="shrink-0 w-[150px] space-y-2">
-                <div className="aspect-[2/3] bg-neutral-200 rounded animate-pulse" />
-                <div className="h-3 w-3/4 bg-neutral-200 rounded animate-pulse" />
+          <div className="space-y-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 p-2">
+                <div className="w-6 h-6 bg-neutral-200 rounded animate-pulse" />
+                <div className="w-10 h-14 bg-neutral-200 rounded animate-pulse" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 w-3/4 bg-neutral-200 rounded animate-pulse" />
+                  <div className="h-2 w-1/2 bg-neutral-200 rounded animate-pulse" />
+                </div>
               </div>
             ))}
           </div>
@@ -83,9 +178,9 @@ export function TopAnime() {
               <TabsTrigger value="week">Settimana</TabsTrigger>
               <TabsTrigger value="month">Mese</TabsTrigger>
             </TabsList>
-            <TabsContent value="day">{renderRow(data.day)}</TabsContent>
-            <TabsContent value="week">{renderRow(data.week)}</TabsContent>
-            <TabsContent value="month">{renderRow(data.month)}</TabsContent>
+            <TabsContent value="day">{renderRankingList(data.day)}</TabsContent>
+            <TabsContent value="week">{renderRankingList(data.week)}</TabsContent>
+            <TabsContent value="month">{renderRankingList(data.month)}</TabsContent>
           </Tabs>
         )}
       </CardContent>

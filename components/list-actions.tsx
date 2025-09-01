@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -32,6 +32,33 @@ const LISTS: { key: ListKey; label: string }[] = [
 
 export function ListActions({ seriesKey, seriesPath, title, image }: Props) {
   const [done, setDone] = useState<ListKey | null>(null)
+  const [currentLists, setCurrentLists] = useState<Set<ListKey>>(new Set())
+
+  useEffect(() => {
+    async function checkListStatus() {
+      try {
+        const response = await fetch("/api/user-state")
+        if (response.ok) {
+          const data = await response.json()
+          if (data.ok && data.data?.lists) {
+            const listsContainingAnime = new Set<ListKey>()
+            for (const [listKey, listItems] of Object.entries(data.data.lists)) {
+              if (listItems && typeof listItems === "object" && seriesKey in listItems) {
+                listsContainingAnime.add(listKey as ListKey)
+              }
+            }
+            setCurrentLists(listsContainingAnime)
+          }
+        }
+      } catch (error) {
+        console.error("Failed to check list status:", error)
+      }
+    }
+
+    if (seriesKey) {
+      checkListStatus()
+    }
+  }, [seriesKey])
 
   async function add(list: ListKey) {
     setDone(null)
@@ -47,6 +74,7 @@ export function ListActions({ seriesKey, seriesPath, title, image }: Props) {
         image,
       }),
     })
+    setCurrentLists((prev) => new Set([...prev, list]))
     setDone(list)
     setTimeout(() => setDone(null), 1500)
   }
@@ -64,7 +92,7 @@ export function ListActions({ seriesKey, seriesPath, title, image }: Props) {
         <DropdownMenuSeparator />
         {LISTS.map((l) => (
           <DropdownMenuItem key={l.key} onClick={() => add(l.key)}>
-            {done === l.key ? <Check className="h-4 w-4 mr-2" /> : null}
+            {done === l.key || currentLists.has(l.key) ? <Check className="h-4 w-4 mr-2" /> : null}
             {l.label}
           </DropdownMenuItem>
         ))}
