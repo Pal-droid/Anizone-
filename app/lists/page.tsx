@@ -83,23 +83,60 @@ export default function ListsPage() {
     if (items.length === 0) return <div className="text-sm text-muted-foreground">Nessun elemento.</div>
 
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {items.map((it) => (
-          <div key={`${name}-${it.seriesKey}`} className="border rounded p-3 flex items-center justify-between">
-            <div className="min-w-0">
-              <div className="text-sm font-medium line-clamp-2">{it.title}</div>
-              <div className="text-xs text-muted-foreground">{it.seriesPath}</div>
+      <div className="grid grid-cols-1 gap-3">
+        {items.map((it) => {
+          const getWatchUrl = (seriesPath: string) => {
+            try {
+              const path = new URL(seriesPath).pathname
+              return `/watch?path=${encodeURIComponent(path)}`
+            } catch {
+              // If seriesPath is already a relative path, use it directly
+              return `/watch?path=${encodeURIComponent(seriesPath)}`
+            }
+          }
+
+          return (
+            <div
+              key={`${name}-${it.seriesKey}`}
+              className="glass-card rounded-xl p-4 flex items-center gap-4 hover:glow transition-all duration-300"
+            >
+              <div className="shrink-0">
+                <div className="w-16 h-20 rounded-lg overflow-hidden bg-muted">
+                  {it.image ? (
+                    <img src={it.image || "/placeholder.svg"} alt={it.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                      <Film size={20} />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <h3 className="font-medium text-sm line-clamp-2 mb-1">{it.title}</h3>
+                <p className="text-xs text-muted-foreground">
+                  {contentType === "anime" ? "Anime" : contentType === "manga" ? "Manga" : "Romanzo"}
+                </p>
+              </div>
+
+              <div className="flex gap-2 shrink-0">
+                <Link href={getWatchUrl(it.seriesPath)}>
+                  <Button size="sm" className="bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30">
+                    Apri
+                  </Button>
+                </Link>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => remove(name, it.seriesKey)}
+                  className="border-destructive/30 text-destructive hover:bg-destructive/10"
+                >
+                  Rimuovi
+                </Button>
+              </div>
             </div>
-            <div className="flex gap-2 shrink-0">
-              <Link href={it.seriesPath.startsWith("/watch") ? it.seriesPath : it.seriesPath}>
-                <Button size="sm">Apri</Button>
-              </Link>
-              <Button size="sm" variant="outline" onClick={() => remove(name, it.seriesKey)}>
-                Rimuovi
-              </Button>
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     )
   }
