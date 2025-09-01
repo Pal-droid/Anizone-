@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 
@@ -109,36 +109,56 @@ export function AnimeContentSections() {
       </CardHeader>
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="mb-4 w-full grid grid-cols-4">
-            <TabsTrigger value="all" className="text-xs">
-              Tutti
-            </TabsTrigger>
-            <TabsTrigger value="sub" className="text-xs">
-              Sub ITA
-            </TabsTrigger>
-            <TabsTrigger value="dub" className="text-xs">
-              Dub ITA
-            </TabsTrigger>
-            <TabsTrigger value="trending" className="text-xs">
-              Trending
-            </TabsTrigger>
-          </TabsList>
+          <div className="relative mb-4">
+            <TabsList className="w-full grid grid-cols-4 relative">
+              <TabsTrigger value="all" className="text-xs">
+                Tutti
+              </TabsTrigger>
+              <TabsTrigger value="sub" className="text-xs">
+                Sub ITA
+              </TabsTrigger>
+              <TabsTrigger value="dub" className="text-xs">
+                Dub ITA
+              </TabsTrigger>
+              <TabsTrigger value="trending" className="text-xs">
+                Trending
+              </TabsTrigger>
+            </TabsList>
+            {/* Sliding indicator */}
+            <div
+              className="absolute bottom-0 h-0.5 bg-primary transition-transform duration-300 ease-in-out"
+              style={{
+                width: "25%",
+                transform: `translateX(${
+                  activeTab === "all" ? 0 : activeTab === "sub" ? 100 : activeTab === "dub" ? 200 : 300
+                }%)`,
+              }}
+            />
+          </div>
 
-          <TabsContent value="all" className="mt-0">
-            <AnimeGrid items={episodes.all} />
-          </TabsContent>
-
-          <TabsContent value="sub" className="mt-0">
-            <AnimeGrid items={episodes.sub} />
-          </TabsContent>
-
-          <TabsContent value="dub" className="mt-0">
-            <AnimeGrid items={episodes.dub} />
-          </TabsContent>
-
-          <TabsContent value="trending" className="mt-0">
-            <AnimeGrid items={episodes.trending} />
-          </TabsContent>
+          <div className="relative overflow-hidden">
+            <div
+              className="flex transition-transform duration-300 ease-in-out"
+              style={{
+                transform: `translateX(-${
+                  activeTab === "all" ? 0 : activeTab === "sub" ? 100 : activeTab === "dub" ? 200 : 300
+                }%)`,
+              }}
+            >
+              <div className="w-full flex-shrink-0">
+                <AnimeGrid items={episodes.all} />
+              </div>
+              <div className="w-full flex-shrink-0">
+                <AnimeGrid items={episodes.sub} />
+              </div>
+              <div className="w-full flex-shrink-0">
+                <AnimeGrid items={episodes.dub} />
+              </div>
+              <div className="w-full flex-shrink-0">
+                <AnimeGrid items={episodes.trending} />
+              </div>
+            </div>
+          </div>
         </Tabs>
       </CardContent>
     </Card>

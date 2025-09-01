@@ -1,6 +1,6 @@
 "use client"
 
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { AnimeCard } from "./anime-card"
 import { useEffect, useState } from "react"
@@ -25,6 +25,7 @@ type TopData = {
 export function TopAnime() {
   const [data, setData] = useState<TopData | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState("day")
 
   useEffect(() => {
     ;(async () => {
@@ -68,7 +69,19 @@ export function TopAnime() {
               </div>
             </div>
             <div className="flex-1 min-w-0">
-              <Link href={featured.href} className="hover:text-primary transition-colors">
+              <Link
+                href={`/watch?path=${encodeURIComponent(
+                  (() => {
+                    try {
+                      const u = new URL(featured.href)
+                      return u.pathname
+                    } catch {
+                      return featured.href
+                    }
+                  })(),
+                )}`}
+                className="hover:text-primary transition-colors"
+              >
                 <h3 className="font-semibold text-sm line-clamp-2 mb-1">{featured.title}</h3>
               </Link>
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -108,7 +121,19 @@ export function TopAnime() {
                 />
               </div>
               <div className="flex-1 min-w-0">
-                <Link href={item.href} className="hover:text-primary transition-colors">
+                <Link
+                  href={`/watch?path=${encodeURIComponent(
+                    (() => {
+                      try {
+                        const u = new URL(item.href)
+                        return u.pathname
+                      } catch {
+                        return item.href
+                      }
+                    })(),
+                  )}`}
+                  className="hover:text-primary transition-colors"
+                >
                   <h4 className="font-medium text-sm line-clamp-1 mb-1">{item.title}</h4>
                 </Link>
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -172,15 +197,35 @@ export function TopAnime() {
             ))}
           </div>
         ) : (
-          <Tabs defaultValue="day" className="w-full">
-            <TabsList className="mb-3 w-full grid grid-cols-3">
-              <TabsTrigger value="day">Giorno</TabsTrigger>
-              <TabsTrigger value="week">Settimana</TabsTrigger>
-              <TabsTrigger value="month">Mese</TabsTrigger>
-            </TabsList>
-            <TabsContent value="day">{renderRankingList(data.day)}</TabsContent>
-            <TabsContent value="week">{renderRankingList(data.week)}</TabsContent>
-            <TabsContent value="month">{renderRankingList(data.month)}</TabsContent>
+          <Tabs defaultValue="day" className="w-full" onValueChange={setActiveTab}>
+            <div className="relative mb-3">
+              <TabsList className="w-full grid grid-cols-3 relative">
+                <TabsTrigger value="day">Giorno</TabsTrigger>
+                <TabsTrigger value="week">Settimana</TabsTrigger>
+                <TabsTrigger value="month">Mese</TabsTrigger>
+              </TabsList>
+              {/* Sliding indicator */}
+              <div
+                className="absolute bottom-0 h-0.5 bg-primary transition-transform duration-300 ease-in-out"
+                style={{
+                  width: "33.333%",
+                  transform: `translateX(${activeTab === "day" ? 0 : activeTab === "week" ? 100 : 200}%)`,
+                }}
+              />
+            </div>
+
+            <div className="relative overflow-hidden">
+              <div
+                className="flex transition-transform duration-300 ease-in-out"
+                style={{
+                  transform: `translateX(-${activeTab === "day" ? 0 : activeTab === "week" ? 100 : 200}%)`,
+                }}
+              >
+                <div className="w-full flex-shrink-0">{renderRankingList(data.day)}</div>
+                <div className="w-full flex-shrink-0">{renderRankingList(data.week)}</div>
+                <div className="w-full flex-shrink-0">{renderRankingList(data.month)}</div>
+              </div>
+            </div>
           </Tabs>
         )}
       </CardContent>
