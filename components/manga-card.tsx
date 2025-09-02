@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { obfuscateId } from "@/lib/utils"
 
 interface MangaResult {
   title: string
@@ -12,6 +13,8 @@ interface MangaResult {
   artist: string
   genres: string[]
   story: string
+  mangaId?: string
+  mangaSlug?: string
 }
 
 interface MangaCardProps {
@@ -19,13 +22,29 @@ interface MangaCardProps {
 }
 
 export function MangaCard({ manga }: MangaCardProps) {
-  // Extract manga ID from URL for routing
-  const mangaId = manga.url.split("/").pop() || ""
+  let mangaId = manga.mangaId || ""
+
+  if (!mangaId && manga.url) {
+    // Extract from URL like "/manga/2237/baby-steps" or "https://site.com/manga/2237/baby-steps"
+    const urlParts = manga.url.split("/")
+    const mangaIndex = urlParts.findIndex((part) => part === "manga")
+    if (mangaIndex !== -1 && mangaIndex + 1 < urlParts.length) {
+      // Get the part immediately after "manga" which should be the numeric ID
+      const idPart = urlParts[mangaIndex + 1]
+      // Only use numeric part, ignore any slug that might be attached
+      mangaId = idPart.match(/^\d+/) ? idPart.match(/^\d+/)![0] : idPart
+    } else {
+      // Fallback to last part of URL
+      mangaId = urlParts.pop() || ""
+    }
+  }
+
+  const obfuscatedId = obfuscateId(mangaId)
 
   return (
-    <Link href={`/manga/${mangaId}`}>
-      <Card className="group cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-lg">
-        <CardContent className="p-0">
+    <Link href={`/manga/${obfuscatedId}`}>
+      <Card className="group cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-lg h-full">
+        <CardContent className="p-0 h-full flex flex-col">
           <div className="relative aspect-[3/4] overflow-hidden rounded-t-lg">
             <img
               src={manga.image || "/placeholder.svg"}
@@ -45,13 +64,13 @@ export function MangaCard({ manga }: MangaCardProps) {
             </div>
           </div>
 
-          <div className="p-3 space-y-2">
-            <h3 className="font-semibold text-sm line-clamp-2 leading-tight">{manga.title}</h3>
+          <div className="p-3 space-y-2 flex-1 flex flex-col h-[120px]">
+            <h3 className="font-semibold text-sm line-clamp-2 leading-tight flex-shrink-0">{manga.title}</h3>
 
-            {manga.author && <p className="text-xs text-muted-foreground">di {manga.author}</p>}
+            {manga.author && <p className="text-xs text-muted-foreground flex-shrink-0">di {manga.author}</p>}
 
             {manga.genres.length > 0 && (
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-1 flex-shrink-0">
                 {manga.genres.slice(0, 2).map((genre, index) => (
                   <Badge key={index} variant="outline" className="text-xs px-1 py-0">
                     {genre}
@@ -65,7 +84,9 @@ export function MangaCard({ manga }: MangaCardProps) {
               </div>
             )}
 
-            {manga.story && <p className="text-xs text-muted-foreground line-clamp-2">{manga.story}</p>}
+            {manga.story && (
+              <p className="text-xs text-muted-foreground line-clamp-2 flex-1 overflow-hidden">{manga.story}</p>
+            )}
           </div>
         </CardContent>
       </Card>

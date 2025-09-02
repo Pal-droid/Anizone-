@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
+import { obfuscateId } from "@/lib/utils"
 
 interface MangaChapter {
   id: string
@@ -18,7 +19,7 @@ interface MangaChapter {
 
 const latestMangaData: MangaChapter[] = [
   {
-    id: "2237/baby-steps",
+    id: "2237",
     title: "Baby Steps",
     image: "https://cdn.mangaworld.cx/volumes/68a47884d5b1a421154b703e.png?1755609318469",
     type: "Manga",
@@ -30,7 +31,7 @@ const latestMangaData: MangaChapter[] = [
     ],
   },
   {
-    id: "4033/ordeal",
+    id: "4033",
     title: "Ordeal",
     image: "https://cdn.mangaworld.cx/mangas/67febeee39a7a8508e3a7044.png?1756209876850",
     type: "Manhwa",
@@ -42,7 +43,7 @@ const latestMangaData: MangaChapter[] = [
     ],
   },
   {
-    id: "1972/martial-peak",
+    id: "1972",
     title: "Martial Peak",
     image: "https://cdn.mangaworld.cx/mangas/5fa8afef25d77b716a36c9be.png?1756209893177",
     type: "Manhua",
@@ -54,7 +55,7 @@ const latestMangaData: MangaChapter[] = [
     ],
   },
   {
-    id: "2682/subzero",
+    id: "2682",
     title: "SubZero",
     image: "https://cdn.mangaworld.cx/mangas/623b47879b0e4263cd18da7a.jpg?1756209886806",
     type: "Manhwa",
@@ -66,7 +67,7 @@ const latestMangaData: MangaChapter[] = [
     ],
   },
   {
-    id: "3995/melt-bless-you",
+    id: "3995",
     title: "Melt Bless You",
     image: "https://cdn.mangaworld.cx/mangas/67c6fc7ad309492689ae160a.jpg?1756209278008",
     type: "Manhwa",
@@ -78,7 +79,7 @@ const latestMangaData: MangaChapter[] = [
     ],
   },
   {
-    id: "3475/holiday-love-fuufukan-renai",
+    id: "3475",
     title: "Holiday Love - Fuufukan Renai",
     image: "https://cdn.mangaworld.cx/volumes/68239b9ddec93350a6bd2232.jpg?1747164105489",
     type: "Manga",
@@ -103,27 +104,27 @@ export function LatestMangaChapters() {
 
       <div className="grid gap-4">
         {latestMangaData.map((manga) => (
-          <Card key={manga.id} className="p-4">
-            <div className="flex gap-3">
+          <Card key={manga.id} className="p-4 h-full">
+            <div className="flex gap-3 h-full">
               <div className="flex-shrink-0">
                 <img
                   src={manga.image || "/placeholder.svg"}
                   alt={manga.title}
-                  className="w-16 h-20 object-cover rounded"
+                  className="w-16 h-20 object-cover rounded flex-shrink-0"
                   loading="lazy"
                 />
               </div>
 
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 flex flex-col">
                 <div className="flex items-start justify-between gap-2 mb-2">
-                  <h3 className="font-medium text-sm leading-tight line-clamp-2">
-                    <Link href={`/manga/${manga.id}`} className="hover:text-primary">
+                  <h3 className="font-medium text-sm leading-tight line-clamp-2 flex-shrink-0">
+                    <Link href={`/manga/${obfuscateId(manga.id)}`} className="hover:text-primary">
                       {manga.title}
                     </Link>
                   </h3>
                 </div>
 
-                <div className="flex gap-2 mb-2">
+                <div className="flex gap-2 mb-2 flex-shrink-0">
                   <Badge variant="secondary" className="text-xs">
                     {manga.type}
                   </Badge>
@@ -132,7 +133,7 @@ export function LatestMangaChapters() {
                   </Badge>
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1 flex-1">
                   {manga.chapters.map((chapter, index) => (
                     <div key={index} className="flex items-center justify-between text-xs">
                       <Link href={chapter.url} className="text-primary hover:underline flex items-center gap-1">

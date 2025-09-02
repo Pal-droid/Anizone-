@@ -75,8 +75,7 @@ export function AnimeContentSections() {
                 href={`/watch?path=${encodeURIComponent(animePath)}`}
                 className="group flex-shrink-0 w-32"
               >
-                <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-neutral-900">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-neutral-900 w-full">
                   <img
                     src={item.image || "/placeholder.svg"}
                     alt={item.title}

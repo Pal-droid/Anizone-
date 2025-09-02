@@ -24,6 +24,49 @@ type UserState = {
   lists: Record<ListName, Record<string, ListItem>>
 }
 
+const metaCache = new Map<string, { title: string; image?: string; ts: number }>()
+const TTL = 1000 * 60 * 30 // 30 minutes
+
+async function getMeta(path: string) {
+  const key = basePath(path)
+  const cached = metaCache.get(key)
+  const now = Date.now()
+  if (cached && now - cached.ts < TTL) return cached
+  try {
+    const r = await fetch(`/api/anime-meta?path=${encodeURIComponent(key)}`)
+    const j = await r.json()
+    if (j.ok) {
+      const entry = { title: j.meta?.title || key, image: j.meta?.image, ts: now }
+      metaCache.set(key, entry)
+      try {
+        localStorage.setItem(`anizone:meta:${key}`, JSON.stringify(entry))
+      } catch {}
+      return entry
+    }
+  } catch {}
+  // LocalStorage fallback
+  try {
+    const raw = localStorage.getItem(`anizone:meta:${key}`)
+    if (raw) {
+      const entry = JSON.parse(raw)
+      metaCache.set(key, entry)
+      return entry
+    }
+  } catch {}
+  return { title: key, image: undefined, ts: now }
+}
+
+function basePath(p: string) {
+  try {
+    const u = new URL(p, "https://dummy.local")
+    const parts = u.pathname.split("/").filter(Boolean)
+    return parts.length >= 2 ? `/${parts[0]}/${parts[1]}` : u.pathname
+  } catch {
+    const parts = p.split("/").filter(Boolean)
+    return parts.length >= 2 ? `/${parts[0]}/${parts[1]}` : p
+  }
+}
+
 const ORDER: { key: ListName; title: string }[] = [
   { key: "planning", title: "Da guardare" },
   { key: "current", title: "In corso" },
@@ -46,7 +89,37 @@ export default function ListsPage() {
   async function load() {
     const r = await fetch("/api/user-state", { cache: "no-store" })
     const j = await r.json()
-    if (j.ok) setState(j.data as UserState)
+    if (j.ok) {
+      const userData = j.data as UserState
+
+      const enrichedLists: Record<ListName, Record<string, ListItem>> = {}
+
+      for (const [listName, listItems] of Object.entries(userData.lists || {})) {
+        enrichedLists[listName as ListName] = {}
+
+        for (const [key, item] of Object.entries(listItems || {})) {
+          const contentType = item.contentType || getContentType(item.seriesPath)
+
+          if (contentType === "anime") {
+            // Fetch metadata for anime items
+            try {
+              const meta = await getMeta(item.seriesPath || item.seriesKey)
+              enrichedLists[listName as ListName][key] = {
+                ...item,
+                title: meta.title || item.title,
+                image: meta.image || item.image,
+              }
+            } catch {
+              enrichedLists[listName as ListName][key] = item
+            }
+          } else {
+            enrichedLists[listName as ListName][key] = item
+          }
+        }
+      }
+
+      setState({ ...userData, lists: enrichedLists })
+    }
   }
 
   useEffect(() => {
@@ -72,32 +145,80 @@ export default function ListsPage() {
     return "anime"
   }
 
+  const getUniqueItems = (items: ListItem[]): ListItem[] => {
+    const seen = new Set<string>()
+    const uniqueItems: ListItem[] = []
+
+    // Sort by addedAt to keep the most recent entry
+    const sortedItems = [...items].sort((a, b) => b.addedAt - a.addedAt)
+
+    for (const item of sortedItems) {
+      // Create a normalized key for comparison
+      const normalizedKey = item.seriesKey.replace(/^\/+/, "").toLowerCase()
+      const titleKey = item.title.toLowerCase().replace(/[^a-z0-9]/g, "")
+      const uniqueKey = `${normalizedKey}-${titleKey}`
+
+      if (!seen.has(uniqueKey)) {
+        seen.add(uniqueKey)
+        uniqueItems.push(item)
+      }
+    }
+
+    return uniqueItems
+  }
+
   const renderList = (name: ListName, contentType: ContentType) => {
     const allItems = state ? Object.values(state.lists[name] || {}) : []
-    // Filter items by content type based on series path or explicit contentType
-    const items = allItems.filter((item) => {
+    // Filter items by content type and remove duplicates
+    const filteredItems = allItems.filter((item) => {
       const itemContentType = item.contentType || getContentType(item.seriesPath)
       return itemContentType === contentType
     })
 
-    if (items.length === 0) return <div className="text-sm text-muted-foreground">Nessun elemento.</div>
+    const uniqueItems = getUniqueItems(filteredItems)
+
+    if (uniqueItems.length === 0) return <div className="text-sm text-muted-foreground">Nessun elemento.</div>
 
     return (
       <div className="grid grid-cols-1 gap-3">
-        {items.map((it) => {
+        {uniqueItems.map((it) => {
           const getWatchUrl = (seriesPath: string) => {
+            // For manga, redirect to manga detail page
+            if (seriesPath.includes("/manga/")) {
+              const mangaId = seriesPath.split("/manga/")[1] || seriesPath.split("/").pop()
+              return `/manga/${mangaId}`
+            }
+
+            // For anime, ensure proper path format for watch page
             try {
-              const path = new URL(seriesPath).pathname
+              const url = new URL(seriesPath, "https://dummy.local")
+              let path = url.pathname
+
+              // Ensure path starts with /play/ for anime
+              if (!path.startsWith("/play/") && !path.includes("/manga/")) {
+                const parts = path.split("/").filter(Boolean)
+                if (parts.length >= 1) {
+                  path = `/play/${parts[parts.length - 1]}`
+                }
+              }
+
               return `/watch?path=${encodeURIComponent(path)}`
             } catch {
-              // If seriesPath is already a relative path, use it directly
-              return `/watch?path=${encodeURIComponent(seriesPath)}`
+              // Handle relative paths
+              let path = seriesPath
+              if (!path.startsWith("/play/") && !path.includes("/manga/")) {
+                const parts = path.split("/").filter(Boolean)
+                if (parts.length >= 1) {
+                  path = `/play/${parts[parts.length - 1]}`
+                }
+              }
+              return `/watch?path=${encodeURIComponent(path)}`
             }
           }
 
           return (
             <div
-              key={`${name}-${it.seriesKey}`}
+              key={`${name}-${it.seriesKey}-${it.addedAt}`}
               className="glass-card rounded-xl p-4 flex items-center gap-4 hover:glow transition-all duration-300"
             >
               <div className="shrink-0">

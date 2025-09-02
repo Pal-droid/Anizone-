@@ -52,13 +52,14 @@ export function SearchResultsOverlay({
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/20 backdrop-blur-sm pointer-events-auto cursor-pointer"
-        onClick={onClose} // Added click handler to close overlay when clicking backdrop
+        className="absolute inset-0 bg-black/40 pointer-events-auto cursor-pointer"
+        onClick={onClose} // removed backdrop-blur-sm for better performance
       />
 
       {/* Results Container */}
       <div
         className="absolute pointer-events-auto"
+        onClick={(e) => e.stopPropagation()} // Added click handler to prevent propagation when clicking anywhere in results container
         style={{
           top: searchRect ? searchRect.bottom + 8 : "50%",
           left: searchRect ? searchRect.left : "50%",
@@ -85,7 +86,10 @@ export function SearchResultsOverlay({
                 {results.map((result, index) => (
                   <button
                     key={index}
-                    onClick={() => onResultClick(result.href)}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onResultClick(result.href)
+                    }}
                     className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-accent/20 transition-all duration-200 text-left group hover:scale-[1.02] hover:shadow-lg"
                   >
                     <div className="w-14 h-14 rounded-xl bg-muted/50 flex items-center justify-center shrink-0 overflow-hidden group-hover:shadow-md transition-shadow">

@@ -1,21 +1,22 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect, useRef, useCallback } from "react"
 import Link from "next/link"
-import { ArrowLeft, RotateCcw, List, BookOpen } from "lucide-react"
+import { ArrowLeft, RotateCcw, ListIcon, BookOpen, Film, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { deobfuscateUrl } from "@/lib/utils"
 
 interface MangaReaderProps {
   params: {
     id: string
   }
   searchParams: {
-    url?: string
+    u?: string // obfuscated URL
+    url?: string // legacy URL
     title?: string
     chapter?: string
   }
@@ -134,17 +135,19 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
     return originalUrl || "/placeholder.svg"
   }
 
+  const chapterUrl = searchParams.u ? deobfuscateUrl(searchParams.u) : searchParams.url
+
   useEffect(() => {
     const fetchPages = async () => {
-      if (!searchParams.url) {
+      if (!chapterUrl) {
         setError("URL del capitolo mancante")
         setIsLoading(false)
         return
       }
 
       try {
-        const fetchUrl = `/api/manga-pages?url=${encodeURIComponent(searchParams.url)}`
-        console.log("[v0] Fetching manga pages with URL:", searchParams.url)
+        const fetchUrl = `/api/manga-pages?url=${encodeURIComponent(chapterUrl)}`
+        console.log("[v0] Fetching manga pages with URL:", chapterUrl)
         const response = await fetch(fetchUrl)
 
         if (!response.ok) {
@@ -168,7 +171,7 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
     }
 
     fetchPages()
-  }, [searchParams.url])
+  }, [chapterUrl])
 
   const handleImageError = (pageIndex: number) => {
     setImageErrors((prev) => new Set(prev).add(pageIndex))
@@ -233,8 +236,7 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
             <p className="text-gray-400 mb-4">Non è stato possibile caricare le pagine del manga.</p>
             <Button asChild variant="outline">
               <Link href={`/manga/${params.id}`}>
-                <ArrowLeft size={16} className="mr-2" />
-                Torna al manga
+                <ArrowLeft size={16} />
               </Link>
             </Button>
           </div>
@@ -268,7 +270,7 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
                   <BookOpen size={14} />
                 </TabsTrigger>
                 <TabsTrigger value="list" className="text-white data-[state=active]:bg-gray-700">
-                  <List size={14} />
+                  <ListIcon size={14} />
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -384,7 +386,7 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
       <nav className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t z-20">
         <div className="flex items-center justify-around py-2">
           <Link href="/" className="flex flex-col items-center gap-1 p-2 text-xs hover:text-primary transition-colors">
-            <BookOpen size={20} />
+            <Film size={20} />
             <span>Anime</span>
           </Link>
           <Link href="/manga" className="flex flex-col items-center gap-1 p-2 text-xs text-primary">
@@ -395,14 +397,14 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
             href="/search"
             className="flex flex-col items-center gap-1 p-2 text-xs hover:text-primary transition-colors"
           >
-            <BookOpen size={20} />
+            <Search size={20} />
             <span>Cerca</span>
           </Link>
           <Link
             href="/lists"
             className="flex flex-col items-center gap-1 p-2 text-xs hover:text-primary transition-colors"
           >
-            <BookOpen size={20} />
+            <ListIcon size={20} />
             <span>Liste</span>
           </Link>
         </div>

@@ -2,7 +2,6 @@
 
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
-import { Search } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { SearchResultsOverlay } from "./search-results-overlay"
 
@@ -132,7 +131,9 @@ export function HeroSearch() {
           path = href.startsWith("/") ? href : `/${href}`
         }
         console.log("[v0] Anime redirect path:", path)
-        router.push(`/watch?path=${encodeURIComponent(path)}`)
+        const finalUrl = `/watch?path=${encodeURIComponent(path)}`
+        console.log("[v0] Final anime URL:", finalUrl)
+        router.push(finalUrl)
       } else {
         // For manga, redirect to manga info page
         let path: string
@@ -142,15 +143,21 @@ export function HeroSearch() {
           path = href.startsWith("/") ? href : `/${href}`
         }
         console.log("[v0] Manga redirect path:", path)
-        router.push(`/manga${path}`)
+        const finalUrl = `/manga${path}`
+        console.log("[v0] Final manga URL:", finalUrl)
+        router.push(finalUrl)
       }
     } catch (error) {
       console.error("[v0] Error parsing href:", error, { href, contentType })
       // Fallback: try to use href as-is
       if (contentType === "anime") {
-        router.push(`/watch?path=${encodeURIComponent(href)}`)
+        const fallbackUrl = `/watch?path=${encodeURIComponent(href)}`
+        console.log("[v0] Fallback anime URL:", fallbackUrl)
+        router.push(fallbackUrl)
       } else {
-        router.push(`/manga/${href}`)
+        const fallbackUrl = `/manga/${href}`
+        console.log("[v0] Fallback manga URL:", fallbackUrl)
+        router.push(fallbackUrl)
       }
     }
 
@@ -172,20 +179,17 @@ export function HeroSearch() {
                   setShowResults(true)
                 }
               }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                  handleSubmit(e as any)
+                }
+              }}
               placeholder="Es. naruto"
               className="w-full rounded-lg border border-border/30 bg-background/50 backdrop-blur-sm placeholder:text-muted-foreground px-4 py-3 text-sm transition-smooth focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50"
               aria-label="Parola chiave"
             />
           </div>
-
-          <button
-            type="submit"
-            className="rounded-lg bg-primary text-primary-foreground text-sm font-medium px-6 py-3 shrink-0 whitespace-nowrap transition-smooth hover:bg-primary/90 hover:glow flex items-center gap-2"
-            aria-label="Cerca"
-          >
-            <Search size={16} />
-            Cerca
-          </button>
         </form>
 
         <div className="flex justify-center">

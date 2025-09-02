@@ -1,6 +1,43 @@
 import { type NextRequest, NextResponse } from "next/server"
 import * as cheerio from "cheerio"
 
+async function fetchWithRedirects(url: string, maxRedirects = 5): Promise<Response> {
+  let currentUrl = url
+
+  for (let i = 0; i <= maxRedirects; i++) {
+    const response = await fetch(currentUrl, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+      },
+      redirect: "manual", // Handle redirects manually
+    })
+
+    // If successful, return the response
+    if (response.ok) {
+      return response
+    }
+
+    // Handle redirects
+    if ([301, 302, 303, 307, 308].includes(response.status)) {
+      const location = response.headers.get("location")
+      if (!location) {
+        throw new Error(`Redirect (${response.status}) without Location header`)
+      }
+
+      // Make location absolute if it's relative
+      currentUrl = location.startsWith("http") ? location : new URL(location, currentUrl).toString()
+      console.log(`[v0] Following redirect to: ${currentUrl}`)
+      continue
+    }
+
+    // If not a redirect and not successful, throw error
+    throw new Error(`HTTP error! status: ${response.status}`)
+  }
+
+  throw new Error("Too many redirects")
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -10,76 +47,107 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Missing manga ID" }, { status: 400 })
     }
 
+    const decodedId = decodeURIComponent(id)
+      .replace(/[^\w\s-]/g, "")
+      .trim()
+
+    if (!decodedId) {
+      return NextResponse.json({ error: "Invalid manga ID after decoding" }, { status: 400 })
+    }
+
     let mangaUrl: string
-    if (id.includes("/")) {
+    if (decodedId.includes("/")) {
       // ID already contains both manga_id and slug (e.g., "1220/nisekoi")
-      mangaUrl = `https://www.mangaworld.cx/manga/${id}`
+      mangaUrl = `https://www.mangaworld.cx/manga/${decodedId}`
     } else {
-      // ID is just a slug, try to find the correct manga_id by searching first
       console.log("[v0] Slug-only ID detected, attempting to find correct manga_id...")
-      const searchUrl = `https://www.mangaworld.cx/archive?keyword=${encodeURIComponent(id)}`
 
-      try {
-        const searchResponse = await fetch(searchUrl, {
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-          },
-        })
+      const searchStrategies = [
+        // Strategy 1: Exact keyword search with proper encoding
+        `https://www.mangaworld.cx/archive?keyword=${encodeURIComponent(decodedId)}`,
+        // Strategy 2: Search with cleaned title (remove special characters)
+        `https://www.mangaworld.cx/archive?keyword=${encodeURIComponent(decodedId.replace(/[-_]/g, " "))}`,
+        // Strategy 3: Search with partial title
+        `https://www.mangaworld.cx/archive?keyword=${encodeURIComponent(decodedId.split("-")[0])}`,
+        // Strategy 4: Try numeric ID if it looks like one
+        ...(decodedId.match(/^\d+$/) ? [`https://www.mangaworld.cx/manga/${decodedId}`] : []),
+      ]
 
-        if (searchResponse.ok) {
+      let foundUrl = null
+
+      for (const searchUrl of searchStrategies) {
+        try {
+          console.log("[v0] Trying search strategy:", searchUrl)
+
+          if (!searchUrl || searchUrl.includes("undefined") || searchUrl.includes("null")) {
+            console.log("[v0] Skipping invalid search URL")
+            continue
+          }
+
+          const searchResponse = await fetchWithRedirects(searchUrl)
           const searchHtml = await searchResponse.text()
           const $search = cheerio.load(searchHtml)
 
-          // Look for the first manga result that matches our slug
-          const firstResult = $search(".comics-grid .entry a.thumb").first()
-          const resultUrl = firstResult.attr("href")
+          $search(".comics-grid .entry").each((_, element) => {
+            const $entry = $search(element)
+            const thumbLink = $entry.find("a.thumb")
+            const resultUrl = thumbLink.attr("href")
+            const resultTitle = thumbLink.attr("title") || $entry.find(".entry-title").text().trim()
 
-          if (resultUrl && resultUrl.includes("/manga/")) {
-            // Extract the manga_id/slug from the search result URL
-            const urlParts = resultUrl.split("/manga/")
-            if (urlParts.length > 1) {
-              const mangaPath = urlParts[1].replace(/\/$/, "") // Remove trailing slash
-              mangaUrl = `https://www.mangaworld.cx/manga/${mangaPath}`
-              console.log("[v0] Found manga URL from search:", mangaUrl)
-            } else {
-              // Fallback to original slug-only format
-              mangaUrl = `https://www.mangaworld.cx/manga/${id}`
+            if (resultUrl && resultUrl.includes("/manga/")) {
+              // Extract ID and slug from URL like: https://www.mangaworld.cx/manga/3118/kaoru-hana-wa-rin-to-saku
+              const urlParts = resultUrl.split("/")
+              const mangaIndex = urlParts.findIndex((part) => part === "manga")
+
+              if (mangaIndex !== -1 && urlParts[mangaIndex + 1] && urlParts[mangaIndex + 2]) {
+                const extractedId = urlParts[mangaIndex + 1]
+                const extractedSlug = urlParts[mangaIndex + 2]
+
+                // Check if this result matches our search term
+                const searchTerm = decodedId.toLowerCase().replace(/[-_]/g, " ")
+                const titleLower = resultTitle.toLowerCase()
+                const slugLower = extractedSlug.toLowerCase().replace(/[-_]/g, " ")
+
+                // Match by slug or title similarity
+                if (extractedSlug === decodedId || slugLower.includes(searchTerm) || titleLower.includes(searchTerm)) {
+                  foundUrl = `https://www.mangaworld.cx/manga/${extractedId}/${extractedSlug}`
+                  console.log("[v0] Found matching manga URL with ID:", foundUrl)
+                  return false // Break out of each loop
+                }
+              }
             }
-          } else {
-            // Fallback to original slug-only format
-            mangaUrl = `https://www.mangaworld.cx/manga/${id}`
-          }
-        } else {
-          // Fallback to original slug-only format
-          mangaUrl = `https://www.mangaworld.cx/manga/${id}`
+          })
+
+          if (foundUrl) break // Break out of strategy loop if found
+        } catch (searchError) {
+          console.log("[v0] Search strategy failed:", searchError)
+          continue
         }
-      } catch (searchError) {
-        console.log("[v0] Search failed, using slug-only format:", searchError)
-        mangaUrl = `https://www.mangaworld.cx/manga/${id}`
       }
+
+      mangaUrl = foundUrl || `https://www.mangaworld.cx/manga/${decodedId}`
+    }
+
+    if (!mangaUrl || mangaUrl.endsWith("/manga/") || mangaUrl.includes("undefined")) {
+      return NextResponse.json({ error: "Could not construct valid manga URL" }, { status: 400 })
     }
 
     console.log("[v0] Fetching manga from:", mangaUrl)
 
-    const response = await fetch(mangaUrl, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-      },
-    })
-
-    if (!response.ok) {
-      console.log("[v0] Failed to fetch manga:", response.status)
-      return NextResponse.json({ error: `HTTP error! status: ${response.status}` }, { status: response.status })
-    }
+    const response = await fetchWithRedirects(mangaUrl)
 
     const html = await response.text()
     const $ = cheerio.load(html)
 
     // Extract basic info
     const title = $("h1.entry-title").text().trim() || $("title").text().split(" - ")[0]
-    const image = $(".entry-thumb img").attr("src") || $(".manga-thumb img").attr("src")
+
+    const image =
+      $(".thumb img").attr("src") ||
+      $(".entry-thumb img").attr("src") ||
+      $(".manga-thumb img").attr("src") ||
+      $("div.thumb img.rounded").attr("src")
+
     const type = $(".manga-type a").text().trim()
     const status = $(".manga-status a").text().trim()
     const author = $(".manga-author a").text().trim()
@@ -141,8 +209,7 @@ export async function GET(request: NextRequest) {
             // Clean up chapter numbering issues - fix "0109" to "01"
             .replace(/Capitolo\s+(\d)(\d{3})\b/, "Capitolo $1$2")
             .replace(/Capitolo\s+0*(\d+)\d{2}(\d{2})\b/, "Capitolo $1")
-            // Clean up any duplicate numbers that might result from poor parsing
-            .replace(/(\d+)\s*\1+/g, "$1")
+            .replace(/(\d+)\s+\1(?:\s+\1)*/g, "$1")
             .trim()
         }
 
@@ -189,7 +256,7 @@ export async function GET(request: NextRequest) {
             )
             .replace(/Capitolo\s+(\d)(\d{3})\b/, "Capitolo $1$2")
             .replace(/Capitolo\s+0*(\d+)\d{2}(\d{2})\b/, "Capitolo $1")
-            .replace(/(\d+)\s*\1+/g, "$1")
+            .replace(/(\d+)\s+\1(?:\s+\1)*/g, "$1")
             .trim()
         }
 

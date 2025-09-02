@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent } from "@/components/ui/card"
-import { cn } from "@/lib/utils"
+import { cn, obfuscateUrl } from "@/lib/utils"
 import Link from "next/link"
 
 type Source = {
@@ -43,10 +43,12 @@ export function AnimeCard({ title, href, image, isDub, className, sources, has_m
     }
   }
 
+  const obfuscatedPath = obfuscateUrl(path)
+
   return (
-    <Link href={`/watch?path=${encodeURIComponent(path)}`} className={cn("block", className)} onClick={handleClick}>
+    <Link href={`/watch?p=${obfuscatedPath}`} className={cn("block", className)} onClick={handleClick}>
       <Card className="overflow-hidden hover:shadow-md transition-shadow h-full">
-        <div className="relative aspect-[2/3] w-full bg-neutral-100">
+        <div className="relative aspect-[2/3] w-full bg-neutral-100 overflow-hidden">
           <img
             src={image || "/placeholder.svg?height=450&width=300&query=poster%20anime%20cover"}
             alt={title}
@@ -82,8 +84,8 @@ export function AnimeCard({ title, href, image, isDub, className, sources, has_m
             <div className="absolute top-2 right-2 rounded bg-neutral-900/85 text-white text-xs px-2 py-0.5">DUB</div>
           ) : null}
         </div>
-        <CardContent className="p-3">
-          <div className="line-clamp-2 text-sm font-medium">{title}</div>
+        <CardContent className="p-3 flex flex-col h-[60px]">
+          <div className="line-clamp-2 text-sm font-medium flex-1 flex items-center">{title}</div>
         </CardContent>
       </Card>
     </Link>

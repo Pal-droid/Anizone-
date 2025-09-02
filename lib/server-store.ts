@@ -48,12 +48,40 @@ export function setContinue(userId: string, entry: ContinueEntry & { positionSec
 
 export function addToList(userId: string, list: ListName, item: ListItem) {
   const s = getState(userId)
+
+  // Remove any existing entries with the same seriesKey to prevent duplicates
+  for (const listName of Object.keys(s.lists) as ListName[]) {
+    if (s.lists[listName][item.seriesKey]) {
+      delete s.lists[listName][item.seriesKey]
+    }
+  }
+
+  // Add to the specified list
   s.lists[list][item.seriesKey] = item
 }
 
 export function removeFromList(userId: string, list: ListName, seriesKey: string) {
   const s = getState(userId)
   delete s.lists[list][seriesKey]
+}
+
+export function normalizeSeriesKey(path: string): string {
+  try {
+    // Handle URL objects
+    const url = new URL(path, "https://dummy.local")
+    const parts = url.pathname.split("/").filter(Boolean)
+    if (parts.length >= 2) {
+      return `/${parts[0]}/${parts[1]}`
+    }
+    return url.pathname
+  } catch {
+    // Handle relative paths
+    const parts = path.split("/").filter(Boolean)
+    if (parts.length >= 2) {
+      return `/${parts[0]}/${parts[1]}`
+    }
+    return path.startsWith("/") ? path : `/${path}`
+  }
 }
 
 export function getPublicState(userId: string) {

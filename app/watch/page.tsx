@@ -7,12 +7,22 @@ import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { ListActions } from "@/components/list-actions"
 import { WatchInfo } from "@/components/watch-info"
+import { deobfuscateUrl } from "@/lib/utils"
 
 type Source = { name: string; url: string; id: string }
 
 export default function WatchPage() {
   const sp = useSearchParams()
-  const path = sp.get("path")
+  const obfuscatedPath = sp.get("p")
+  const legacyPath = sp.get("path")
+
+  const path = useMemo(() => {
+    if (obfuscatedPath) {
+      return deobfuscateUrl(obfuscatedPath)
+    }
+    return legacyPath
+  }, [obfuscatedPath, legacyPath])
+
   const [title, setTitle] = useState<string>("")
   const [sources, setSources] = useState<Source[]>([])
 

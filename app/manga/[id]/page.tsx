@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { MangaListActions } from "@/components/manga-list-actions"
+import { deobfuscateId, obfuscateUrl } from "@/lib/utils"
 import {
   ArrowLeft,
   BookOpen,
@@ -61,15 +63,12 @@ export default function MangaMetadataPage() {
   const [error, setError] = useState<string | null>(null)
   const [expandedVolumes, setExpandedVolumes] = useState<Set<number>>(new Set([0])) // First volume expanded by default
 
-  const addToList = (listType: string) => {
-    // Placeholder function for adding to list
-    console.log(`Adding manga to ${listType} list`)
-  }
+  const actualMangaId = deobfuscateId(params.id as string)
 
   useEffect(() => {
     const fetchMangaData = async () => {
       try {
-        const response = await fetch(`/api/manga-info?id=${params.id}`)
+        const response = await fetch(`/api/manga-info?id=${actualMangaId}`)
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
         }
@@ -82,10 +81,10 @@ export default function MangaMetadataPage() {
       }
     }
 
-    if (params.id) {
+    if (actualMangaId) {
       fetchMangaData()
     }
-  }, [params.id])
+  }, [actualMangaId])
 
   const toggleVolume = (index: number) => {
     const newExpanded = new Set(expandedVolumes)
@@ -224,13 +223,16 @@ export default function MangaMetadataPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-3 pt-2">
-                  <Button size="sm" className="bg-primary hover:bg-primary/90" onClick={() => addToList("planning")}>
-                    <BookOpen size={16} className="mr-2" />
-                    Aggiungi alla lista
-                  </Button>
+                  <MangaListActions
+                    mangaId={actualMangaId}
+                    mangaUrl={mangaData.url}
+                    title={mangaData.title}
+                    image={mangaData.image}
+                    volumes={mangaData.volumes}
+                  />
                   {mangaData.volumes.length > 0 && mangaData.volumes[0].chapters.length > 0 && (
                     <Link
-                      href={`/manga/${params.id}/read?url=${encodeURIComponent(mangaData.volumes[0].chapters[0].url)}&title=${encodeURIComponent(mangaData.title)}&chapter=${encodeURIComponent(mangaData.volumes[0].chapters[0].title)}`}
+                      href={`/manga/${params.id}/read?u=${obfuscateUrl(mangaData.volumes[0].chapters[0].url)}&title=${encodeURIComponent(mangaData.title)}&chapter=${encodeURIComponent(mangaData.volumes[0].chapters[0].title)}`}
                     >
                       <Button size="sm" variant="outline">
                         <BookOpen size={16} className="mr-2" />
@@ -290,7 +292,7 @@ export default function MangaMetadataPage() {
                               className="flex items-center justify-between p-3 hover:bg-background rounded-md transition-colors group"
                             >
                               <Link
-                                href={`/manga/${params.id}/read?url=${encodeURIComponent(chapter.url)}&title=${encodeURIComponent(mangaData.title)}&chapter=${encodeURIComponent(chapter.title)}`}
+                                href={`/manga/${params.id}/read?u=${obfuscateUrl(chapter.url)}&title=${encodeURIComponent(mangaData.title)}&chapter=${encodeURIComponent(chapter.title)}`}
                                 className="flex-1 text-sm hover:text-primary transition-colors group-hover:text-primary"
                               >
                                 {chapter.title
