@@ -129,10 +129,10 @@ export function ContinueWatching() {
               key={`${bp}-${it.episode?.num}`}
               className="min-w-[120px] sm:min-w-[140px] shrink-0 space-y-2"
             >
-              <div className="relative aspect-[2/3] w-full rounded overflow-hidden bg-neutral-900">
+              <div className="relative aspect-[4/5] w-full rounded overflow-hidden bg-neutral-900">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={it.image || "/placeholder.svg?height=360&width=240&query=anime%20poster"}
+                  src={it.image || "/placeholder.svg?height=400&width=320&query=anime%20poster"}
                   alt={it.title || "Anime"}
                   className="w-full h-full object-cover"
                   loading="lazy"
