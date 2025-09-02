@@ -125,7 +125,7 @@ export function ContinueWatching() {
           const resumeTime = formatSeconds(it.positionSeconds)
           const bp = basePath(it.seriesPath || it.seriesKey)
           return (
-            <div key={`${bp}-${it.episode?.num}`} className="min-w-[220px] shrink-0 space-y-2">
+            <div key={`${bp}-${it.episode?.num}`} className="min-w-[120px] sm:min-w-[140px] shrink-0 space-y-2">
               <div className="relative aspect-[16/9] w-full rounded overflow-hidden bg-neutral-900">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
