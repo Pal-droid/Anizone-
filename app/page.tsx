@@ -1,0 +1,214 @@
+"use client"
+
+import Link from "next/link"
+import { Search, List, Film, BookOpen, Calendar, Sparkles } from "lucide-react"
+import HeroSearch from "@/components/hero-search"
+import { TopAnime } from "@/components/top-anime"
+import { ContinueWatching } from "@/components/continue-watching"
+import { DiscoverSections } from "@/components/discover"
+import { AnimeContentSections } from "@/components/anime-content-sections"
+import { AnimatedLogo } from "@/components/animated-logo"
+import { NewAdditions } from "@/components/new-additions"
+import { LazySection } from "@/components/lazy-section"
+import { useIsDesktop } from "@/hooks/use-desktop"
+
+export default function HomePage() {
+  const isDesktop = useIsDesktop()
+
+  if (isDesktop) {
+    return (
+      <main className="min-h-screen pb-20">
+        <header className="sticky top-0 z-50 glass-strong border-b border-border/30">
+          <div className="px-8 py-4 flex items-center justify-between max-w-[1400px] mx-auto">
+            <div className="animate-float">
+              <AnimatedLogo />
+            </div>
+            <nav className="flex items-center gap-8">
+              <Link
+                href="/lists"
+                className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-smooth hover:glow group"
+              >
+                <List size={18} className="group-hover:scale-110 transition-transform" />
+                <span>Le mie liste</span>
+              </Link>
+              <Link
+                href="/search"
+                className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-smooth hover:glow group"
+              >
+                <Search size={18} className="group-hover:scale-110 transition-transform" />
+                <span>Cerca anime</span>
+              </Link>
+              <Link
+                href="/manga"
+                className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-smooth hover:glow group"
+              >
+                <BookOpen size={18} className="group-hover:scale-110 transition-transform" />
+                <span>Manga</span>
+              </Link>
+              <Link
+                href="/schedule"
+                className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-smooth hover:glow group"
+              >
+                <Calendar size={18} className="group-hover:scale-110 transition-transform" />
+                <span>Calendario</span>
+              </Link>
+            </nav>
+          </div>
+        </header>
+
+        <section className="px-8 py-12 max-w-[1400px] mx-auto">
+          <div className="relative overflow-hidden rounded-3xl glass p-12 glow-strong animate-pulse-glow mb-12">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-accent/10 to-transparent"></div>
+            <div className="relative z-10 max-w-4xl">
+              <div className="flex items-center gap-4 mb-6">
+                <Sparkles className="text-accent animate-pulse" size={32} />
+                <h1 className="text-5xl font-bold text-white font-[var(--font-playfair)]">Guarda anime in italiano</h1>
+              </div>
+              <p className="text-muted-foreground mb-8 text-xl font-[var(--font-source-sans)] leading-relaxed">
+                Trova episodi sub/dub ITA e riproducili direttamente nella migliore qualità disponibile.
+              </p>
+              <div className="relative max-w-2xl">
+                <HeroSearch />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-12 gap-8">
+            <div className="col-span-8 space-y-8">
+              <div className="glass rounded-xl p-8 transition-smooth hover:glow">
+                <ContinueWatching />
+              </div>
+
+              <LazySection className="glass rounded-xl p-8 transition-smooth hover:glow">
+                <AnimeContentSections />
+              </LazySection>
+
+              <LazySection className="glass rounded-xl p-8 transition-smooth hover:glow">
+                <TopAnime />
+              </LazySection>
+            </div>
+
+            <div className="col-span-4 space-y-8">
+              <LazySection className="glass rounded-xl p-6 transition-smooth hover:glow">
+                <NewAdditions />
+              </LazySection>
+
+              <LazySection className="glass rounded-xl p-6 transition-smooth hover:glow">
+                <DiscoverSections />
+              </LazySection>
+            </div>
+          </div>
+        </section>
+      </main>
+    )
+  }
+
+  // Mobile layout (existing code)
+  return (
+    <main className="min-h-screen pb-20">
+      <header className="sticky top-0 z-50 glass-strong border-b border-border/30">
+        <div className="px-6 py-4 flex items-center justify-between max-w-7xl mx-auto">
+          <div className="animate-float">
+            <AnimatedLogo />
+          </div>
+          <nav className="flex items-center gap-6">
+            <Link
+              href="/lists"
+              className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-smooth hover:glow group"
+            >
+              <List size={18} className="group-hover:scale-110 transition-transform" />
+              <span className="hidden sm:inline">Liste</span>
+            </Link>
+            <Link
+              href="/search"
+              className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-smooth hover:glow group"
+            >
+              <Search size={18} className="group-hover:scale-110 transition-transform" />
+              <span className="hidden sm:inline">Cerca</span>
+            </Link>
+          </nav>
+        </div>
+      </header>
+
+      <section className="px-6 py-8 space-y-8 max-w-7xl mx-auto">
+        <div className="relative overflow-hidden rounded-2xl glass p-8 glow-strong animate-pulse-glow">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-accent/10 to-transparent"></div>
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-4">
+              <Sparkles className="text-accent animate-pulse" size={24} />
+              <h1 className="text-3xl font-bold text-white font-[var(--font-playfair)]">Guarda anime in italiano</h1>
+            </div>
+            <p className="text-muted-foreground mb-6 text-lg font-[var(--font-source-sans)]">
+              Trova episodi sub/dub ITA e riproducili direttamente nella migliore qualità.
+            </p>
+            <div className="relative">
+              <HeroSearch />
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-8">
+          <div className="glass rounded-xl p-6 transition-smooth hover:glow">
+            <ContinueWatching />
+          </div>
+
+          <LazySection className="glass rounded-xl p-6 transition-smooth hover:glow">
+            <AnimeContentSections />
+          </LazySection>
+
+          <LazySection className="glass rounded-xl p-6 transition-smooth hover:glow">
+            <NewAdditions />
+          </LazySection>
+
+          <LazySection className="glass rounded-xl p-6 transition-smooth hover:glow">
+            <DiscoverSections />
+          </LazySection>
+
+          <LazySection className="glass rounded-xl p-6 transition-smooth hover:glow">
+            <TopAnime />
+          </LazySection>
+        </div>
+      </section>
+
+      <nav className="fixed bottom-0 left-0 right-0 z-50 glass-strong border-t border-border/30">
+        <div className="flex items-center justify-around py-3 px-4 max-w-md mx-auto">
+          <Link
+            href="/"
+            className="flex flex-col items-center gap-1 p-3 text-xs text-primary transition-smooth hover:glow group"
+          >
+            <Film size={22} className="group-hover:scale-110 transition-transform" />
+            <span className="font-medium">Anime</span>
+          </Link>
+          <Link
+            href="/manga"
+            className="flex flex-col items-center gap-1 p-3 text-xs text-muted-foreground hover:text-primary transition-smooth hover:glow group"
+          >
+            <BookOpen size={22} className="group-hover:scale-110 transition-transform" />
+            <span className="font-medium">Manga</span>
+          </Link>
+          <Link
+            href="/search"
+            className="flex flex-col items-center gap-1 p-3 text-xs text-muted-foreground hover:text-primary transition-smooth hover:glow group"
+          >
+            <Search size={22} className="group-hover:scale-110 transition-transform" />
+            <span className="font-medium">Cerca</span>
+          </Link>
+          <Link
+            href="/lists"
+            className="flex flex-col items-center gap-1 p-3 text-xs text-muted-foreground hover:text-primary transition-smooth hover:glow group"
+          >
+            <List size={22} className="group-hover:scale-110 transition-transform" />
+            <span className="font-medium">Liste</span>
+          </Link>
+          <Link
+            href="/schedule"
+            className="flex flex-col items-center gap-1 p-3 text-xs text-muted-foreground hover:text-primary transition-smooth hover:glow group"
+          >
+            <Calendar size={22} className="group-hover:scale-110 transition-transform" />
+            <span className="font-medium">Calendario</span>
+          </Link>
+        </div>
+      </nav>
+    </main>
+  )
+}
