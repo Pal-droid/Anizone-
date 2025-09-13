@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Search, List, Film, BookOpen, Calendar, Sparkles } from "lucide-react"
+import { Search, List, Film, BookOpen, Calendar, Sparkles, Bug } from "lucide-react"
 import HeroSearch from "@/components/hero-search"
 import { TopAnime } from "@/components/top-anime"
 import { ContinueWatching } from "@/components/continue-watching"
@@ -11,9 +11,12 @@ import { AnimatedLogo } from "@/components/animated-logo"
 import { NewAdditions } from "@/components/new-additions"
 import { LazySection } from "@/components/lazy-section"
 import { useIsDesktop } from "@/hooks/use-desktop"
+import { BugReportDialog } from "@/components/bug-report-dialog"
+import { useState } from "react"
 
 export default function HomePage() {
   const isDesktop = useIsDesktop()
+  const [showBugReport, setShowBugReport] = useState(false)
 
   if (isDesktop) {
     return (
@@ -52,6 +55,13 @@ export default function HomePage() {
                 <Calendar size={18} className="group-hover:scale-110 transition-transform" />
                 <span>Calendario</span>
               </Link>
+              <button
+                onClick={() => setShowBugReport(true)}
+                className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-smooth hover:glow group"
+              >
+                <Bug size={18} className="group-hover:scale-110 transition-transform" />
+                <span>Segnala Bug</span>
+              </button>
             </nav>
           </div>
         </header>
@@ -62,9 +72,7 @@ export default function HomePage() {
             <div className="relative z-10 max-w-4xl">
               <div className="flex items-center gap-4 mb-6">
                 <Sparkles className="text-accent animate-pulse" size={32} />
-                <h1 className="text-5xl font-bold bg-gradient-to-r from-foreground to-accent bg-clip-text text-transparent font-[var(--font-playfair)]">
-                  Guarda anime in italiano
-                </h1>
+                <h1 className="text-5xl font-bold text-white font-[var(--font-playfair)]">Guarda anime in italiano</h1>
               </div>
               <p className="text-muted-foreground mb-8 text-xl font-[var(--font-source-sans)] leading-relaxed">
                 Trova episodi sub/dub ITA e riproducili direttamente nella migliore qualità disponibile.
@@ -101,6 +109,7 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+        <BugReportDialog isOpen={showBugReport} onClose={() => setShowBugReport(false)} />
       </main>
     )
   }
@@ -138,9 +147,7 @@ export default function HomePage() {
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-4">
               <Sparkles className="text-accent animate-pulse" size={24} />
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-foreground to-accent bg-clip-text text-transparent font-[var(--font-playfair)]">
-                Guarda anime in italiano
-              </h1>
+              <h1 className="text-3xl font-bold text-white font-[var(--font-playfair)]">Guarda anime in italiano</h1>
             </div>
             <p className="text-muted-foreground mb-6 text-lg font-[var(--font-source-sans)]">
               Trova episodi sub/dub ITA e riproducili direttamente nella migliore qualità.
@@ -204,15 +211,16 @@ export default function HomePage() {
             <List size={22} className="group-hover:scale-110 transition-transform" />
             <span className="font-medium">Liste</span>
           </Link>
-          <Link
-            href="/schedule"
+          <button
+            onClick={() => setShowBugReport(true)}
             className="flex flex-col items-center gap-1 p-3 text-xs text-muted-foreground hover:text-primary transition-smooth hover:glow group"
           >
-            <Calendar size={22} className="group-hover:scale-110 transition-transform" />
-            <span className="font-medium">Calendario</span>
-          </Link>
+            <Bug size={22} className="group-hover:scale-110 transition-transform" />
+            <span className="font-medium">Bug</span>
+          </button>
         </div>
       </nav>
+      <BugReportDialog isOpen={showBugReport} onClose={() => setShowBugReport(false)} />
     </main>
   )
 }

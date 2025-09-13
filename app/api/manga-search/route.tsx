@@ -49,15 +49,17 @@ export async function GET(request: NextRequest) {
   const sort = searchParams.get("sort") || ""
 
   try {
-    // Build the search URL
-    let searchUrl = `https://www.mangaworld.cx/archive?keyword=${encodeURIComponent(keyword)}`
+    let searchUrl = "https://www.mangaworld.cx/archive"
 
-    if (type && type !== "all") searchUrl += `&type=${encodeURIComponent(type)}`
-    if (author) searchUrl += `&author=${encodeURIComponent(author)}`
-    if (year) searchUrl += `&year=${year}`
-    if (genre) searchUrl += `&genre=${encodeURIComponent(genre)}`
-    if (artist) searchUrl += `&artist=${encodeURIComponent(artist)}`
-    if (sort && sort !== "default") searchUrl += `&sort=${sort}`
+    if (keyword || type || author || year || genre || artist || sort) {
+      searchUrl += `?keyword=${encodeURIComponent(keyword)}`
+      if (type && type !== "all") searchUrl += `&type=${encodeURIComponent(type)}`
+      if (author) searchUrl += `&author=${encodeURIComponent(author)}`
+      if (year) searchUrl += `&year=${year}`
+      if (genre) searchUrl += `&genre=${encodeURIComponent(genre)}`
+      if (artist) searchUrl += `&artist=${encodeURIComponent(artist)}`
+      if (sort && sort !== "default") searchUrl += `&sort=${sort}`
+    }
 
     console.log("[v0] Manga search URL:", searchUrl)
 

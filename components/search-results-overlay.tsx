@@ -108,8 +108,8 @@ export function SearchResultsOverlay({
                       <Film size={24} className={`text-muted-foreground ${result.image ? "hidden" : ""}`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors truncate">
-                        {result.title}
+                      <h4 className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors overflow-hidden">
+                        <span className="line-clamp-2 break-words">{result.title}</span>
                       </h4>
                       <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                         <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">

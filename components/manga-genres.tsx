@@ -18,7 +18,7 @@ export function MangaGenres() {
       <h2 className="text-lg font-semibold">Esplora per Genere</h2>
       <div className="flex flex-wrap gap-2">
         {popularGenres.map((genre) => (
-          <Link key={genre.slug} href={`/manga/search?genre=${genre.slug}`}>
+          <Link key={genre.slug} href={`/search-manga?genre=${genre.slug}`}>
             <Badge variant="outline" className="hover:bg-primary hover:text-primary-foreground transition-colors">
               {genre.name}
             </Badge>

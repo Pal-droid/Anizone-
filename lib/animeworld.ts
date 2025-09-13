@@ -1,6 +1,7 @@
 import { load } from "cheerio"
 
 export const ANIMEWORLD_BASE = "https://www.animeworld.ac"
+export const ANIMESATURN_BASE = "https://www.animesaturn.cx"
 
 export type TopItem = {
   rank: number
@@ -22,6 +23,9 @@ export type SearchItem = {
   href: string
   image: string
   isDub?: boolean
+  sources?: Array<{ name: string; url: string; id: string }>
+  has_multi_servers?: boolean
+  description?: string
 }
 
 export type EpisodeItem = {
@@ -35,39 +39,74 @@ export type RawEpisode = { episode_num?: string; href?: string; data_id?: string
 
 // UPDATED: support array values and repeated params
 export function buildFilterUrl(params: Record<string, string | number | Array<string | number> | undefined>) {
+  console.log("[v0] buildFilterUrl called with params:", JSON.stringify(params))
   const url = new URL(`${ANIMEWORLD_BASE}/filter`)
-  const allowed = ["genre", "season", "year", "type", "status", "studio", "dub", "language", "sort", "keyword"] as const
+  const allowed = [
+    "genre",
+    "season",
+    "year",
+    "type",
+    "status",
+    "studio",
+    "dub",
+    "language",
+    "sort",
+    "keyword",
+    "page",
+  ] as const
+
   for (const key of allowed) {
     const v = params[key]
-    if (v === undefined || v === null) continue
+    console.log(`[v0] Processing key: ${key}, value:`, v, `type: ${typeof v}`)
+    if (v === undefined || v === null) {
+      console.log(`[v0] Skipping ${key} - undefined/null`)
+      continue
+    }
 
     const appendAll = (val: string | number) => {
       const s = String(val)
-      if (s.length > 0) url.searchParams.append(key, s)
+      if (s.length > 0) {
+        console.log(`[v0] Appending ${key}=${s} to URL`)
+        url.searchParams.append(key, s)
+      } else {
+        console.log(`[v0] Skipping ${key} - empty string`)
+      }
     }
 
     if (Array.isArray(v)) {
-      for (const item of v) appendAll(item)
+      console.log(`[v0] ${key} is array with ${v.length} items:`, v)
+      for (const item of v) {
+        console.log(`[v0] Processing array item:`, item)
+        appendAll(item)
+      }
     } else if (typeof v === "string" && v.includes(",")) {
+      console.log(`[v0] ${key} is comma-separated string:`, v)
       // allow comma-separated input
       for (const part of v
         .split(",")
         .map((x) => x.trim())
-        .filter(Boolean))
+        .filter(Boolean)) {
+        console.log(`[v0] Processing comma-separated part:`, part)
         appendAll(part)
+      }
     } else {
+      console.log(`[v0] ${key} is single value:`, v)
       appendAll(v)
     }
   }
-  return url.toString()
+
+  const finalUrl = url.toString()
+  console.log("[v0] Final constructed URL:", finalUrl)
+  console.log("[v0] URL search params:", url.searchParams.toString())
+  return finalUrl
 }
 
-export function absolutize(href: string) {
+export function absolutize(href: string, base: string = ANIMEWORLD_BASE) {
   try {
     if (!href) return ""
     if (href.startsWith("http")) return href
     if (!href.startsWith("/")) href = `/${href}`
-    return `${ANIMEWORLD_BASE}${href}`
+    return `${base}${href}`
   } catch {
     return href
   }
@@ -116,9 +155,21 @@ export function parseTop(html: string): TopResponse {
   return out
 }
 
-export function parseSearch(html: string): SearchItem[] {
+export type SearchResult = {
+  items: SearchItem[]
+  pagination?: {
+    currentPage: number
+    totalPages: number
+    hasNext: boolean
+    hasPrevious: boolean
+    nextUrl?: string
+    previousUrl?: string
+  }
+}
+
+export function parseSearch(html: string): SearchResult {
   const $ = load(html)
-  const results: SearchItem[] = []
+  const items: SearchItem[] = []
 
   $(".film-list .item").each((_, item) => {
     const root = $(item).find(".inner").first()
@@ -134,10 +185,36 @@ export function parseSearch(html: string): SearchItem[] {
 
     const isDub = root.find(".status .dub").length > 0
 
-    results.push({ title, href: absolutize(href), image, isDub })
+    items.push({ title, href: absolutize(href), image, isDub })
   })
 
-  return results
+  // Parse pagination information
+  let pagination: SearchResult["pagination"] = undefined
+  const pagingWrapper = $(".paging-wrapper")
+
+  if (pagingWrapper.length > 0) {
+    const currentPageInput = pagingWrapper.find("#page-input")
+    const totalPagesSpan = pagingWrapper.find(".total")
+    const nextLink = pagingWrapper.find("#go-next-page")
+    const prevLink = pagingWrapper.find("#go-previous-page")
+
+    const currentPage = Number.parseInt(currentPageInput.attr("placeholder") || "1", 10)
+    const totalPages = Number.parseInt(totalPagesSpan.text().trim() || "1", 10)
+
+    const nextUrl = nextLink.attr("href")
+    const previousUrl = prevLink.attr("href")
+
+    pagination = {
+      currentPage,
+      totalPages,
+      hasNext: !!nextUrl && !nextLink.hasClass("disabled"),
+      hasPrevious: !!previousUrl && !prevLink.hasClass("disabled"),
+      nextUrl: nextUrl ? absolutize(nextUrl) : undefined,
+      previousUrl: previousUrl ? absolutize(previousUrl) : undefined,
+    }
+  }
+
+  return { items, pagination }
 }
 
 export function parseEpisodes(html: string): RawEpisode[] {
@@ -215,8 +292,6 @@ export type WatchMeta = {
   seasonHref?: string
   studio?: string
   duration?: string
-  episodesCount?: string
-  status?: string
   views?: string
   genres: { name: string; href?: string }[]
   description?: string
@@ -242,7 +317,7 @@ export function parseWatchMeta(html: string): WatchMeta | null {
     .each((_, a) => {
       const name = $(a).text().trim()
       const href = $(a).attr("href")
-      if (name) genres.push({ name, href })
+      if (name) genres.push({ name, href: href ? absolutize(href, ANIMESATURN_BASE) : undefined })
     })
 
   const pick = (label: string) =>
@@ -295,15 +370,11 @@ export function parseWatchMeta(html: string): WatchMeta | null {
     jtitle,
     image: img,
     rating,
-    votesCount,
-    audio,
-    releaseDate,
-    season,
-    seasonHref,
     studio,
-    duration,
-    episodesCount,
     status,
+    releaseDate,
+    episodesCount,
+    duration,
     views,
     genres,
     description,
@@ -357,6 +428,20 @@ export function parseLatestEpisodes(html: string): { [key: string]: SearchItem[]
     trending: [],
   }
 
+  // Helper function to extract anime ID and create sources
+  const extractAnimeId = (href: string): string => {
+    const match = href.match(/\/play\/([^/]+)/)
+    return match ? match[1] : ""
+  }
+
+  const createSources = (href: string) => [
+    {
+      name: "AnimeWorld",
+      url: href,
+      id: extractAnimeId(href),
+    },
+  ]
+
   // Parse each tab content
   $(".widget.hotnew .content").each((_, contentEl) => {
     const $content = $(contentEl)
@@ -379,12 +464,15 @@ export function parseLatestEpisodes(html: string): { [key: string]: SearchItem[]
       if (!href || !title) return
 
       const isDub = $inner.find(".status .dub").length > 0
+      const fullHref = absolutize(href)
 
       items.push({
         title,
-        href: absolutize(href),
+        href: fullHref,
         image,
         isDub,
+        sources: createSources(fullHref),
+        has_multi_servers: false,
       })
     })
 
@@ -415,10 +503,50 @@ export function parseSchedule(html: string): DaySchedule[] {
   const $ = load(html)
   const schedule: DaySchedule[] = []
 
-  // Extract the date range from the page
   const dateRangeText = $(".widget-schedule-page .widget-body p").first().text().trim()
+  console.log("[v0] Extracted date range:", dateRangeText)
+
+  // Parse Italian date format (e.g., "8 settembre - 15 settembre")
+  const parseItalianDate = (dateStr: string): Date | null => {
+    const months = {
+      gennaio: 0,
+      febbraio: 1,
+      marzo: 2,
+      aprile: 3,
+      maggio: 4,
+      giugno: 5,
+      luglio: 6,
+      agosto: 7,
+      settembre: 8,
+      ottobre: 9,
+      novembre: 10,
+      dicembre: 11,
+    }
+
+    const match = dateStr.match(/(\d+)\s+(\w+)/)
+    if (match) {
+      const day = Number.parseInt(match[1])
+      const monthName = match[2].toLowerCase()
+      const month = months[monthName as keyof typeof months]
+      if (month !== undefined) {
+        const currentYear = new Date().getFullYear()
+        return new Date(currentYear, month, day)
+      }
+    }
+    return null
+  }
+
+  let startDate: Date | null = null
+  if (dateRangeText) {
+    const dateMatch = dateRangeText.match(/(\d+\s+\w+)/)
+    if (dateMatch) {
+      startDate = parseItalianDate(dateMatch[1])
+      console.log("[v0] Parsed start date:", startDate)
+    }
+  }
 
   // Parse each day section
+  let dayOffset = 0
   $(".costr").each((_, dayHeader) => {
     const $dayHeader = $(dayHeader)
     const dayName = $dayHeader.find(".day-header").text().trim()
@@ -440,20 +568,31 @@ export function parseSchedule(html: string): DaySchedule[] {
       const episode = $item.find(".episodio-calendario").text().trim()
       const time = $item.find(".hour").text().replace("Trasmesso alle ", "").trim()
 
-      // Extract image from background style
       const $imgDiv = $item.find(".img-anime")
       const bgStyle = $imgDiv.attr("style") || ""
       const imageMatch = bgStyle.match(/url$$([^)]+)$$/)
-      const image = imageMatch ? imageMatch[1] : ""
+      let image = ""
+      if (imageMatch) {
+        image = imageMatch[1].replace(/['"]/g, "")
+        console.log("[v0] Extracted image URL:", image)
+      } else {
+        console.log("[v0] No image found in style:", bgStyle)
+      }
 
       if (title && href && episode && time) {
+        let watchPath = href
+        if (href.startsWith("/play/")) {
+          // Clean up double slashes but keep the /play/ format
+          watchPath = href.replace(/\/+/g, "/")
+        }
+
         items.push({
           id: `${dayName}-${time}-${title}`,
           time,
           title,
           episode,
-          href: `/watch?path=${href.replace("/play/", "").replace(/\.[^.]+$/, "")}`,
-          image: image.replace(/['"]/g, ""),
+          href: watchPath, // Use original path instead of converting to /watch?path=
+          image,
         })
       }
     })
@@ -468,14 +607,23 @@ export function parseSchedule(html: string): DaySchedule[] {
     })
 
     if (items.length > 0) {
+      let actualDate = ""
+      if (startDate) {
+        const dayDate = new Date(startDate)
+        dayDate.setDate(startDate.getDate() + dayOffset)
+        actualDate = dayDate.toISOString().split("T")[0] // YYYY-MM-DD format
+      }
+
       schedule.push({
-        date: "", // We'll set this in the API
+        date: actualDate,
         dayName,
         items,
       })
+      dayOffset++
     }
   })
 
+  console.log("[v0] Parsed schedule with", schedule.length, "days")
   return schedule
 }
 
@@ -495,5 +643,122 @@ export async function fetchScheduleForDate(date?: string): Promise<DaySchedule[]
   } catch (error) {
     console.error("Error fetching schedule:", error)
     return []
+  }
+}
+
+export type AnimeSaturnMeta = {
+  title: string
+  jtitle?: string
+  image?: string
+  rating?: string
+  studio?: string
+  status?: string
+  releaseDate?: string
+  episodesCount?: string
+  duration?: string
+  views?: string
+  genres: { name: string; href?: string }[]
+  description?: string
+  related?: { title: string; href: string; image?: string }[]
+}
+
+export function parseAnimeSaturnMeta(html: string): AnimeSaturnMeta | null {
+  const $ = load(html)
+
+  // Extract thumbnail
+  const image = $(".container.shadow.rounded.bg-dark-as-box .img-fluid.cover-anime.rounded").attr("src") || ""
+
+  // Extract title
+  const titleContainer = $(".container.anime-title-as")
+  const title = titleContainer.find("b").first().text().trim()
+  const jtitle = titleContainer.find(".box-trasparente-alternativo").text().trim()
+
+  // Extract info from the info container
+  const infoContainer = $(".container.shadow.rounded.bg-dark-as-box.text-white")
+  let studio = ""
+  let status = ""
+  let releaseDate = ""
+  let episodesCount = ""
+  let duration = ""
+  let views = ""
+  let rating = ""
+
+  // Parse info lines
+  infoContainer.contents().each((_, node) => {
+    const text = $(node).text().trim()
+    if (text.startsWith("Studio:")) {
+      studio = text.replace("Studio:", "").trim()
+    } else if (text.startsWith("Stato:")) {
+      status = text.replace("Stato:", "").trim()
+    } else if (text.startsWith("Data di uscita:")) {
+      releaseDate = text.replace("Data di uscita:", "").trim()
+    } else if (text.startsWith("Episodi:")) {
+      episodesCount = text.replace("Episodi:", "").trim()
+    } else if (text.startsWith("Durata episodi:")) {
+      duration = text.replace("Durata episodi:", "").trim()
+    } else if (text.startsWith("Visualizzazioni:")) {
+      views = text.replace("Visualizzazioni:", "").trim()
+    } else if (text.startsWith("Voto:")) {
+      rating = text.replace("Voto:", "").trim()
+    }
+  })
+
+  // Extract genres
+  const genres: { name: string; href?: string }[] = []
+  $(".container.shadow.rounded.bg-dark-as-box .badge.badge-light.generi-as").each((_, el) => {
+    const name = $(el).text().trim()
+    const href = $(el).attr("href")
+    if (name) {
+      genres.push({ name, href: href ? absolutize(href, ANIMESATURN_BASE) : undefined })
+    }
+  })
+
+  // Extract description (trama)
+  const shownTrama = $("#shown-trama").text().trim()
+  const fullTrama = $("#full-trama").text().trim()
+  const description = fullTrama || shownTrama
+
+  // Extract related anime from carousel
+  const related: { title: string; href: string; image?: string }[] = []
+
+  // Parse the slick carousel for related anime
+  const $carouselItems = $("#carousel .slick-track .owl-item.anime-card-newanime.main-anime-card:not(.slick-cloned)")
+  console.log("[v0] Carousel items found (non-cloned):", $carouselItems.length)
+
+  $carouselItems.each((i, el) => {
+    const $card = $(el)
+    const $link = $card.find(".card a").first()
+    const href = $link.attr("href") || ""
+    const title = $link.attr("title") || $card.find(".card-text span").text().trim() || ""
+    const image = $link.find("img").attr("src") || ""
+
+    console.log(`[v0] Item ${i}: title=${title}, href=${href}, image=${image}`)
+
+    if (href && title) {
+      related.push({ title, href, image })
+    }
+  })
+
+  console.log("[v0] AnimeSaturn related anime found:", related.length)
+
+  if (!title) {
+    console.log("[v0] No title found, returning null")
+    return null
+  }
+
+  return {
+    title,
+    jtitle: jtitle !== title ? jtitle : undefined,
+    image,
+    rating,
+    studio,
+    status,
+    releaseDate,
+    episodesCount,
+    duration,
+    views,
+    genres,
+    description,
+    related,
   }
 }

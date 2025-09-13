@@ -2,7 +2,8 @@
 
 import Link from "next/link"
 import { Search, List, Film, BookOpen, ArrowLeft } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { MangaCard } from "@/components/manga-card"
 import { MangaSearchForm } from "@/components/manga-search-form"
 
@@ -19,10 +20,47 @@ interface MangaResult {
 }
 
 export default function MangaSearchPage() {
+  const searchParams = useSearchParams()
   const [searchResults, setSearchResults] = useState<MangaResult[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   const [currentQuery, setCurrentQuery] = useState("")
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false)
+
+  useEffect(() => {
+    const genre = searchParams.get("genre")
+    if (genre) {
+      handleSearch({
+        keyword: "",
+        type: "all",
+        author: "",
+        year: "",
+        genre: genre,
+        artist: "",
+        sort: "default",
+      })
+    } else {
+      loadBaseArchive()
+    }
+  }, [searchParams])
+
+  const loadBaseArchive = async () => {
+    setIsLoading(true)
+    setHasSearched(true)
+    setCurrentQuery("archivio completo")
+
+    try {
+      const response = await fetch("/api/manga-search")
+      const data = await response.json()
+      setSearchResults(data.results || [])
+    } catch (error) {
+      console.error("Error loading base archive:", error)
+      setSearchResults([])
+    } finally {
+      setIsLoading(false)
+      setInitialLoadComplete(true)
+    }
+  }
 
   const handleSearch = async (params: {
     keyword: string
@@ -33,21 +71,9 @@ export default function MangaSearchPage() {
     artist: string
     sort: string
   }) => {
-    if (
-      !params.keyword.trim() &&
-      (!params.type || params.type === "all") &&
-      !params.author &&
-      !params.year &&
-      !params.genre &&
-      !params.artist &&
-      (!params.sort || params.sort === "default")
-    ) {
-      return
-    }
-
     setIsLoading(true)
     setHasSearched(true)
-    setCurrentQuery(params.keyword || "filtri applicati")
+    setCurrentQuery(params.keyword || params.genre || "filtri applicati")
 
     try {
       const searchParams = new URLSearchParams()
@@ -67,6 +93,7 @@ export default function MangaSearchPage() {
       setSearchResults([])
     } finally {
       setIsLoading(false)
+      setInitialLoadComplete(true)
     }
   }
 
@@ -119,7 +146,8 @@ export default function MangaSearchPage() {
         {searchResults.length > 0 && (
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">
-              Risultati per "{currentQuery}" ({searchResults.length})
+              {currentQuery === "archivio completo" ? "Archivio manga completo" : `Risultati per "${currentQuery}"`} (
+              {searchResults.length})
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {searchResults.map((manga, index) => (
@@ -129,7 +157,7 @@ export default function MangaSearchPage() {
           </div>
         )}
 
-        {!hasSearched && (
+        {!hasSearched && !isLoading && (
           <div className="text-center py-12">
             <BookOpen size={48} className="mx-auto mb-4 text-muted-foreground" />
             <h2 className="text-lg font-semibold mb-2">Scopri i tuoi manga preferiti</h2>
@@ -144,7 +172,6 @@ export default function MangaSearchPage() {
         )}
       </section>
 
-      {/* Bottom navigation menu */}
       <nav className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t z-20">
         <div className="flex items-center justify-around py-2">
           <Link href="/" className="flex flex-col items-center gap-1 p-2 text-xs hover:text-primary transition-colors">

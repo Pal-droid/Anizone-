@@ -134,14 +134,45 @@ export async function GET(request: NextRequest) {
 
     console.log("[v0] Fetching manga from:", mangaUrl)
 
-    const response = await fetchWithRedirects(mangaUrl)
+    let response: Response
+    try {
+      response = await fetchWithRedirects(mangaUrl)
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error"
+
+      // Check if it's a 404 error specifically
+      if (errorMessage.includes("404")) {
+        console.log("[v0] Manga not found (404):", mangaUrl)
+        return NextResponse.json(
+          {
+            error: "Manga not found",
+            details: `The manga with ID "${decodedId}" does not exist on MangaWorld.`,
+          },
+          { status: 404 },
+        )
+      }
+
+      // For other HTTP errors, re-throw to be handled by the outer catch
+      throw error
+    }
 
     const html = await response.text()
-    const $ = cheerio.load(html)
 
-    // Extract basic info
+    const $ = cheerio.load(html)
     const title = $("h1.entry-title").text().trim() || $("title").text().split(" - ")[0]
 
+    if (!title || title.toLowerCase().includes("not found") || title.toLowerCase().includes("404")) {
+      console.log("[v0] Manga page exists but contains no valid content:", mangaUrl)
+      return NextResponse.json(
+        {
+          error: "Manga not found",
+          details: `The manga with ID "${decodedId}" does not exist or has been removed.`,
+        },
+        { status: 404 },
+      )
+    }
+
+    // Extract basic info
     const image =
       $(".thumb img").attr("src") ||
       $(".entry-thumb img").attr("src") ||
@@ -235,12 +266,15 @@ export async function GET(request: NextRequest) {
     // If no volumes found, try alternative chapter extraction
     if (volumes.length === 0) {
       const chapters = []
-      $(".chapter-list .chapter, .chapters-list .chapter").each((_, chapterEl) => {
+
+      $(".chapters-wrapper .chapter, .chapter-list .chapter, .chapters-list .chapter").each((_, chapterEl) => {
         const $chapter = $(chapterEl)
-        const chapterLink = $chapter.find("a").first()
+        // Look for .chap link first (used in chapters-wrapper), then fallback to any link
+        const chapterLink = $chapter.find("a.chap").first() || $chapter.find("a").first()
         let chapterTitle = chapterLink.text().trim()
         const chapterUrl = chapterLink.attr("href")
-        const chapterDate = $chapter.find(".date, .chapter-date").text().trim()
+        // Look for .chap-date first, then fallback to other date selectors
+        const chapterDate = $chapter.find(".chap-date, .date, .chapter-date").text().trim()
 
         if (chapterTitle) {
           chapterTitle = chapterTitle
@@ -296,10 +330,34 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(mangaData)
   } catch (error) {
     console.error("[v0] Error fetching manga metadata:", error)
+
+    const errorMessage = error instanceof Error ? error.message : "Unknown error"
+
+    if (errorMessage.includes("404")) {
+      return NextResponse.json(
+        {
+          error: "Manga not found",
+          details: "The requested manga does not exist.",
+        },
+        { status: 404 },
+      )
+    }
+
+    if (errorMessage.includes("403") || errorMessage.includes("Forbidden")) {
+      return NextResponse.json(
+        {
+          error: "Access denied",
+          details: "Unable to access the manga due to restrictions.",
+        },
+        { status: 403 },
+      )
+    }
+
+    // For all other errors, return 500
     return NextResponse.json(
       {
         error: "Failed to fetch manga metadata",
-        details: error instanceof Error ? error.message : "Unknown error",
+        details: errorMessage,
       },
       { status: 500 },
     )

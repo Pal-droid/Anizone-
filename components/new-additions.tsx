@@ -115,7 +115,7 @@ export function NewAdditions() {
                 href={item.href}
                 image={item.image}
                 isDub={item.isDub}
-                className="w-[120px]"
+                sources={[{ name: "AnimeWorld", url: item.href, id: item.href.split("/").pop() || "" }]}
               />
               {item.status && (
                 <div className="absolute top-2 right-2 py-0.5 px-1.5 rounded bg-green-600/90 text-white text-xs">
@@ -126,7 +126,7 @@ export function NewAdditions() {
                 <div className="absolute bottom-2 left-2 right-2">
                   <div className="flex items-center gap-1 py-0.5 px-1.5 rounded bg-black/70 text-white text-xs">
                     <Clock size={10} />
-                    <span className="truncate">{item.releaseDate}</span>
+                    <span className="truncate text-ellipsis overflow-hidden">{item.releaseDate}</span>
                   </div>
                 </div>
               )}

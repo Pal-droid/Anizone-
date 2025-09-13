@@ -5,6 +5,8 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { formatSeconds } from "@/lib/time"
+import { AnimeCard } from "@/components/anime-card"
+import { useAuth } from "@/contexts/auth-context"
 
 type ContinueEntry = {
   seriesKey: string
@@ -66,31 +68,97 @@ function basePath(p: string) {
 
 export function ContinueWatching() {
   const [items, setItems] = useState<ContinueEntry[]>([])
+  const [continueWatchingData, setContinueWatchingData] = useState<any>({})
   const mountedRef = useRef(false)
+  const { user, token } = useAuth()
+
+  const fetchContinueWatching = async () => {
+    if (!token) return {}
+
+    try {
+      const response = await fetch("/user/continue-watching", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        return data
+      }
+    } catch (error) {
+      console.error("Failed to fetch continue watching:", error)
+    }
+
+    return {}
+  }
 
   const load = useMemo(
     () => async () => {
+      if (!user || !token) return
+
       try {
-        const r = await fetch("/api/user-state", { cache: "no-store" })
-        const j = await r.json()
-        if (j.ok) {
-          const cw = Object.values((j.data as UserState).continueWatching || {}) as ContinueEntry[]
-          // hydrate meta
-          const enriched = await Promise.all(
-            cw.map(async (it) => {
-              const meta = await getMeta(it.seriesPath || it.seriesKey)
-              return { ...it, title: meta.title || it.title, image: meta.image }
-            }),
-          )
-          enriched.sort((a, b) => b.updatedAt - a.updatedAt)
-          setItems(enriched)
+        const [localResponse, backendData] = await Promise.all([
+          fetch("/api/user-state", { cache: "no-store" }),
+          fetchContinueWatching(),
+        ])
+
+        const localJson = await localResponse.json()
+        let cw: ContinueEntry[] = []
+
+        if (localJson.ok) {
+          cw = Object.values((localJson.data as UserState).continueWatching || {}) as ContinueEntry[]
         }
-      } catch {
-        // ignore
+
+        if (backendData.anime) {
+          const backendEntry: ContinueEntry = {
+            seriesKey: backendData.anime,
+            seriesPath: `/anime/${backendData.anime.toLowerCase().replace(/\s+/g, "-")}`,
+            title: backendData.anime,
+            episode: { num: backendData.episode || 1, href: "" },
+            updatedAt: Date.now(),
+            positionSeconds: backendData.progress ? parseTimeToSeconds(backendData.progress) : 0,
+          }
+
+          // Replace or add the backend entry
+          const existingIndex = cw.findIndex((item) => basePath(item.seriesKey) === basePath(backendEntry.seriesKey))
+
+          if (existingIndex >= 0) {
+            cw[existingIndex] = backendEntry
+          } else {
+            cw.push(backendEntry)
+          }
+        }
+
+        // hydrate meta
+        const enriched = await Promise.all(
+          cw.map(async (it) => {
+            const meta = await getMeta(it.seriesPath || it.seriesKey)
+            const episodeNum = it.episode?.num && it.episode.num > 0 ? it.episode.num : 1
+            return {
+              ...it,
+              title: meta.title || it.title,
+              image: meta.image,
+              episode: { ...it.episode, num: episodeNum },
+            }
+          }),
+        )
+        enriched.sort((a, b) => b.updatedAt - a.updatedAt)
+        setItems(enriched)
+      } catch (error) {
+        console.error("Failed to load continue watching:", error)
       }
     },
-    [],
+    [user, token],
   )
+
+  const parseTimeToSeconds = (timeString: string): number => {
+    const parts = timeString.split(":")
+    if (parts.length === 2) {
+      return Number.parseInt(parts[0]) * 60 + Number.parseInt(parts[1])
+    }
+    return 0
+  }
 
   useEffect(() => {
     load()
@@ -113,7 +181,7 @@ export function ContinueWatching() {
     }
   }, [load])
 
-  if (items.length === 0) return null
+  if (!user || items.length === 0) return null
 
   return (
     <Card>
@@ -124,29 +192,30 @@ export function ContinueWatching() {
         {items.map((it) => {
           const resumeTime = formatSeconds(it.positionSeconds)
           const bp = basePath(it.seriesPath || it.seriesKey)
+          const displayEpisode = it.episode?.num && it.episode.num > 0 ? it.episode.num : 1
+
           return (
             <div key={`${bp}-${it.episode?.num}`} className="min-w-[100px] sm:min-w-[120px] shrink-0 space-y-2">
-              <div className="relative aspect-[2/3] w-full rounded overflow-hidden bg-neutral-900">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={it.image || "/placeholder.svg?height=450&width=300&query=anime%20poster"}
-                  alt={it.title || "Anime"}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
+              <div className="relative">
+                <AnimeCard
+                  title={it.title || "Anime"}
+                  href={`/watch?path=${encodeURIComponent(bp)}&ep=${encodeURIComponent(String(displayEpisode))}`}
+                  image={it.image || "/anime-poster.png"}
+                  className="w-full"
                 />
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                {/* Episode and progress overlay */}
+                <div className="absolute bottom-[60px] left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 rounded-b-none">
                   <div className="text-xs text-white/90">
-                    E{it.episode?.num ?? "?"}
+                    E{displayEpisode}
                     {it.positionSeconds && it.positionSeconds > 0 ? ` • ${resumeTime}` : ""}
                   </div>
                 </div>
               </div>
-              <div className="text-sm font-medium line-clamp-2">{it.title || "Anime"}</div>
               <div>
-                <Link
-                  href={`/watch?path=${encodeURIComponent(bp)}&ep=${encodeURIComponent(String(it.episode?.num ?? ""))}`}
-                >
-                  <Button size="sm">Riprendi</Button>
+                <Link href={`/watch?path=${encodeURIComponent(bp)}&ep=${encodeURIComponent(String(displayEpisode))}`}>
+                  <Button size="sm" className="w-full">
+                    Riprendi
+                  </Button>
                 </Link>
               </div>
             </div>

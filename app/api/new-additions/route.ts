@@ -9,6 +9,27 @@ type NewAdditionItem = {
   releaseDate?: string
   status?: string
   isDub?: boolean
+  sources?: Array<{ name: string; url: string; id: string }>
+  has_multi_servers?: boolean
+}
+
+function extractAnimeId(href: string): string {
+  // Extract ID from href like "/play/anime-name.ID" or "/play/anime-name"
+  const match = href.match(/\/play\/([^/]+)/)
+  return match ? match[1] : ""
+}
+
+function createSourcesFromHref(href: string): Array<{ name: string; url: string; id: string }> {
+  const id = extractAnimeId(href)
+  if (!id) return []
+
+  return [
+    {
+      name: "AnimeWorld",
+      url: href.startsWith("http") ? href : `${ANIMEWORLD_BASE}${href}`,
+      id: id,
+    },
+  ]
 }
 
 function parseNewAdditions(html: string): NewAdditionItem[] {
@@ -40,17 +61,52 @@ function parseNewAdditions(html: string): NewAdditionItem[] {
       const dateMatch = infoText.match(/(\d{1,2}\s+\w+\s+\d{4})/i)
       const releaseDate = dateMatch ? dateMatch[1] : undefined
 
+      const fullHref = href.startsWith("http") ? href : `${ANIMEWORLD_BASE}${href}`
+
       items.push({
         title,
-        href: href.startsWith("http") ? href : `${ANIMEWORLD_BASE}${href}`,
+        href: fullHref,
         image,
         releaseDate,
         status,
         isDub,
+        sources: createSourcesFromHref(href),
+        has_multi_servers: false, // Default to false for now
       })
     })
 
   return items.slice(0, 12) // Limit to 12 items
+}
+
+async function validateAnimeId(animeId: string): Promise<boolean> {
+  try {
+    const response = await fetch(`https://aw-au-as-api.vercel.app/api/episodes?AW=${animeId}`, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) AnizoneBot/1.0 Safari/537.36",
+      },
+    })
+
+    if (!response.ok) return false
+
+    const episodes = await response.json()
+    return Array.isArray(episodes) && episodes.length > 0
+  } catch {
+    return false
+  }
+}
+
+async function validateNewAdditions(items: NewAdditionItem[]): Promise<NewAdditionItem[]> {
+  const validationPromises = items.map(async (item) => {
+    const animeId = extractAnimeId(item.href)
+    if (!animeId) return null
+
+    const isValid = await validateAnimeId(animeId)
+    return isValid ? item : null
+  })
+
+  const validationResults = await Promise.all(validationPromises)
+  return validationResults.filter((item): item is NewAdditionItem => item !== null)
 }
 
 export async function GET() {
@@ -68,39 +124,61 @@ export async function GET() {
     const html = await res.text()
     const items = parseNewAdditions(html)
 
-    // If no items found from main page, create mock data
-    if (items.length === 0) {
+    let validatedItems: NewAdditionItem[] = []
+
+    if (items.length > 0) {
+      console.log("[v0] Validating", items.length, "new additions...")
+      validatedItems = await validateNewAdditions(items)
+      console.log("[v0] Found", validatedItems.length, "valid new additions out of", items.length)
+    }
+
+    // If no valid items found from main page, create mock data with known working IDs
+    if (validatedItems.length === 0) {
       const mockItems: NewAdditionItem[] = [
         {
-          title: "Variable Geo",
-          href: "/play/variable-geo",
+          title: "Kaiju No. 8 Season 2",
+          href: `${ANIMEWORLD_BASE}/play/kaiju-no-8-2.hXbK0`,
           image: "/anime-poster.png",
-          releaseDate: "29 Novembre 1996",
+          releaseDate: "2024",
+          status: "In corso",
+          sources: [
+            { name: "AnimeWorld", url: `${ANIMEWORLD_BASE}/play/kaiju-no-8-2.hXbK0`, id: "kaiju-no-8-2.hXbK0" },
+          ],
+          has_multi_servers: false,
+        },
+        {
+          title: "To Be Hero X",
+          href: `${ANIMEWORLD_BASE}/play/to-be-hero-x.-rI-g`,
+          image: "/anime-poster.png",
           status: "Finito",
+          sources: [
+            { name: "AnimeWorld", url: `${ANIMEWORLD_BASE}/play/to-be-hero-x.-rI-g`, id: "to-be-hero-x.-rI-g" },
+          ],
+          has_multi_servers: false,
         },
         {
           title: "Demon Slayer: Kimetsu no Yaiba",
-          href: "/play/demon-slayer-season-4",
+          href: `${ANIMEWORLD_BASE}/play/demon-slayer-season-4`,
           image: "/demon-slayer-anime-poster.png",
           status: "In corso",
+          sources: [
+            { name: "AnimeWorld", url: `${ANIMEWORLD_BASE}/play/demon-slayer-season-4`, id: "demon-slayer-season-4" },
+          ],
+          has_multi_servers: false,
         },
         {
           title: "Jujutsu Kaisen Season 3",
-          href: "/play/jujutsu-kaisen-s3",
+          href: `${ANIMEWORLD_BASE}/play/jujutsu-kaisen-s3`,
           image: "/jujutsu-kaisen-poster.png",
           status: "In corso",
-        },
-        {
-          title: "Attack on Titan: Final Season",
-          href: "/play/attack-on-titan-final",
-          image: "/anime-poster.png",
-          status: "Finito",
+          sources: [{ name: "AnimeWorld", url: `${ANIMEWORLD_BASE}/play/jujutsu-kaisen-s3`, id: "jujutsu-kaisen-s3" }],
+          has_multi_servers: false,
         },
       ]
       return NextResponse.json({ ok: true, items: mockItems })
     }
 
-    return NextResponse.json({ ok: true, items })
+    return NextResponse.json({ ok: true, items: validatedItems })
   } catch (error) {
     console.error("New additions API error:", error)
     return NextResponse.json({ ok: false, error: "Failed to fetch new additions" }, { status: 500 })

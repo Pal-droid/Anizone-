@@ -1,6 +1,42 @@
 import { NextResponse } from "next/server"
 import { ANIMEWORLD_BASE, parseTop } from "@/lib/animeworld"
 
+type EnhancedTopItem = {
+  rank: number
+  title: string
+  href: string
+  image: string
+  views?: string
+  rating?: string
+  sources?: Array<{ name: string; url: string; id: string }>
+  has_multi_servers?: boolean
+}
+
+type EnhancedTopResponse = {
+  day: EnhancedTopItem[]
+  week: EnhancedTopItem[]
+  month: EnhancedTopItem[]
+}
+
+function extractAnimeId(href: string): string {
+  const match = href.match(/\/play\/([^/]+)/)
+  return match ? match[1] : ""
+}
+
+function enhanceTopItems(items: any[]): EnhancedTopItem[] {
+  return items.map((item) => ({
+    ...item,
+    sources: [
+      {
+        name: "AnimeWorld",
+        url: item.href,
+        id: extractAnimeId(item.href),
+      },
+    ],
+    has_multi_servers: false,
+  }))
+}
+
 export async function GET() {
   try {
     const res = await fetch(ANIMEWORLD_BASE, {
@@ -14,7 +50,14 @@ export async function GET() {
     })
     const html = await res.text()
     const data = parseTop(html)
-    return NextResponse.json({ ok: true, data })
+
+    const enhancedData: EnhancedTopResponse = {
+      day: enhanceTopItems(data.day),
+      week: enhanceTopItems(data.week),
+      month: enhanceTopItems(data.month),
+    }
+
+    return NextResponse.json({ ok: true, data: enhancedData })
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "Errore durante lo scraping Top" }, { status: 500 })
   }

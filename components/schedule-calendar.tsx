@@ -1,10 +1,10 @@
 "use client"
+
 import { useState, useEffect } from "react"
+import type React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Play, Clock } from "lucide-react"
-import Link from "next/link"
-import Image from "next/image"
+import { Play, Clock } from 'lucide-react'
 
 type ScheduleItem = {
   id: string
@@ -40,6 +40,42 @@ export function ScheduleCalendar() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleAnimeClick = async (item: ScheduleItem, e: React.MouseEvent) => {
+    e.preventDefault()
+
+    try {
+      console.log("[v0] Calendar anime clicked:", item.href)
+
+      // Fetch metadata to get sources
+      const response = await fetch(`/api/anime-meta?path=${encodeURIComponent(item.href)}`)
+      const data = await response.json()
+
+      if (data.ok && data.source) {
+        const animeId = item.href.split("/").pop()?.split(".")[0] || ""
+
+        // Create sources array similar to search page
+        const sources = [
+          {
+            name: "AnimeWorld",
+            url: data.source, // Use the actual source URL from metadata
+            id: animeId,
+          },
+        ]
+
+        // Store sources in sessionStorage for the watch page
+        sessionStorage.setItem(`anizone:sources:${item.href}`, JSON.stringify(sources))
+
+        console.log("[v0] Stored sources for calendar anime:", sources)
+      }
+    } catch (error) {
+      console.error("[v0] Failed to fetch sources for calendar anime:", error)
+    }
+
+    // Obfuscate path for watch page
+    const obfuscatedPath = btoa(item.href).replace(/[+/=]/g, (m) => ({ "+": "-", "/": "_", "=": "" })[m] || m)
+    window.location.href = `/watch?p=${obfuscatedPath}`
   }
 
   useEffect(() => {
@@ -98,17 +134,25 @@ export function ScheduleCalendar() {
                     key={item.id}
                     className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
                   >
-                    {item.image && (
-                      <div className="relative w-16 h-20 flex-shrink-0 rounded overflow-hidden">
-                        <Image
-                          src={item.image || "/placeholder.svg"}
+                    <div className="relative w-16 h-20 flex-shrink-0 rounded overflow-hidden bg-muted">
+                      {item.image ? (
+                        <img 
+                          src={item.image || "/placeholder.svg"} 
                           alt={item.title}
-                          fill
-                          className="object-cover"
-                          sizes="64px"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement
+                            target.src = `/placeholder.svg?height=80&width=64&query=anime poster`
+                          }}
                         />
-                      </div>
-                    )}
+                      ) : (
+                        <div 
+                          className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center"
+                        >
+                          <Play size={24} className="text-primary/60" />
+                        </div>
+                      )}
+                    </div>
 
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-sm line-clamp-2 mb-1">{item.title}</h3>
@@ -116,12 +160,15 @@ export function ScheduleCalendar() {
                       <p className="text-xs text-primary font-mono">Trasmesso alle {item.time}</p>
                     </div>
 
-                    <Link href={item.href}>
-                      <Button size="sm" variant="outline" className="flex-shrink-0 bg-transparent">
-                        <Play size={14} className="mr-1" />
-                        Guarda
-                      </Button>
-                    </Link>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-shrink-0 bg-transparent"
+                      onClick={(e) => handleAnimeClick(item, e)}
+                    >
+                      <Play size={14} className="mr-1" />
+                      Guarda
+                    </Button>
                   </div>
                 ))}
               </div>

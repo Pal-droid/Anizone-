@@ -3,6 +3,10 @@ import { Search, List, Film, BookOpen, Calendar } from "lucide-react"
 import { MangaHero } from "@/components/manga-hero"
 import { LatestMangaChapters } from "@/components/latest-manga-chapters"
 import { MangaGenres } from "@/components/manga-genres"
+import { TrendingChapters } from "@/components/trending-chapters"
+import { MangaOfMonth } from "@/components/manga-of-month"
+import { LatestMangaAdditions } from "@/components/latest-manga-additions"
+import { ContinueReading } from "@/components/continue-reading"
 
 export default function MangaPage() {
   console.log("[v0] Manga homepage is loading")
@@ -30,7 +34,16 @@ export default function MangaPage() {
       <section className="px-4 py-4 space-y-6">
         <MangaHero />
 
+        <ContinueReading />
+
+        <TrendingChapters />
+
         <LatestMangaChapters />
+
+        <div className="grid md:grid-cols-2 gap-6">
+          <MangaOfMonth />
+          <LatestMangaAdditions />
+        </div>
 
         <MangaGenres />
       </section>

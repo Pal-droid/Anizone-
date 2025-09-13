@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react"
 import { EpisodePlayer } from "@/components/episode-player"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
-import { ListActions } from "@/components/list-actions"
+import { QuickListManager } from "@/components/quick-list-manager"
 import { WatchInfo } from "@/components/watch-info"
 import { deobfuscateUrl } from "@/lib/utils"
 
@@ -77,13 +77,13 @@ export default function WatchPage() {
             </Link>
             <h1 className="text-lg font-bold truncate">{title}</h1>
           </div>
-          <div className="shrink-0">
-            <ListActions seriesKey={seriesKey} seriesPath={seriesKey} title={title || "Anime"} />
-          </div>
         </div>
       </header>
       <section className="px-4 py-4 space-y-6 overflow-x-hidden">
         <EpisodePlayer path={path} seriesTitle={title} sources={sources} />
+        <div className="flex justify-center">
+          <QuickListManager itemId={seriesKey} itemTitle={title || "Anime"} type="anime" itemPath={path} />
+        </div>
         <WatchInfo seriesPath={seriesKey} />
       </section>
     </main>

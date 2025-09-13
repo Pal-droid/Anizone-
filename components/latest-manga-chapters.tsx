@@ -97,9 +97,6 @@ export function LatestMangaChapters() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Ultimi Capitoli Aggiunti</h2>
-        <Link href="/manga/latest" className="text-sm text-primary hover:underline">
-          Vedi tutti
-        </Link>
       </div>
 
       <div className="grid gap-4">

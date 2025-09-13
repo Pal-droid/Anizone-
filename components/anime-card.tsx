@@ -85,7 +85,9 @@ export function AnimeCard({ title, href, image, isDub, className, sources, has_m
           ) : null}
         </div>
         <CardContent className="p-3 flex flex-col h-[60px]">
-          <div className="line-clamp-2 text-sm font-medium flex-1 flex items-center">{title}</div>
+          <div className="text-sm font-medium flex-1 flex items-start justify-start leading-tight overflow-hidden">
+            <span className="line-clamp-2 text-ellipsis">{title}</span>
+          </div>
         </CardContent>
       </Card>
     </Link>

@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
     // Try unified search for pure keyword searches
     console.log("Trying unified search for keyword:", keyword)
     try {
-      const unifiedRes = await fetch(`https://aw-au-api.onrender.com/search?q=${encodeURIComponent(keyword)}`, {
+      const unifiedRes = await fetch(`https://aw-au-as-api.vercel.app/api/search?q=${encodeURIComponent(keyword)}`, {
         headers: {
           "User-Agent":
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) AnizoneBot/1.0 Safari/537.36",
@@ -106,6 +106,7 @@ export async function GET(req: NextRequest) {
             isDub: false, // We don't have this info from unified API
             sources: result.sources,
             has_multi_servers: result.has_multi_servers,
+            description: result.description, // Added description from new API
           }
         })
 
@@ -113,7 +114,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({
           ok: true,
           items,
-          source: "https://aw-au-api.onrender.com/search",
+          source: "https://aw-au-as-api.vercel.app/api/search",
           unified: true,
         })
       } else {

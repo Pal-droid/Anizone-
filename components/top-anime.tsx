@@ -81,8 +81,26 @@ export function TopAnime() {
                   })(),
                 )}`}
                 className="hover:text-primary transition-colors"
+                onClick={() => {
+                  try {
+                    const path = (() => {
+                      try {
+                        const u = new URL(featured.href)
+                        return u.pathname
+                      } catch {
+                        return featured.href
+                      }
+                    })()
+                    const sources = [
+                      { name: "AnimeWorld", url: featured.href, id: featured.href.split("/").pop() || "" },
+                    ]
+                    sessionStorage.setItem(`anizone:sources:${path}`, JSON.stringify(sources))
+                  } catch {}
+                }}
               >
-                <h3 className="font-semibold text-sm line-clamp-2 mb-1">{featured.title}</h3>
+                <h3 className="font-semibold text-sm mb-1 overflow-hidden">
+                  <span className="line-clamp-2 break-words">{featured.title}</span>
+                </h3>
               </Link>
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
                 {featured.views && (
@@ -133,8 +151,24 @@ export function TopAnime() {
                     })(),
                   )}`}
                   className="hover:text-primary transition-colors"
+                  onClick={() => {
+                    try {
+                      const path = (() => {
+                        try {
+                          const u = new URL(item.href)
+                          return u.pathname
+                        } catch {
+                          return item.href
+                        }
+                      })()
+                      const sources = [{ name: "AnimeWorld", url: item.href, id: item.href.split("/").pop() || "" }]
+                      sessionStorage.setItem(`anizone:sources:${path}`, JSON.stringify(sources))
+                    } catch {}
+                  }}
                 >
-                  <h4 className="font-medium text-sm line-clamp-1 mb-1">{item.title}</h4>
+                  <h4 className="font-medium text-sm mb-1 overflow-hidden">
+                    <span className="line-clamp-1 break-words">{item.title}</span>
+                  </h4>
                 </Link>
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
                   {item.views && (
@@ -166,7 +200,13 @@ export function TopAnime() {
       <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
         {items.map((it) => (
           <div key={`${it.rank}-${it.href}`} className="relative shrink-0 w-[150px]">
-            <AnimeCard title={it.title} href={it.href} image={it.image} className="w-[150px]" />
+            <AnimeCard
+              title={it.title}
+              href={it.href}
+              image={it.image}
+              className="w-[150px]"
+              sources={[{ name: "AnimeWorld", url: it.href, id: it.href.split("/").pop() || "" }]}
+            />
             <div className="absolute top-2 left-2 py-0.5 px-2 rounded bg-neutral-900/80 text-white text-xs">
               #{it.rank}
             </div>

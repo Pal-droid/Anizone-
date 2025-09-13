@@ -7,258 +7,414 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { AuthPanel } from "@/components/auth-panel"
 import { Film, BookOpen, Book, Search, List, Calendar } from "lucide-react"
+import { useAuth } from "@/contexts/auth-context"
 
-type ListName = "planning" | "completed" | "current" | "dropped" | "repeating" | "paused"
-type ContentType = "anime" | "manga" | "light-novel"
+type ContentType = "anime" | "manga" | "light-novel" | "series-movies"
+
+type AnimeListName = "da_guardare" | "in_corso" | "completati" | "in_pausa" | "abbandonati" | "in_revisione"
+type MangaListName = "da_leggere" | "in_corso" | "completati" | "in_pausa" | "abbandonati" | "in_revisione"
 
 type ListItem = {
-  seriesKey: string
-  seriesPath: string
   title: string
   image?: string
-  addedAt: number
-  contentType?: ContentType
+  path?: string
 }
 
-type UserState = {
-  lists: Record<ListName, Record<string, ListItem>>
-}
+const ANIME_ORDER: { key: AnimeListName; title: string }[] = [
+  { key: "da_guardare", title: "Da guardare" },
+  { key: "in_corso", title: "In corso" },
+  { key: "completati", title: "Completati" },
+  { key: "in_pausa", title: "In pausa" },
+  { key: "abbandonati", title: "Abbandonati" },
+  { key: "in_revisione", title: "In revisione" },
+]
 
-const metaCache = new Map<string, { title: string; image?: string; ts: number }>()
-const TTL = 1000 * 60 * 30 // 30 minutes
-
-async function getMeta(path: string) {
-  const key = basePath(path)
-  const cached = metaCache.get(key)
-  const now = Date.now()
-  if (cached && now - cached.ts < TTL) return cached
-  try {
-    const r = await fetch(`/api/anime-meta?path=${encodeURIComponent(key)}`)
-    const j = await r.json()
-    if (j.ok) {
-      const entry = { title: j.meta?.title || key, image: j.meta?.image, ts: now }
-      metaCache.set(key, entry)
-      try {
-        localStorage.setItem(`anizone:meta:${key}`, JSON.stringify(entry))
-      } catch {}
-      return entry
-    }
-  } catch {}
-  // LocalStorage fallback
-  try {
-    const raw = localStorage.getItem(`anizone:meta:${key}`)
-    if (raw) {
-      const entry = JSON.parse(raw)
-      metaCache.set(key, entry)
-      return entry
-    }
-  } catch {}
-  return { title: key, image: undefined, ts: now }
-}
-
-function basePath(p: string) {
-  try {
-    const u = new URL(p, "https://dummy.local")
-    const parts = u.pathname.split("/").filter(Boolean)
-    return parts.length >= 2 ? `/${parts[0]}/${parts[1]}` : u.pathname
-  } catch {
-    const parts = p.split("/").filter(Boolean)
-    return parts.length >= 2 ? `/${parts[0]}/${parts[1]}` : p
-  }
-}
-
-const ORDER: { key: ListName; title: string }[] = [
-  { key: "planning", title: "Da guardare" },
-  { key: "current", title: "In corso" },
-  { key: "completed", title: "Completati" },
-  { key: "paused", title: "In pausa" },
-  { key: "dropped", title: "Abbandonati" },
-  { key: "repeating", title: "In revisione" },
+const MANGA_ORDER: { key: MangaListName; title: string }[] = [
+  { key: "da_leggere", title: "Da leggere" }, // Fixed manga label from "da_guardare" to "da_leggere"
+  { key: "in_corso", title: "In corso" },
+  { key: "completati", title: "Completati" },
+  { key: "in_pausa", title: "In pausa" },
+  { key: "abbandonati", title: "Abbandonati" },
+  { key: "in_revisione", title: "In revisione" },
 ]
 
 const CONTENT_TYPES: { key: ContentType; title: string; icon: any }[] = [
   { key: "anime", title: "Anime", icon: Film },
   { key: "manga", title: "Manga", icon: BookOpen },
   { key: "light-novel", title: "Romanzi", icon: Book },
+  { key: "series-movies", title: "Serie & Film", icon: Film },
 ]
 
-export default function ListsPage() {
-  const [state, setState] = useState<UserState | null>(null)
-  const [activeContentType, setActiveContentType] = useState<ContentType>("anime")
+const ListItemCard = ({ itemId, contentType, listName, onRemove, fetchMetadata }) => {
+  const [metadata, setMetadata] = useState({ title: itemId, image: null, path: null })
+  const [loading, setLoading] = useState(true)
 
-  async function load() {
-    const r = await fetch("/api/user-state", { cache: "no-store" })
-    const j = await r.json()
-    if (j.ok) {
-      const userData = j.data as UserState
+  useEffect(() => {
+    const loadMetadata = async () => {
+      setLoading(true)
+      try {
+        const meta = await fetchMetadata()
+        setMetadata(meta)
+      } catch (error) {
+        console.error("[v0] Error loading metadata for:", itemId, error)
+        setMetadata({ title: itemId, image: null, path: null })
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadMetadata()
+  }, [itemId, contentType, fetchMetadata])
 
-      const enrichedLists: Record<ListName, Record<string, ListItem>> = {}
-
-      for (const [listName, listItems] of Object.entries(userData.lists || {})) {
-        enrichedLists[listName as ListName] = {}
-
-        for (const [key, item] of Object.entries(listItems || {})) {
-          const contentType = item.contentType || getContentType(item.seriesPath)
-
-          if (contentType === "anime") {
-            // Fetch metadata for anime items
-            try {
-              const meta = await getMeta(item.seriesPath || item.seriesKey)
-              enrichedLists[listName as ListName][key] = {
-                ...item,
-                title: meta.title || item.title,
-                image: meta.image || item.image,
+  return (
+    <div className="glass-card rounded-xl p-4 flex items-center gap-4 hover:glow transition-all duration-300">
+      <div className="shrink-0">
+        <div className="w-16 h-20 rounded-lg overflow-hidden bg-muted flex items-center justify-center text-muted-foreground">
+          {loading ? (
+            <div className="animate-pulse bg-muted-foreground/20 w-full h-full rounded" />
+          ) : metadata.image ? (
+            <img
+              src={
+                contentType === "manga" || contentType === "light-novel"
+                  ? `/api/manga-image-proxy?url=${encodeURIComponent(metadata.image)}`
+                  : metadata.image
               }
-            } catch {
-              enrichedLists[listName as ListName][key] = item
-            }
-          } else {
-            enrichedLists[listName as ListName][key] = item
-          }
-        }
+              alt={metadata.title}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement
+                target.style.display = "none"
+                target.parentElement!.innerHTML =
+                  contentType === "anime" || contentType === "series-movies"
+                    ? '<svg class="w-6 h-6"><use href="#film-icon"></use></svg>'
+                    : contentType === "manga"
+                      ? '<svg class="w-6 h-6"><use href="#book-open-icon"></use></svg>'
+                      : '<svg class="w-6 h-6"><use href="#book-icon"></use></svg>'
+              }}
+            />
+          ) : (
+            <>
+              {contentType === "anime" || contentType === "series-movies" ? (
+                <Film size={20} />
+              ) : contentType === "manga" ? (
+                <BookOpen size={20} />
+              ) : (
+                <Book size={20} />
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <h3 className="font-medium text-sm line-clamp-2 mb-1">{loading ? "Caricamento..." : metadata.title}</h3>
+        <p className="text-xs text-muted-foreground">
+          {contentType === "anime"
+            ? "Anime"
+            : contentType === "manga"
+              ? "Manga"
+              : contentType === "light-novel"
+                ? "Romanzo"
+                : "Serie/Film"}
+        </p>
+      </div>
+
+      <div className="flex gap-2 shrink-0">
+        {metadata.path && (
+          <Button size="sm" variant="outline" asChild>
+            <Link
+              href={
+                contentType === "anime" || contentType === "series-movies"
+                  ? `/anime/${itemId}`
+                  : contentType === "manga"
+                    ? `/manga/${itemId}`
+                    : `/manga/${itemId}` // light novels use same structure as manga
+              }
+            >
+              Apri
+            </Link>
+          </Button>
+        )}
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onRemove}
+          className="border-destructive/30 text-destructive hover:bg-destructive/10 bg-transparent"
+        >
+          Rimuovi
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+export default function ListsPage() {
+  const { user } = useAuth()
+  const [animeLists, setAnimeLists] = useState<Record<AnimeListName, string[]>>({
+    da_guardare: [],
+    in_corso: [],
+    completati: [],
+    in_pausa: [],
+    abbandonati: [],
+    in_revisione: [],
+  })
+  const [mangaLists, setMangaLists] = useState<Record<MangaListName, string[]>>({
+    da_leggere: [],
+    in_corso: [],
+    completati: [],
+    in_pausa: [],
+    abbandonati: [],
+    in_revisione: [],
+  })
+  const [lightNovelLists, setLightNovelLists] = useState<Record<MangaListName, string[]>>({
+    da_leggere: [],
+    in_corso: [],
+    completati: [],
+    in_pausa: [],
+    abbandonati: [],
+    in_revisione: [],
+  })
+  const [seriesMoviesLists, setSeriesMoviesLists] = useState<Record<AnimeListName, string[]>>({
+    da_guardare: [],
+    in_corso: [],
+    completati: [],
+    in_pausa: [],
+    abbandonati: [],
+    in_revisione: [],
+  })
+  const [activeContentType, setActiveContentType] = useState<ContentType>("anime")
+  const [loading, setLoading] = useState(false)
+
+  async function loadLists() {
+    if (!user?.token) return
+
+    setLoading(true)
+    try {
+      console.log("[v0] Loading lists for user:", user.username)
+
+      // Load anime lists
+      const animeResponse = await fetch("https://stale-nananne-anizonee-3fa1a732.koyeb.app/user/anime-lists", {
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+        },
+      })
+      if (animeResponse.ok) {
+        const animeData = await animeResponse.json()
+        console.log("[v0] Anime lists loaded:", animeData)
+        setAnimeLists(animeData)
       }
 
-      setState({ ...userData, lists: enrichedLists })
+      // Load manga lists
+      const mangaResponse = await fetch("https://stale-nananne-anizonee-3fa1a732.koyeb.app/user/manga-lists", {
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+        },
+      })
+      if (mangaResponse.ok) {
+        const mangaData = await mangaResponse.json()
+        console.log("[v0] Manga lists loaded:", mangaData)
+        setMangaLists(mangaData)
+      }
+
+      // Load light novel lists
+      const lightNovelResponse = await fetch(
+        "https://stale-nananne-anizonee-3fa1a732.koyeb.app/user/lightnovel-lists",
+        {
+          headers: {
+            Authorization: `Bearer ${user.token}`,
+          },
+        },
+      )
+      if (lightNovelResponse.ok) {
+        const lightNovelData = await lightNovelResponse.json()
+        console.log("[v0] Light novel lists loaded:", lightNovelData)
+        setLightNovelLists(lightNovelData)
+      }
+
+      // Load series & movies lists
+      const seriesMoviesResponse = await fetch(
+        "https://stale-nananne-anizonee-3fa1a732.koyeb.app/user/series-movies-lists",
+        {
+          headers: {
+            Authorization: `Bearer ${user.token}`,
+          },
+        },
+      )
+      if (seriesMoviesResponse.ok) {
+        const seriesMoviesData = await seriesMoviesResponse.json()
+        console.log("[v0] Series & movies lists loaded:", seriesMoviesData)
+        setSeriesMoviesLists(seriesMoviesData)
+      }
+    } catch (error) {
+      console.error("[v0] Error loading lists:", error)
+    } finally {
+      setLoading(false)
     }
   }
 
   useEffect(() => {
-    load()
-  }, [])
-
-  async function remove(list: ListName, seriesKey: string) {
-    await fetch("/api/user-state", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ op: "list-remove", list, seriesKey }),
-    })
-    load()
-  }
-
-  const getContentType = (seriesPath: string): ContentType => {
-    if (seriesPath.includes("/manga/") || seriesPath.includes("manga")) {
-      return "manga"
+    if (user?.token) {
+      loadLists()
     }
-    if (seriesPath.includes("/light-novel/") || seriesPath.includes("romanzi") || seriesPath.includes("novel")) {
-      return "light-novel"
-    }
-    return "anime"
-  }
+  }, [user?.token])
 
-  const getUniqueItems = (items: ListItem[]): ListItem[] => {
-    const seen = new Set<string>()
-    const uniqueItems: ListItem[] = []
+  async function removeFromList(contentType: ContentType, listName: string, title: string) {
+    if (!user?.token) return
 
-    // Sort by addedAt to keep the most recent entry
-    const sortedItems = [...items].sort((a, b) => b.addedAt - a.addedAt)
+    try {
+      let endpoint = ""
+      let currentLists: any = {}
 
-    for (const item of sortedItems) {
-      // Create a normalized key for comparison
-      const normalizedKey = item.seriesKey.replace(/^\/+/, "").toLowerCase()
-      const titleKey = item.title.toLowerCase().replace(/[^a-z0-9]/g, "")
-      const uniqueKey = `${normalizedKey}-${titleKey}`
-
-      if (!seen.has(uniqueKey)) {
-        seen.add(uniqueKey)
-        uniqueItems.push(item)
+      switch (contentType) {
+        case "anime":
+          endpoint = "https://stale-nananne-anizonee-3fa1a732.koyeb.app/user/anime-lists"
+          currentLists = { ...animeLists }
+          break
+        case "manga":
+          endpoint = "https://stale-nananne-anizonee-3fa1a732.koyeb.app/user/manga-lists"
+          currentLists = { ...mangaLists }
+          break
+        case "light-novel":
+          endpoint = "https://stale-nananne-anizonee-3fa1a732.koyeb.app/user/lightnovel-lists"
+          currentLists = { ...lightNovelLists }
+          break
+        case "series-movies":
+          endpoint = "https://stale-nananne-anizonee-3fa1a732.koyeb.app/user/series-movies-lists"
+          currentLists = { ...seriesMoviesLists }
+          break
       }
-    }
 
-    return uniqueItems
+      // Remove item from the specific list
+      if (currentLists[listName]) {
+        currentLists[listName] = currentLists[listName].filter((item: string) => item !== title)
+      }
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(currentLists),
+      })
+
+      if (response.ok) {
+        // Update local state
+        switch (contentType) {
+          case "anime":
+            setAnimeLists(currentLists)
+            break
+          case "manga":
+            setMangaLists(currentLists)
+            break
+          case "light-novel":
+            setLightNovelLists(currentLists)
+            break
+          case "series-movies":
+            setSeriesMoviesLists(currentLists)
+            break
+        }
+      }
+    } catch (error) {
+      console.error("[v0] Error removing from list:", error)
+    }
   }
 
-  const renderList = (name: ListName, contentType: ContentType) => {
-    const allItems = state ? Object.values(state.lists[name] || {}) : []
-    // Filter items by content type and remove duplicates
-    const filteredItems = allItems.filter((item) => {
-      const itemContentType = item.contentType || getContentType(item.seriesPath)
-      return itemContentType === contentType
-    })
+  const fetchItemMetadata = async (contentType: ContentType, itemId: string) => {
+    try {
+      if (contentType === "anime" || contentType === "series-movies") {
+        const response = await fetch(`/api/anime-meta?path=${encodeURIComponent(itemId)}`)
+        if (response.ok) {
+          const data = await response.json()
+          return {
+            title: data.meta?.title || itemId,
+            image: data.meta?.image,
+            path: data.meta?.path || `/anime/${itemId}`,
+          }
+        }
+      } else if (contentType === "manga" || contentType === "light-novel") {
+        const response = await fetch(`/api/manga-info?id=${encodeURIComponent(itemId)}`)
+        if (response.ok) {
+          const data = await response.json()
+          return {
+            title: data.title || itemId,
+            image: data.image,
+            path: `/manga/${itemId}`,
+          }
+        } else {
+          console.log("[v0] Manga info API failed, using fallback data")
+          return {
+            title: itemId.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+            image: null,
+            path: `/manga/${itemId}`,
+          }
+        }
+      }
+    } catch (error) {
+      console.error("[v0] Error fetching metadata for:", itemId, error)
+    }
 
-    const uniqueItems = getUniqueItems(filteredItems)
+    return {
+      title: itemId.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+      image: null,
+      path: contentType === "anime" || contentType === "series-movies" ? `/anime/${itemId}` : `/manga/${itemId}`,
+    }
+  }
 
-    if (uniqueItems.length === 0) return <div className="text-sm text-muted-foreground">Nessun elemento.</div>
+  const renderList = (contentType: ContentType, listName: string) => {
+    let items: string[] = []
+
+    switch (contentType) {
+      case "anime":
+        items = animeLists[listName as AnimeListName] || []
+        break
+      case "manga":
+        items = mangaLists[listName as MangaListName] || []
+        break
+      case "light-novel":
+        items = lightNovelLists[listName as MangaListName] || []
+        break
+      case "series-movies":
+        items = seriesMoviesLists[listName as AnimeListName] || []
+        break
+    }
+
+    if (items.length === 0) {
+      return <div className="text-sm text-muted-foreground">Nessun elemento.</div>
+    }
 
     return (
       <div className="grid grid-cols-1 gap-3">
-        {uniqueItems.map((it) => {
-          const getWatchUrl = (seriesPath: string) => {
-            // For manga, redirect to manga detail page
-            if (seriesPath.includes("/manga/")) {
-              const mangaId = seriesPath.split("/manga/")[1] || seriesPath.split("/").pop()
-              return `/manga/${mangaId}`
-            }
-
-            // For anime, ensure proper path format for watch page
-            try {
-              const url = new URL(seriesPath, "https://dummy.local")
-              let path = url.pathname
-
-              // Ensure path starts with /play/ for anime
-              if (!path.startsWith("/play/") && !path.includes("/manga/")) {
-                const parts = path.split("/").filter(Boolean)
-                if (parts.length >= 1) {
-                  path = `/play/${parts[parts.length - 1]}`
-                }
-              }
-
-              return `/watch?path=${encodeURIComponent(path)}`
-            } catch {
-              // Handle relative paths
-              let path = seriesPath
-              if (!path.startsWith("/play/") && !path.includes("/manga/")) {
-                const parts = path.split("/").filter(Boolean)
-                if (parts.length >= 1) {
-                  path = `/play/${parts[parts.length - 1]}`
-                }
-              }
-              return `/watch?path=${encodeURIComponent(path)}`
-            }
-          }
-
-          return (
-            <div
-              key={`${name}-${it.seriesKey}-${it.addedAt}`}
-              className="glass-card rounded-xl p-4 flex items-center gap-4 hover:glow transition-all duration-300"
-            >
-              <div className="shrink-0">
-                <div className="w-16 h-20 rounded-lg overflow-hidden bg-muted">
-                  {it.image ? (
-                    <img src={it.image || "/placeholder.svg"} alt={it.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                      <Film size={20} />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <h3 className="font-medium text-sm line-clamp-2 mb-1">{it.title}</h3>
-                <p className="text-xs text-muted-foreground">
-                  {contentType === "anime" ? "Anime" : contentType === "manga" ? "Manga" : "Romanzo"}
-                </p>
-              </div>
-
-              <div className="flex gap-2 shrink-0">
-                <Link href={getWatchUrl(it.seriesPath)}>
-                  <Button size="sm" className="bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30">
-                    Apri
-                  </Button>
-                </Link>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => remove(name, it.seriesKey)}
-                  className="border-destructive/30 text-destructive hover:bg-destructive/10"
-                >
-                  Rimuovi
-                </Button>
-              </div>
-            </div>
-          )
-        })}
+        {items.map((itemId, index) => (
+          <ListItemCard
+            key={`${listName}-${itemId}-${index}`}
+            itemId={itemId}
+            contentType={contentType}
+            listName={listName}
+            onRemove={() => removeFromList(contentType, listName, itemId)}
+            fetchMetadata={() => fetchItemMetadata(contentType, itemId)}
+          />
+        ))}
       </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <main className="min-h-screen pb-16">
+        <header className="border-b sticky top-0 bg-background/80 backdrop-blur z-10">
+          <div className="px-4 py-3">
+            <h1 className="text-lg font-bold">Le mie liste</h1>
+          </div>
+        </header>
+        <section className="px-4 py-4 space-y-6">
+          <AuthPanel onAuthChange={loadLists} />
+          <Card>
+            <CardContent className="text-center py-8">
+              <p className="text-muted-foreground">Effettua il login per vedere le tue liste.</p>
+            </CardContent>
+          </Card>
+        </section>
+      </main>
     )
   }
 
@@ -270,38 +426,77 @@ export default function ListsPage() {
         </div>
       </header>
       <section className="px-4 py-4 space-y-6">
-        <AuthPanel />
+        <AuthPanel onAuthChange={loadLists} />
 
-        <Tabs
-          value={activeContentType}
-          onValueChange={(value) => setActiveContentType(value as ContentType)}
-          className="w-full"
-        >
-          <TabsList className="grid w-full grid-cols-3">
-            {CONTENT_TYPES.map((type) => {
-              const Icon = type.icon
-              return (
-                <TabsTrigger key={type.key} value={type.key} className="flex items-center gap-2">
-                  <Icon size={16} />
-                  <span className="hidden sm:inline">{type.title}</span>
-                </TabsTrigger>
-              )
-            })}
-          </TabsList>
+        {loading ? (
+          <Card>
+            <CardContent className="text-center py-8">
+              <p className="text-muted-foreground">Caricamento liste...</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <Tabs
+            value={activeContentType}
+            onValueChange={(value) => setActiveContentType(value as ContentType)}
+            className="w-full"
+          >
+            <TabsList className="grid w-full grid-cols-4">
+              {CONTENT_TYPES.map((type) => {
+                const Icon = type.icon
+                return (
+                  <TabsTrigger key={type.key} value={type.key} className="flex items-center gap-2">
+                    <Icon size={16} />
+                    <span className="hidden sm:inline">{type.title}</span>
+                  </TabsTrigger>
+                )
+              })}
+            </TabsList>
 
-          {CONTENT_TYPES.map((type) => (
-            <TabsContent key={type.key} value={type.key} className="space-y-6">
-              {ORDER.map((sec) => (
+            <TabsContent value="anime" className="space-y-6">
+              {ANIME_ORDER.map((sec) => (
                 <Card key={sec.key}>
                   <CardHeader className="py-3">
                     <CardTitle className="text-base">{sec.title}</CardTitle>
                   </CardHeader>
-                  <CardContent>{renderList(sec.key, type.key)}</CardContent>
+                  <CardContent>{renderList("anime", sec.key)}</CardContent>
                 </Card>
               ))}
             </TabsContent>
-          ))}
-        </Tabs>
+
+            <TabsContent value="manga" className="space-y-6">
+              {MANGA_ORDER.map((sec) => (
+                <Card key={sec.key}>
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-base">{sec.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>{renderList("manga", sec.key)}</CardContent>
+                </Card>
+              ))}
+            </TabsContent>
+
+            <TabsContent value="light-novel" className="space-y-6">
+              {MANGA_ORDER.map((sec) => (
+                <Card key={sec.key}>
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-base">{sec.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>{renderList("light-novel", sec.key)}</CardContent>
+                </Card>
+              ))}
+            </TabsContent>
+
+            <TabsContent value="series-movies" className="space-y-6">
+              {ANIME_ORDER.map((sec) => (
+                <Card key={sec.key}>
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-base">{sec.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>{renderList("series-movies", sec.key)}</CardContent>
+                </Card>
+              ))}
+            </TabsContent>
+          </Tabs>
+        )}
       </section>
 
       {/* Bottom navigation */}

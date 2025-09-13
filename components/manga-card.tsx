@@ -65,7 +65,9 @@ export function MangaCard({ manga }: MangaCardProps) {
           </div>
 
           <div className="p-3 space-y-2 flex-1 flex flex-col h-[120px]">
-            <h3 className="font-semibold text-sm line-clamp-2 leading-tight flex-shrink-0">{manga.title}</h3>
+            <h3 className="font-semibold text-sm leading-tight flex-shrink-0 overflow-hidden">
+              <span className="line-clamp-2 break-words">{manga.title}</span>
+            </h3>
 
             {manga.author && <p className="text-xs text-muted-foreground flex-shrink-0">di {manga.author}</p>}
 
@@ -85,7 +87,10 @@ export function MangaCard({ manga }: MangaCardProps) {
             )}
 
             {manga.story && (
-              <p className="text-xs text-muted-foreground line-clamp-2 flex-1 overflow-hidden">{manga.story}</p>
+              // Fixed story text truncation
+              <p className="text-xs text-muted-foreground flex-1 overflow-hidden">
+                <span className="line-clamp-2 break-words">{manga.story}</span>
+              </p>
             )}
           </div>
         </CardContent>

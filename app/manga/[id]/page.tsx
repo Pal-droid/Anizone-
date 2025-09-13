@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { MangaListActions } from "@/components/manga-list-actions"
+import { QuickListManager } from "@/components/quick-list-manager"
 import { deobfuscateId, obfuscateUrl } from "@/lib/utils"
 import {
   ArrowLeft,
@@ -223,12 +223,11 @@ export default function MangaMetadataPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-3 pt-2">
-                  <MangaListActions
-                    mangaId={actualMangaId}
-                    mangaUrl={mangaData.url}
-                    title={mangaData.title}
-                    image={mangaData.image}
-                    volumes={mangaData.volumes}
+                  <QuickListManager
+                    itemId={actualMangaId}
+                    itemTitle={mangaData.title}
+                    itemImage={mangaData.image}
+                    type="manga"
                   />
                   {mangaData.volumes.length > 0 && mangaData.volumes[0].chapters.length > 0 && (
                     <Link
@@ -270,49 +269,77 @@ export default function MangaMetadataPage() {
             <CardContent className="space-y-3">
               {mangaData.volumes.map((volume, volumeIndex) => (
                 <div key={volumeIndex} className="border rounded-lg overflow-hidden">
-                  <Collapsible open={expandedVolumes.has(volumeIndex)} onOpenChange={() => toggleVolume(volumeIndex)}>
-                    <CollapsibleTrigger asChild>
-                      <Button variant="ghost" className="w-full justify-between p-4 h-auto hover:bg-muted/50">
-                        <div className="flex items-center gap-3">
-                          <FileImage size={18} className="text-muted-foreground" />
-                          <div className="text-left">
-                            <span className="font-medium">{volume.name}</span>
-                            <p className="text-xs text-muted-foreground mt-1">{volume.chapters.length} capitoli</p>
+                  {mangaData.volumes.length === 1 && volume.name === "Chapters" ? (
+                    <div className="p-3 space-y-1">
+                      {volume.chapters.map((chapter, chapterIndex) => (
+                        <div
+                          key={chapterIndex}
+                          className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-md transition-colors group"
+                        >
+                          <Link
+                            href={`/manga/${params.id}/read?u=${obfuscateUrl(chapter.url)}&title=${encodeURIComponent(mangaData.title)}&chapter=${encodeURIComponent(chapter.title)}`}
+                            className="flex-1 text-sm hover:text-primary transition-colors group-hover:text-primary"
+                          >
+                            {chapter.title
+                              .replace(/\s*-\s*\d{1,2}\/\d{1,2}\/\d{4}.*$/, "")
+                              .replace(/\s*$$\d{1,2}\/\d{1,2}\/\d{4}$$.*$/, "")}
+                          </Link>
+                          <div className="flex items-center gap-2">
+                            {chapter.isNew && (
+                              <Badge variant="destructive" className="text-xs px-2 py-0">
+                                NUOVO
+                              </Badge>
+                            )}
+                            <span className="text-xs text-muted-foreground">{chapter.date}</span>
                           </div>
                         </div>
-                        {expandedVolumes.has(volumeIndex) ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                      </Button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <div className="border-t bg-muted/20">
-                        <div className="p-3 space-y-1">
-                          {volume.chapters.map((chapter, chapterIndex) => (
-                            <div
-                              key={chapterIndex}
-                              className="flex items-center justify-between p-3 hover:bg-background rounded-md transition-colors group"
-                            >
-                              <Link
-                                href={`/manga/${params.id}/read?u=${obfuscateUrl(chapter.url)}&title=${encodeURIComponent(mangaData.title)}&chapter=${encodeURIComponent(chapter.title)}`}
-                                className="flex-1 text-sm hover:text-primary transition-colors group-hover:text-primary"
-                              >
-                                {chapter.title
-                                  .replace(/\s*-\s*\d{1,2}\/\d{1,2}\/\d{4}.*$/, "")
-                                  .replace(/\s*$$\d{1,2}\/\d{1,2}\/\d{4}$$.*$/, "")}
-                              </Link>
-                              <div className="flex items-center gap-2">
-                                {chapter.isNew && (
-                                  <Badge variant="destructive" className="text-xs px-2 py-0">
-                                    NUOVO
-                                  </Badge>
-                                )}
-                                <span className="text-xs text-muted-foreground">{chapter.date}</span>
-                              </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <Collapsible open={expandedVolumes.has(volumeIndex)} onOpenChange={() => toggleVolume(volumeIndex)}>
+                      <CollapsibleTrigger asChild>
+                        <Button variant="ghost" className="w-full justify-between p-4 h-auto hover:bg-muted/50">
+                          <div className="flex items-center gap-3">
+                            <FileImage size={18} className="text-muted-foreground" />
+                            <div className="text-left">
+                              <span className="font-medium">{volume.name}</span>
+                              <p className="text-xs text-muted-foreground mt-1">{volume.chapters.length} capitoli</p>
                             </div>
-                          ))}
+                          </div>
+                          {expandedVolumes.has(volumeIndex) ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="border-t bg-muted/20">
+                          <div className="p-3 space-y-1">
+                            {volume.chapters.map((chapter, chapterIndex) => (
+                              <div
+                                key={chapterIndex}
+                                className="flex items-center justify-between p-3 hover:bg-background rounded-md transition-colors group"
+                              >
+                                <Link
+                                  href={`/manga/${params.id}/read?u=${obfuscateUrl(chapter.url)}&title=${encodeURIComponent(mangaData.title)}&chapter=${encodeURIComponent(chapter.title)}`}
+                                  className="flex-1 text-sm hover:text-primary transition-colors group-hover:text-primary"
+                                >
+                                  {chapter.title
+                                    .replace(/\s*-\s*\d{1,2}\/\d{1,2}\/\d{4}.*$/, "")
+                                    .replace(/\s*$$\d{1,2}\/\d{1,2}\/\d{4}$$.*$/, "")}
+                                </Link>
+                                <div className="flex items-center gap-2">
+                                  {chapter.isNew && (
+                                    <Badge variant="destructive" className="text-xs px-2 py-0">
+                                      NUOVO
+                                    </Badge>
+                                  )}
+                                  <span className="text-xs text-muted-foreground">{chapter.date}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    </CollapsibleContent>
-                  </Collapsible>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  )}
                 </div>
               ))}
             </CardContent>

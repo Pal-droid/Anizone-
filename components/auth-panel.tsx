@@ -1,56 +1,44 @@
 "use client"
 
 import type React from "react"
-
-import { useEffect, useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Upload, User } from "lucide-react"
+import { useAuth } from "@/contexts/auth-context"
+import { authManager } from "@/lib/auth"
 
 type Mode = "login" | "signup"
 
-export function AuthPanel() {
+export function AuthPanel({ onAuthChange }: { onAuthChange?: () => void } = {}) {
+  const { user, login, signup, logout } = useAuth()
   const [mode, setMode] = useState<Mode>("login")
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
-  const [me, setMe] = useState<string | null>(null)
-
-  async function refreshMe() {
-    try {
-      const r = await fetch("/api/auth/me", { cache: "no-store" })
-      if (r.status === 401) {
-        setMe(null)
-        return
-      }
-      const j = await r.json()
-      if (j.ok) setMe(j.username || null)
-    } catch {
-      // ignore
-    }
-  }
+  const [uploadingPicture, setUploadingPicture] = useState(false)
 
   useEffect(() => {
-    refreshMe()
-  }, [])
+    if (user?.token && !user.profile_picture_url) {
+      authManager.fetchUserProfile()
+    }
+  }, [user?.token])
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setBusy(true)
     setStatus(null)
     try {
-      const endpoint = mode === "login" ? "/api/auth/login" : "/api/auth/signup"
-      const r = await fetch(endpoint, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      })
-      const j = await r.json()
-      if (!r.ok || !j.ok) {
-        setStatus(j.error || j.message || "Errore")
+      const result = mode === "login" ? await login(username, password) : await signup(username, password)
+
+      if (!result.success) {
+        setStatus(result.error || "Errore")
         return
       }
+
       if (mode === "signup") {
         setStatus("Registrazione completata. Ora effettua il login.")
         setMode("login")
@@ -58,11 +46,9 @@ export function AuthPanel() {
         setStatus("Login effettuato.")
         setUsername("")
         setPassword("")
-        await refreshMe()
-        // Reload lists after login
-        try {
-          await fetch("/api/user-state", { cache: "no-store" })
-        } catch {}
+        if (onAuthChange) {
+          onAuthChange()
+        }
       }
     } catch {
       setStatus("Errore di rete")
@@ -71,15 +57,15 @@ export function AuthPanel() {
     }
   }
 
-  async function logout() {
+  async function handleLogout() {
     setBusy(true)
     setStatus(null)
     try {
-      await fetch("/api/auth/logout", { method: "POST" })
-      setMe(null)
+      logout()
       setStatus("Disconnesso.")
-      // Optionally refresh lists (will show anonymous state)
-      await fetch("/api/user-state", { cache: "no-store" })
+      if (onAuthChange) {
+        onAuthChange()
+      }
     } catch {
       setStatus("Errore durante il logout")
     } finally {
@@ -87,7 +73,27 @@ export function AuthPanel() {
     }
   }
 
-  const loggedIn = !!me
+  async function handleProfilePictureUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !user) return
+
+    setUploadingPicture(true)
+    try {
+      const result = await authManager.uploadProfilePicture(file)
+
+      if (result.success) {
+        setStatus("Immagine profilo aggiornata!")
+      } else {
+        setStatus(result.error || "Errore durante il caricamento dell'immagine")
+      }
+    } catch {
+      setStatus("Errore di rete durante il caricamento")
+    } finally {
+      setUploadingPicture(false)
+    }
+  }
+
+  const loggedIn = !!user
 
   return (
     <Card>
@@ -96,13 +102,39 @@ export function AuthPanel() {
       </CardHeader>
       <CardContent>
         {loggedIn ? (
-          <div className="flex items-center justify-between">
-            <div className="text-sm">
-              Connesso come <span className="font-medium">{me}</span>
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <Avatar className="w-16 h-16">
+                  <AvatarImage src={user.profile_picture_url || undefined} />
+                  <AvatarFallback>
+                    <User size={24} />
+                  </AvatarFallback>
+                </Avatar>
+                <label className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1 cursor-pointer hover:bg-primary/80 transition-colors">
+                  <Upload size={12} />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleProfilePictureUpload}
+                    disabled={uploadingPicture}
+                  />
+                </label>
+              </div>
+              <div className="flex-1">
+                <div className="text-sm">
+                  Connesso come <span className="font-medium">{user.username}</span>
+                </div>
+                {uploadingPicture && <div className="text-xs text-muted-foreground">Caricamento...</div>}
+              </div>
             </div>
-            <Button variant="outline" onClick={logout} disabled={busy}>
-              Logout
-            </Button>
+
+            <div className="flex justify-end">
+              <Button variant="outline" onClick={handleLogout} disabled={busy}>
+                Logout
+              </Button>
+            </div>
           </div>
         ) : (
           <form onSubmit={onSubmit} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 items-end">

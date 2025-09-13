@@ -42,8 +42,25 @@ export function WatchInfo({ seriesPath }: { seriesPath: string }) {
     let alive = true
     ;(async () => {
       try {
+        console.log("[v0] WatchInfo fetching metadata for path:", path)
+
+        let metaPath = path
+        try {
+          const storedSources = sessionStorage.getItem(`anizone:sources:${path}`)
+          if (storedSources) {
+            const parsedSources = JSON.parse(storedSources)
+            const asSource = parsedSources.find((s: any) => s.name === "AnimeSaturn")
+            if (asSource && asSource.url) {
+              console.log("[v0] Found AnimeSaturn source in sessionStorage:", asSource.url)
+              metaPath = asSource.url
+            }
+          }
+        } catch (e) {
+          console.log("[v0] Could not get sources from sessionStorage:", e)
+        }
+
         const [m, s, r] = await Promise.all([
-          fetch(`/api/anime-meta?path=${encodeURIComponent(path)}`)
+          fetch(`/api/anime-meta?path=${encodeURIComponent(metaPath)}`)
             .then((x) => x.json())
             .catch(() => null),
           fetch(`/api/anime-similar?path=${encodeURIComponent(path)}`)
@@ -54,11 +71,12 @@ export function WatchInfo({ seriesPath }: { seriesPath: string }) {
             .catch(() => null),
         ])
         if (!alive) return
+        console.log("[v0] Metadata fetch result:", m)
         if (m?.ok) setMeta(m.meta)
         if (s?.ok) setSimilar(s.items || [])
         if (r?.ok) setRelated(r.items || [])
-      } catch {
-        // ignore
+      } catch (e) {
+        console.log("[v0] WatchInfo error:", e)
       }
     })()
     return () => {

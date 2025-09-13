@@ -74,6 +74,12 @@ export function AnimeContentSections() {
                 key={index}
                 href={`/watch?path=${encodeURIComponent(animePath)}`}
                 className="group flex-shrink-0 w-32"
+                onClick={() => {
+                  try {
+                    const sources = [{ name: "AnimeWorld", url: item.href, id: item.href.split("/").pop() || "" }]
+                    sessionStorage.setItem(`anizone:sources:${animePath}`, JSON.stringify(sources))
+                  } catch {}
+                }}
               >
                 <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-neutral-900 w-full">
                   <img
@@ -90,8 +96,8 @@ export function AnimeContentSections() {
                     </div>
                   )}
                 </div>
-                <h3 className="text-sm font-medium mt-2 line-clamp-2 group-hover:text-primary transition-colors">
-                  {item.title}
+                <h3 className="text-sm font-medium mt-2 group-hover:text-primary transition-colors overflow-hidden">
+                  <span className="line-clamp-2 break-words leading-tight">{item.title}</span>
                 </h3>
               </Link>
             )
