@@ -13,7 +13,7 @@ import { authManager } from "@/lib/auth"
 type Mode = "login" | "signup"
 
 export function AuthPanel({ onAuthChange }: { onAuthChange?: () => void } = {}) {
-  const { user, login, signup, logout } = useAuth()
+  const { user, setUser, login, signup, logout } = useAuth() // make sure your context exposes setUser
   const [mode, setMode] = useState<Mode>("login")
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
@@ -21,11 +21,22 @@ export function AuthPanel({ onAuthChange }: { onAuthChange?: () => void } = {}) 
   const [status, setStatus] = useState<string | null>(null)
   const [uploadingPicture, setUploadingPicture] = useState(false)
 
+  // Fetch profile picture whenever user logs in or token changes
   useEffect(() => {
-    if (user?.token && !user.profile_picture_url) {
-      authManager.fetchUserProfile()
+    async function fetchProfile() {
+      if (user?.token && !user.profile_picture_url) {
+        try {
+          const data = await authManager.fetchUserProfile()
+          if (data?.profile_picture_url) {
+            setUser((prev) => ({ ...prev!, profile_picture_url: data.profile_picture_url }))
+          }
+        } catch (e) {
+          console.error("Failed to fetch profile picture:", e)
+        }
+      }
     }
-  }, [user?.token])
+    fetchProfile()
+  }, [user?.token, setUser])
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -46,9 +57,14 @@ export function AuthPanel({ onAuthChange }: { onAuthChange?: () => void } = {}) 
         setStatus("Login effettuato.")
         setUsername("")
         setPassword("")
-        if (onAuthChange) {
-          onAuthChange()
+
+        // Immediately fetch profile picture after login
+        const data = await authManager.fetchUserProfile()
+        if (data?.profile_picture_url) {
+          setUser((prev) => ({ ...prev!, profile_picture_url: data.profile_picture_url }))
         }
+
+        if (onAuthChange) onAuthChange()
       }
     } catch {
       setStatus("Errore di rete")
@@ -63,9 +79,7 @@ export function AuthPanel({ onAuthChange }: { onAuthChange?: () => void } = {}) 
     try {
       logout()
       setStatus("Disconnesso.")
-      if (onAuthChange) {
-        onAuthChange()
-      }
+      if (onAuthChange) onAuthChange()
     } catch {
       setStatus("Errore durante il logout")
     } finally {
@@ -81,7 +95,8 @@ export function AuthPanel({ onAuthChange }: { onAuthChange?: () => void } = {}) 
     try {
       const result = await authManager.uploadProfilePicture(file)
 
-      if (result.success) {
+      if (result.success && result.profile_picture_url) {
+        setUser((prev) => ({ ...prev!, profile_picture_url: result.profile_picture_url }))
         setStatus("Immagine profilo aggiornata!")
       } else {
         setStatus(result.error || "Errore durante il caricamento dell'immagine")
