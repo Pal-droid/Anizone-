@@ -22,12 +22,11 @@ export function HeroSearch() {
   const searchRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
 
-  // Fetch search results
+  // Search effect
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (query.trim().length > 2) {
-        performSearch(query.trim())
-      } else {
+      if (query.trim().length > 2) performSearch(query.trim())
+      else {
         setResults([])
         setShowResults(false)
       }
@@ -35,15 +34,15 @@ export function HeroSearch() {
     return () => clearTimeout(timeoutId)
   }, [query, contentType])
 
-  // Close dropdown on outside click or Escape
+  // Outside click and Escape
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
         setShowResults(false)
       }
     }
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setShowResults(false)
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowResults(false)
     }
     document.addEventListener("mousedown", handleClickOutside)
     document.addEventListener("keydown", handleEscape)
@@ -63,12 +62,13 @@ export function HeroSearch() {
   const performSearch = async (searchQuery: string) => {
     setIsLoading(true)
     setShowResults(true)
+
     try {
       const params = new URLSearchParams({ keyword: searchQuery })
       const endpoint = contentType === "anime" ? "/api/unified-search" : "/api/manga-search"
-      const response = await fetch(`${endpoint}?${params}`)
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
-      const data = await response.json()
+      const res = await fetch(`${endpoint}?${params}`)
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
+      const data = await res.json()
 
       const previewResults: SearchResult[] =
         contentType === "anime"
@@ -88,7 +88,7 @@ export function HeroSearch() {
       console.log("[DEBUG] Search results updated:", previewResults)
       setResults(previewResults)
     } catch (err) {
-      console.error("[DEBUG] Search error:", err)
+      console.error("Search error:", err)
       setResults([])
     } finally {
       setIsLoading(false)
@@ -107,53 +107,62 @@ export function HeroSearch() {
   const handleResultClick = (href: string) => {
     if (!href) return
 
-    let idSegment = href.split("/").filter(Boolean).pop() || href
+    let idSegment = href
+    try {
+      if (href.startsWith("http")) {
+        const url = new URL(href)
+        idSegment = url.pathname.split("/").filter(Boolean).pop() || href
+      } else {
+        idSegment = href.split("/").filter(Boolean).pop() || href
+      }
+    } catch {
+      console.warn("[DEBUG] Failed to parse href, using raw:", href)
+    }
 
     if (contentType === "anime") {
-      // Direct to watch page
-      const watchUrl = `/watch?path=${encodeURIComponent(`/play/${idSegment}/episode-1`)}`
-      console.log("[DEBUG] Anime result clicked, redirecting to watch page:", watchUrl)
+      const watchPath = `/play/${idSegment}/episode-1`
+      const watchUrl = `/watch?path=${encodeURIComponent(watchPath)}`
+      console.log("[DEBUG] Redirecting to watch page:", watchUrl)
       setShowResults(false)
       setTimeout(() => router.push(watchUrl), 0)
     } else {
-      // Manga goes to meta page
       const mangaUrl = `/manga/${obfuscateId(idSegment)}`
-      console.log("[DEBUG] Manga result clicked, redirecting to meta page:", mangaUrl)
+      console.log("[DEBUG] Redirecting to manga page:", mangaUrl)
       setShowResults(false)
       setTimeout(() => router.push(mangaUrl), 0)
     }
   }
 
-  // Dropdown portal rendering
-  const dropdown = showResults && searchRect
-    ? createPortal(
-        <div
-          className="absolute z-[9999] w-[300px] bg-background border border-border rounded-md shadow-lg overflow-hidden"
-          style={{ top: searchRect.bottom + window.scrollY + 4, left: searchRect.left + window.scrollX }}
-        >
-          {isLoading ? (
-            <div className="p-4 text-center text-muted-foreground">Caricamento...</div>
-          ) : results.length > 0 ? (
-            results.map((r, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-3 p-2 hover:bg-accent/20 cursor-pointer"
-                onClick={() => handleResultClick(r.href)}
-              >
-                {r.image && <img src={r.image} alt={r.title} className="w-10 h-14 object-cover rounded" />}
-                <div className="flex flex-col">
-                  <span className="font-medium">{r.title}</span>
-                  <span className="text-xs text-muted-foreground">{r.type}</span>
-                </div>
+  const Dropdown = () => {
+    if (!showResults || !searchRect) return null
+    return createPortal(
+      <div
+        className="absolute bg-background/90 backdrop-blur-md border border-border rounded-lg shadow-lg z-[9999] max-w-md w-full"
+        style={{ top: searchRect.bottom + 4, left: searchRect.left, width: searchRect.width }}
+      >
+        {isLoading ? (
+          <div className="p-4 text-center text-muted-foreground">Caricamento...</div>
+        ) : results.length ? (
+          results.map((r, i) => (
+            <div
+              key={i}
+              onClick={() => handleResultClick(r.href)}
+              className="flex items-center gap-3 p-3 cursor-pointer hover:bg-accent/10 transition-smooth"
+            >
+              {r.image && <img src={r.image} alt={r.title} className="w-10 h-14 object-cover rounded" />}
+              <div className="flex flex-col">
+                <span className="font-medium text-sm">{r.title}</span>
+                <span className="text-xs text-muted-foreground">{r.type}</span>
               </div>
-            ))
-          ) : (
-            <div className="p-4 text-center text-muted-foreground">Nessun risultato</div>
-          )}
-        </div>,
-        document.body
-      )
-    : null
+            </div>
+          ))
+        ) : (
+          <div className="p-4 text-center text-muted-foreground">Nessun risultato</div>
+        )}
+      </div>,
+      document.body
+    )
+  }
 
   return (
     <div ref={searchRef} className="relative space-y-3">
@@ -163,15 +172,8 @@ export function HeroSearch() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => query.trim().length > 0 && setShowResults(true)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault()
-                handleSubmit(e as any)
-              }
-            }}
             placeholder="Es. naruto"
             className="w-full rounded-lg border border-border/30 bg-background/50 backdrop-blur-sm placeholder:text-muted-foreground px-4 py-3 text-sm transition-smooth focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50"
-            aria-label="Parola chiave"
           />
         </div>
       </form>
@@ -203,7 +205,7 @@ export function HeroSearch() {
         </div>
       </div>
 
-      {dropdown}
+      <Dropdown />
     </div>
   )
 }
