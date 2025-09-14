@@ -11,7 +11,6 @@ import { GENRES } from "@/lib/genre-map"
 import Link from "next/link"
 import { ArrowLeft, Film, BookOpen } from "lucide-react"
 import { SlideOutMenu } from "@/components/slide-out-menu"
-import { obfuscateId } from "@/lib/utils"
 
 type Source = {
   name: string
@@ -52,7 +51,10 @@ type PaginationInfo = {
 export default function SearchPage() {
   const sp = useSearchParams()
   const router = useRouter()
-  const [searchType, setSearchType] = useState<"anime" | "manga">("anime")
+  const [searchType, setSearchType] = useState<"anime" | "manga">(() => {
+    const tabParam = sp.get("tab")
+    return tabParam === "manga" ? "manga" : "anime"
+  })
   const [animeItems, setAnimeItems] = useState<AnimeItem[]>([])
   const [mangaItems, setMangaItems] = useState<MangaItem[]>([])
   const [loading, setLoading] = useState(false)
@@ -72,7 +74,6 @@ export default function SearchPage() {
     return g?.name || `Genere ${genreId}`
   }, [genreId])
 
-  // --- Load default recommendations ---
   const loadDefaultRecommendations = async () => {
     setLoading(true)
     setError(null)
@@ -86,7 +87,7 @@ export default function SearchPage() {
       }
       const j = await r.json()
       if (!j.ok) throw new Error(j.error || "Errore caricamento raccomandazioni")
-      setAnimeItems(j.items || [])
+      setAnimeItems(j.items)
       setPagination(j.pagination || null)
     } catch (e: any) {
       setError(e?.message || "Errore nel caricamento delle raccomandazioni")
@@ -95,7 +96,6 @@ export default function SearchPage() {
     }
   }
 
-  // --- Anime search ---
   const searchAnime = async () => {
     setLoading(true)
     setError(null)
@@ -105,11 +105,19 @@ export default function SearchPage() {
 
     try {
       let r: Response
+      const hasFilters = hasOtherFilters()
+
+      console.log("[v0] Search params:", { keyword, genreId, hasFilters, queryString })
+
       if (genreId && !keyword) {
+        console.log("[v0] Using regular API for genre search")
         r = await fetch(`/api/search?${queryString}`)
-      } else if (keyword && !genreId && !hasOtherFilters()) {
-        r = await fetch(`/api/unified-search?${queryString}`)
+      } else if (keyword && !hasFilters) {
+        console.log("[v0] Using unified API for keyword-only search")
+        r = await fetch(`/api/unified-search?keyword=${encodeURIComponent(keyword)}`)
+        setIsUnified(true)
       } else {
+        console.log("[v0] Using regular API for filtered search")
         r = await fetch(`/api/search?${queryString}`)
       }
 
@@ -120,8 +128,10 @@ export default function SearchPage() {
       }
       const j = await r.json()
       if (!j.ok) throw new Error(j.error || "Errore ricerca")
-      setAnimeItems(j.items || [])
-      setIsUnified(j.unified || false)
+      setAnimeItems(j.items)
+      if (!isUnified) {
+        setIsUnified(j.unified || false)
+      }
       setPagination(j.pagination || null)
     } catch (e: any) {
       setError(e?.message || "Errore nella ricerca")
@@ -130,7 +140,6 @@ export default function SearchPage() {
     }
   }
 
-  // --- Manga search ---
   const searchManga = async (params: {
     keyword: string
     type: string
@@ -155,7 +164,7 @@ export default function SearchPage() {
 
       const response = await fetch(`/api/manga-search?${searchParams.toString()}`)
       const data = await response.json()
-      setMangaItems(Array.isArray(data.results) ? data.results : [])
+      setMangaItems(data.results || [])
     } catch (e: any) {
       setError(e?.message || "Errore nella ricerca manga")
     } finally {
@@ -165,11 +174,20 @@ export default function SearchPage() {
 
   const hasOtherFilters = () => {
     const allParams = Array.from(sp.entries())
-    return allParams.some(([key, value]) => {
-      if (key === "keyword" || key === "genre") return false
-      return value && value.trim() !== "" && value !== "any" && value !== "0"
+    const hasFilters = allParams.some(([key, value]) => {
+      if (key === "keyword" || key === "genre" || key === "tab" || key === "page") return false
+      return value && value.trim() !== "" && value !== "any" && value !== "0" && value !== "all"
     })
+    console.log("[v0] Has other filters:", hasFilters, "All params:", allParams)
+    return hasFilters
   }
+
+  useEffect(() => {
+    const tabParam = sp.get("tab")
+    if (tabParam === "manga" || tabParam === "anime") {
+      setSearchType(tabParam)
+    }
+  }, [sp])
 
   useEffect(() => {
     if (searchType === "anime") {
@@ -181,6 +199,20 @@ export default function SearchPage() {
     }
   }, [queryString, genreId, searchType])
 
+  useEffect(() => {
+    if (searchType === "manga" && keyword) {
+      searchManga({
+        keyword: keyword,
+        type: "all",
+        author: "",
+        year: "",
+        genre: "",
+        artist: "",
+        sort: "default",
+      })
+    }
+  }, [searchType, keyword])
+
   const navigateToPage = (pageNum: number) => {
     const newParams = new URLSearchParams(sp.toString())
     newParams.set("page", pageNum.toString())
@@ -191,7 +223,7 @@ export default function SearchPage() {
     <main className="min-h-screen">
       <SlideOutMenu currentPath="/search" />
 
-      <header className="border-b sticky top-0 bg-background/80 backdrop-blur z-10">
+      <header className="border-b sticky top-0 glass z-10">
         <div className="px-4 py-3 flex items-center justify-center">
           <Link href="/" className="text-lg font-extrabold tracking-tight">
             Anizone
@@ -216,7 +248,6 @@ export default function SearchPage() {
             </TabsTrigger>
           </TabsList>
 
-          {/* --- Anime Tab --- */}
           <TabsContent value="anime" className="space-y-4">
             <div className="rounded-lg bg-neutral-950 text-white p-4">
               <h1 className="text-lg font-bold">
@@ -245,23 +276,65 @@ export default function SearchPage() {
                 Nessun risultato trovato. Prova a cambiare parola chiave o filtri.
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3">
-                {animeItems.map((it) => (
-                  <AnimeCard
-                    key={it.href}
-                    title={it.title}
-                    href={`/watch/${obfuscateId(it.href.split("/").filter(Boolean).pop() || it.href)}`} // redirect directly to watch
-                    image={it.image}
-                    isDub={it.isDub}
-                    sources={it.sources}
-                    has_multi_servers={it.has_multi_servers}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  {animeItems.map((it) => (
+                    <AnimeCard
+                      key={it.href}
+                      title={it.title}
+                      href={it.href}
+                      image={it.image}
+                      isDub={it.isDub}
+                      sources={it.sources}
+                      has_multi_servers={it.has_multi_servers}
+                    />
+                  ))}
+                </div>
+
+                {pagination && !isUnified && (
+                  <div className="flex items-center justify-between py-3 px-2 border-t border-neutral-800 bg-neutral-900/50 rounded-lg">
+                    <button
+                      onClick={() => navigateToPage(pagination.currentPage - 1)}
+                      disabled={!pagination.hasPrevious}
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-neutral-800 transition-colors"
+                    >
+                      <ArrowLeft size={14} />
+                      Precedente
+                    </button>
+
+                    <div className="flex items-center gap-2 text-sm text-neutral-300">
+                      <span>pagina</span>
+                      <input
+                        type="number"
+                        min="1"
+                        max={pagination.totalPages}
+                        value={pagination.currentPage}
+                        onChange={(e) => {
+                          const page = Number.parseInt(e.target.value)
+                          if (page >= 1 && page <= pagination.totalPages) {
+                            navigateToPage(page)
+                          }
+                        }}
+                        className="w-12 px-2 py-1 text-xs bg-neutral-800 border border-neutral-700 rounded text-center text-neutral-200 focus:border-neutral-600 focus:outline-none"
+                      />
+                      <span>di</span>
+                      <span className="font-medium">{pagination.totalPages}</span>
+                    </div>
+
+                    <button
+                      onClick={() => navigateToPage(pagination.currentPage + 1)}
+                      disabled={!pagination.hasNext}
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-neutral-800 transition-colors"
+                    >
+                      Successiva
+                      <ArrowLeft size={14} className="rotate-180" />
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </TabsContent>
 
-          {/* --- Manga Tab --- */}
           <TabsContent value="manga" className="space-y-4">
             <div className="rounded-lg bg-neutral-950 text-white p-4">
               <h1 className="text-lg font-bold">Cerca Manga</h1>
@@ -280,7 +353,7 @@ export default function SearchPage() {
                 <h2 className="text-lg font-semibold mb-2">Nessun risultato</h2>
                 <p className="text-muted-foreground">Non sono stati trovati manga. Prova con altri filtri.</p>
               </div>
-            ) : (
+            ) : mangaItems.length > 0 ? (
               <div className="space-y-4">
                 <h2 className="text-lg font-semibold">Risultati manga ({mangaItems.length})</h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -289,7 +362,7 @@ export default function SearchPage() {
                   ))}
                 </div>
               </div>
-            )}
+            ) : null}
           </TabsContent>
         </Tabs>
       </section>
