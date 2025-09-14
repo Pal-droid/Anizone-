@@ -3,12 +3,13 @@
 import type React from "react"
 import { useState, useEffect, useRef, useCallback } from "react"
 import Link from "next/link"
-import { ArrowLeft, RotateCcw, ListIcon, BookOpen, Film, Search } from "lucide-react"
+import { ArrowLeft, RotateCcw, ListIcon, BookOpen } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { deobfuscateUrl } from "@/lib/utils"
+import { SlideOutMenu } from "@/components/slide-out-menu"
 
 interface MangaReaderProps {
   params: {
@@ -247,6 +248,9 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
 
   return (
     <main className="min-h-screen bg-black text-white pb-16">
+      {/* Slide-out menu component */}
+      <SlideOutMenu currentPath={`/manga/${params.id}/read`} />
+
       {/* Header */}
       <header className="sticky top-0 bg-black/90 backdrop-blur z-20 border-b border-gray-800">
         <div className="px-4 py-3 flex items-center justify-between">
@@ -381,34 +385,6 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
           </div>
         </>
       )}
-
-      {/* Bottom navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t z-20">
-        <div className="flex items-center justify-around py-2">
-          <Link href="/" className="flex flex-col items-center gap-1 p-2 text-xs hover:text-primary transition-colors">
-            <Film size={20} />
-            <span>Anime</span>
-          </Link>
-          <Link href="/manga" className="flex flex-col items-center gap-1 p-2 text-xs text-primary">
-            <BookOpen size={20} />
-            <span>Manga</span>
-          </Link>
-          <Link
-            href="/search"
-            className="flex flex-col items-center gap-1 p-2 text-xs hover:text-primary transition-colors"
-          >
-            <Search size={20} />
-            <span>Cerca</span>
-          </Link>
-          <Link
-            href="/lists"
-            className="flex flex-col items-center gap-1 p-2 text-xs hover:text-primary transition-colors"
-          >
-            <ListIcon size={20} />
-            <span>Liste</span>
-          </Link>
-        </div>
-      </nav>
     </main>
   )
 }

@@ -197,6 +197,188 @@ class AuthManager {
       return { success: false, error: "Network error" }
     }
   }
+
+  // ---------------- List Management ----------------
+
+  async getAnimeLists(): Promise<UserLists> {
+    if (!this.user) throw new Error("Not authenticated")
+
+    try {
+      const response = await fetch(`${API_BASE}/user/anime-lists`, {
+        headers: { Authorization: `Bearer ${this.user.token}` },
+      })
+
+      if (!response.ok) {
+        if (response.status === 401) this.logout()
+        throw new Error("Failed to fetch anime lists")
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error("[v0] Failed to get anime lists:", error)
+      throw error
+    }
+  }
+
+  async getMangaLists(): Promise<UserLists> {
+    if (!this.user) throw new Error("Not authenticated")
+
+    try {
+      const response = await fetch(`${API_BASE}/user/manga-lists`, {
+        headers: { Authorization: `Bearer ${this.user.token}` },
+      })
+
+      if (!response.ok) {
+        if (response.status === 401) this.logout()
+        throw new Error("Failed to fetch manga lists")
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error("[v0] Failed to get manga lists:", error)
+      throw error
+    }
+  }
+
+  async updateAnimeLists(lists: UserLists): Promise<boolean> {
+    if (!this.user) return false
+
+    try {
+      const response = await fetch(`${API_BASE}/user/anime-lists`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.user.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(lists),
+      })
+
+      if (!response.ok) {
+        if (response.status === 401) this.logout()
+        return false
+      }
+
+      return true
+    } catch (error) {
+      console.error("[v0] Failed to update anime lists:", error)
+      return false
+    }
+  }
+
+  async updateMangaLists(lists: UserLists): Promise<boolean> {
+    if (!this.user) return false
+
+    try {
+      const response = await fetch(`${API_BASE}/user/manga-lists`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.user.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(lists),
+      })
+
+      if (!response.ok) {
+        if (response.status === 401) this.logout()
+        return false
+      }
+
+      return true
+    } catch (error) {
+      console.error("[v0] Failed to update manga lists:", error)
+      return false
+    }
+  }
+
+  async getContinueWatching(): Promise<Record<string, ContinueWatchingItem>> {
+    if (!this.user) throw new Error("Not authenticated")
+
+    try {
+      const response = await fetch(`${API_BASE}/user/continue-watching`, {
+        headers: { Authorization: `Bearer ${this.user.token}` },
+      })
+
+      if (!response.ok) {
+        if (response.status === 401) this.logout()
+        return {}
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error("[v0] Failed to get continue watching:", error)
+      return {}
+    }
+  }
+
+  async updateContinueWatching(data: Record<string, ContinueWatchingItem>): Promise<boolean> {
+    if (!this.user) return false
+
+    try {
+      const response = await fetch(`${API_BASE}/user/continue-watching`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.user.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        if (response.status === 401) this.logout()
+        return false
+      }
+
+      return true
+    } catch (error) {
+      console.error("[v0] Failed to update continue watching:", error)
+      return false
+    }
+  }
+
+  async getContinueReading(): Promise<Record<string, ContinueReadingItem>> {
+    if (!this.user) throw new Error("Not authenticated")
+
+    try {
+      const response = await fetch(`${API_BASE}/user/continue-reading`, {
+        headers: { Authorization: `Bearer ${this.user.token}` },
+      })
+
+      if (!response.ok) {
+        if (response.status === 401) this.logout()
+        return {}
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error("[v0] Failed to get continue reading:", error)
+      return {}
+    }
+  }
+
+  async updateContinueReading(data: Record<string, ContinueReadingItem>): Promise<boolean> {
+    if (!this.user) return false
+
+    try {
+      const response = await fetch(`${API_BASE}/user/continue-reading`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.user.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        if (response.status === 401) this.logout()
+        return false
+      }
+
+      return true
+    } catch (error) {
+      console.error("[v0] Failed to update continue reading:", error)
+      return false
+    }
+  }
 }
 
 export const authManager = new AuthManager()

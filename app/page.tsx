@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Search, List, Film, BookOpen, Calendar, Sparkles, Bug } from "lucide-react"
+import { Search, List, BookOpen, Calendar, Sparkles, Bug } from "lucide-react"
 import HeroSearch from "@/components/hero-search"
 import { TopAnime } from "@/components/top-anime"
 import { ContinueWatching } from "@/components/continue-watching"
@@ -12,6 +12,7 @@ import { NewAdditions } from "@/components/new-additions"
 import { LazySection } from "@/components/lazy-section"
 import { useIsDesktop } from "@/hooks/use-desktop"
 import { BugReportDialog } from "@/components/bug-report-dialog"
+import { SlideOutMenu } from "@/components/slide-out-menu"
 import { useState } from "react"
 
 export default function HomePage() {
@@ -114,30 +115,16 @@ export default function HomePage() {
     )
   }
 
-  // Mobile layout (existing code)
+  // Mobile layout
   return (
-    <main className="min-h-screen pb-20">
-      <header className="sticky top-0 z-50 glass-strong border-b border-border/30">
-        <div className="px-6 py-4 flex items-center justify-between max-w-7xl mx-auto">
+    <main className="min-h-screen">
+      <SlideOutMenu currentPath="/" />
+
+      <header className="sticky top-0 z-40 glass-strong border-b border-border/30">
+        <div className="px-6 py-4 flex items-center justify-center max-w-7xl mx-auto">
           <div className="animate-float">
             <AnimatedLogo />
           </div>
-          <nav className="flex items-center gap-6">
-            <Link
-              href="/lists"
-              className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-smooth hover:glow group"
-            >
-              <List size={18} className="group-hover:scale-110 transition-transform" />
-              <span className="hidden sm:inline">Liste</span>
-            </Link>
-            <Link
-              href="/search"
-              className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-smooth hover:glow group"
-            >
-              <Search size={18} className="group-hover:scale-110 transition-transform" />
-              <span className="hidden sm:inline">Cerca</span>
-            </Link>
-          </nav>
         </div>
       </header>
 
@@ -180,47 +167,6 @@ export default function HomePage() {
           </LazySection>
         </div>
       </section>
-
-      <nav className="fixed bottom-0 left-0 right-0 z-50 glass-strong border-t border-border/30">
-        <div className="flex items-center justify-around py-3 px-4 max-w-md mx-auto">
-          <Link
-            href="/"
-            className="flex flex-col items-center gap-1 p-3 text-xs text-primary transition-smooth hover:glow group"
-          >
-            <Film size={22} className="group-hover:scale-110 transition-transform" />
-            <span className="font-medium">Anime</span>
-          </Link>
-          <Link
-            href="/manga"
-            className="flex flex-col items-center gap-1 p-3 text-xs text-muted-foreground hover:text-primary transition-smooth hover:glow group"
-          >
-            <BookOpen size={22} className="group-hover:scale-110 transition-transform" />
-            <span className="font-medium">Manga</span>
-          </Link>
-          <Link
-            href="/search"
-            className="flex flex-col items-center gap-1 p-3 text-xs text-muted-foreground hover:text-primary transition-smooth hover:glow group"
-          >
-            <Search size={22} className="group-hover:scale-110 transition-transform" />
-            <span className="font-medium">Cerca</span>
-          </Link>
-          <Link
-            href="/lists"
-            className="flex flex-col items-center gap-1 p-3 text-xs text-muted-foreground hover:text-primary transition-smooth hover:glow group"
-          >
-            <List size={22} className="group-hover:scale-110 transition-transform" />
-            <span className="font-medium">Liste</span>
-          </Link>
-          <button
-            onClick={() => setShowBugReport(true)}
-            className="flex flex-col items-center gap-1 p-3 text-xs text-muted-foreground hover:text-primary transition-smooth hover:glow group"
-          >
-            <Bug size={22} className="group-hover:scale-110 transition-transform" />
-            <span className="font-medium">Bug</span>
-          </button>
-        </div>
-      </nav>
-      <BugReportDialog isOpen={showBugReport} onClose={() => setShowBugReport(false)} />
     </main>
   )
 }

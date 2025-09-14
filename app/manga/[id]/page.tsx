@@ -8,21 +8,9 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { QuickListManager } from "@/components/quick-list-manager"
+import { SlideOutMenu } from "@/components/slide-out-menu"
 import { deobfuscateId, obfuscateUrl } from "@/lib/utils"
-import {
-  ArrowLeft,
-  BookOpen,
-  Calendar,
-  User,
-  Palette,
-  Star,
-  ChevronDown,
-  ChevronUp,
-  FileImage,
-  Film,
-  Search,
-  List,
-} from "lucide-react"
+import { ArrowLeft, BookOpen, Calendar, User, Palette, Star, ChevronDown, ChevronUp, FileImage } from "lucide-react"
 
 type Chapter = {
   title: string
@@ -99,6 +87,7 @@ export default function MangaMetadataPage() {
   if (loading) {
     return (
       <main className="min-h-screen pb-16 bg-background">
+        <SlideOutMenu currentPath={`/manga/${params.id}`} />
         <header className="border-b sticky top-0 bg-background/95 backdrop-blur z-10">
           <div className="px-4 py-3 flex items-center gap-3">
             <Button variant="ghost" size="sm" onClick={() => router.back()}>
@@ -117,6 +106,7 @@ export default function MangaMetadataPage() {
   if (error || !mangaData) {
     return (
       <main className="min-h-screen pb-16 bg-background">
+        <SlideOutMenu currentPath={`/manga/${params.id}`} />
         <header className="border-b sticky top-0 bg-background/95 backdrop-blur z-10">
           <div className="px-4 py-3 flex items-center gap-3">
             <Button variant="ghost" size="sm" onClick={() => router.back()}>
@@ -133,13 +123,14 @@ export default function MangaMetadataPage() {
   }
 
   return (
-    <main className="min-h-screen pb-16 bg-background">
+    <main className="min-h-screen bg-background">
+      <SlideOutMenu currentPath={`/manga/${params.id}`} />
       <header className="border-b sticky top-0 bg-background/95 backdrop-blur z-10">
         <div className="px-4 py-3 flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => router.back()}>
             <ArrowLeft size={16} />
           </Button>
-          <h1 className="text-lg font-bold line-clamp-1">{mangaData.title}</h1>
+          <h1 className="text-lg font-bold line-clamp-1">{mangaData?.title || "Caricamento..."}</h1>
         </div>
       </header>
 
@@ -151,8 +142,8 @@ export default function MangaMetadataPage() {
               <div className="shrink-0">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={mangaData.image || "/placeholder.svg"}
-                  alt={mangaData.title}
+                  src={mangaData?.image || "/placeholder.svg"}
+                  alt={mangaData?.title || "Manga"}
                   className="w-28 h-40 object-cover rounded-lg shadow-md"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement
@@ -163,10 +154,10 @@ export default function MangaMetadataPage() {
 
               <div className="flex-1 space-y-4">
                 <div>
-                  <h1 className="text-2xl font-bold text-balance leading-tight mb-2">{mangaData.title}</h1>
+                  <h1 className="text-2xl font-bold text-balance leading-tight mb-2">{mangaData?.title}</h1>
 
                   <div className="space-y-3">
-                    {mangaData.author && (
+                    {mangaData?.author && (
                       <div className="flex items-center gap-2 text-sm">
                         <User size={16} className="text-muted-foreground" />
                         <span className="font-medium">Autore:</span>
@@ -174,7 +165,7 @@ export default function MangaMetadataPage() {
                       </div>
                     )}
 
-                    {mangaData.artist && mangaData.artist !== mangaData.author && (
+                    {mangaData?.artist && mangaData.artist !== mangaData.author && (
                       <div className="flex items-center gap-2 text-sm">
                         <Palette size={16} className="text-muted-foreground" />
                         <span className="font-medium">Artista:</span>
@@ -183,14 +174,14 @@ export default function MangaMetadataPage() {
                     )}
 
                     <div className="flex items-center gap-4 text-sm">
-                      {mangaData.type && (
+                      {mangaData?.type && (
                         <div className="flex items-center gap-2">
                           <BookOpen size={16} className="text-muted-foreground" />
                           <Badge variant="secondary">{mangaData.type}</Badge>
                         </div>
                       )}
 
-                      {mangaData.status && (
+                      {mangaData?.status && (
                         <div className="flex items-center gap-2">
                           <Star size={16} className="text-muted-foreground" />
                           <Badge variant={mangaData.status === "Finito" ? "default" : "outline"}>
@@ -199,7 +190,7 @@ export default function MangaMetadataPage() {
                         </div>
                       )}
 
-                      {mangaData.year && (
+                      {mangaData?.year && (
                         <div className="flex items-center gap-2">
                           <Calendar size={16} className="text-muted-foreground" />
                           <span className="text-muted-foreground">{mangaData.year}</span>
@@ -207,7 +198,7 @@ export default function MangaMetadataPage() {
                       )}
                     </div>
 
-                    {mangaData.genres.length > 0 && (
+                    {mangaData?.genres.length > 0 && (
                       <div>
                         <span className="text-sm font-medium mb-2 block">Generi:</span>
                         <div className="flex flex-wrap gap-1">
@@ -245,7 +236,7 @@ export default function MangaMetadataPage() {
           </CardContent>
         </Card>
 
-        {mangaData.trama && (
+        {mangaData?.trama && (
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">Trama</CardTitle>
@@ -256,7 +247,7 @@ export default function MangaMetadataPage() {
           </Card>
         )}
 
-        {mangaData.volumes.length > 0 && (
+        {mangaData?.volumes.length > 0 && (
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center justify-between">
@@ -346,33 +337,6 @@ export default function MangaMetadataPage() {
           </Card>
         )}
       </div>
-
-      <nav className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t z-20">
-        <div className="flex items-center justify-around py-2">
-          <Link href="/" className="flex flex-col items-center gap-1 p-2 text-xs hover:text-primary transition-colors">
-            <Film size={20} />
-            <span>Anime</span>
-          </Link>
-          <Link href="/manga" className="flex flex-col items-center gap-1 p-2 text-xs text-primary">
-            <BookOpen size={20} />
-            <span>Manga</span>
-          </Link>
-          <Link
-            href="/search"
-            className="flex flex-col items-center gap-1 p-2 text-xs hover:text-primary transition-colors"
-          >
-            <Search size={20} />
-            <span>Cerca</span>
-          </Link>
-          <Link
-            href="/lists"
-            className="flex flex-col items-center gap-1 p-2 text-xs hover:text-primary transition-colors"
-          >
-            <List size={20} />
-            <span>Liste</span>
-          </Link>
-        </div>
-      </nav>
     </main>
   )
 }

@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { AuthPanel } from "@/components/auth-panel"
-import { Film, BookOpen, Book, Search, List, Calendar } from "lucide-react"
+import { SlideOutMenu } from "@/components/slide-out-menu"
+import { Film, BookOpen, Book } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 
 type ContentType = "anime" | "manga" | "light-novel" | "series-movies"
@@ -30,7 +31,7 @@ const ANIME_ORDER: { key: AnimeListName; title: string }[] = [
 ]
 
 const MANGA_ORDER: { key: MangaListName; title: string }[] = [
-  { key: "da_leggere", title: "Da leggere" }, // Fixed manga label from "da_guardare" to "da_leggere"
+  { key: "da_leggere", title: "Da leggere" },
   { key: "in_corso", title: "In corso" },
   { key: "completati", title: "Completati" },
   { key: "in_pausa", title: "In pausa" },
@@ -127,7 +128,7 @@ const ListItemCard = ({ itemId, contentType, listName, onRemove, fetchMetadata }
                   ? `/anime/${itemId}`
                   : contentType === "manga"
                     ? `/manga/${itemId}`
-                    : `/manga/${itemId}` // light novels use same structure as manga
+                    : `/manga/${itemId}`
               }
             >
               Apri
@@ -400,7 +401,8 @@ export default function ListsPage() {
 
   if (!user) {
     return (
-      <main className="min-h-screen pb-16">
+      <main className="min-h-screen">
+        <SlideOutMenu currentPath="/lists" />
         <header className="border-b sticky top-0 bg-background/80 backdrop-blur z-10">
           <div className="px-4 py-3">
             <h1 className="text-lg font-bold">Le mie liste</h1>
@@ -419,7 +421,8 @@ export default function ListsPage() {
   }
 
   return (
-    <main className="min-h-screen pb-16">
+    <main className="min-h-screen">
+      <SlideOutMenu currentPath="/lists" />
       <header className="border-b sticky top-0 bg-background/80 backdrop-blur z-10">
         <div className="px-4 py-3">
           <h1 className="text-lg font-bold">Le mie liste</h1>
@@ -498,41 +501,6 @@ export default function ListsPage() {
           </Tabs>
         )}
       </section>
-
-      {/* Bottom navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t z-20">
-        <div className="flex items-center justify-around py-2">
-          <Link href="/" className="flex flex-col items-center gap-1 p-2 text-xs hover:text-primary transition-colors">
-            <Film size={20} />
-            <span>Anime</span>
-          </Link>
-          <Link
-            href="/manga"
-            className="flex flex-col items-center gap-1 p-2 text-xs hover:text-primary transition-colors"
-          >
-            <BookOpen size={20} />
-            <span>Manga</span>
-          </Link>
-          <Link
-            href="/search"
-            className="flex flex-col items-center gap-1 p-2 text-xs hover:text-primary transition-colors"
-          >
-            <Search size={20} />
-            <span>Cerca</span>
-          </Link>
-          <Link href="/lists" className="flex flex-col items-center gap-1 p-2 text-xs text-primary">
-            <List size={20} />
-            <span>Liste</span>
-          </Link>
-          <Link
-            href="/schedule"
-            className="flex flex-col items-center gap-1 p-2 text-xs hover:text-primary transition-colors"
-          >
-            <Calendar size={20} />
-            <span>Calendario</span>
-          </Link>
-        </div>
-      </nav>
     </main>
   )
 }
