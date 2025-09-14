@@ -123,27 +123,31 @@ export function HeroSearch() {
 
     try {
       if (contentType === "anime") {
-        // For anime, extract path from href and redirect to watch page
-        let path: string
+        let animeId: string
         if (href.startsWith("http")) {
-          path = new URL(href).pathname
+          const url = new URL(href)
+          animeId = url.pathname.split("/").pop() || url.pathname
         } else {
-          path = href.startsWith("/") ? href : `/${href}`
+          animeId = href.startsWith("/") ? href.substring(1) : href
+          // Remove any leading path segments
+          animeId = animeId.split("/").pop() || animeId
         }
-        console.log("[v0] Anime redirect path:", path)
-        const finalUrl = `/watch?path=${encodeURIComponent(path)}`
+        console.log("[v0] Anime ID extracted:", animeId)
+        const finalUrl = `/anime/${animeId}`
         console.log("[v0] Final anime URL:", finalUrl)
         router.push(finalUrl)
       } else {
-        // For manga, redirect to manga info page
-        let path: string
+        let mangaId: string
         if (href.startsWith("http")) {
-          path = new URL(href).pathname
+          const url = new URL(href)
+          mangaId = url.pathname.split("/").pop() || url.pathname
         } else {
-          path = href.startsWith("/") ? href : `/${href}`
+          mangaId = href.startsWith("/") ? href.substring(1) : href
+          // Remove any leading path segments
+          mangaId = mangaId.split("/").pop() || mangaId
         }
-        console.log("[v0] Manga redirect path:", path)
-        const finalUrl = `/manga${path}`
+        console.log("[v0] Manga ID extracted:", mangaId)
+        const finalUrl = `/manga/${mangaId}`
         console.log("[v0] Final manga URL:", finalUrl)
         router.push(finalUrl)
       }
@@ -151,7 +155,7 @@ export function HeroSearch() {
       console.error("[v0] Error parsing href:", error, { href, contentType })
       // Fallback: try to use href as-is
       if (contentType === "anime") {
-        const fallbackUrl = `/watch?path=${encodeURIComponent(href)}`
+        const fallbackUrl = `/anime/${href}`
         console.log("[v0] Fallback anime URL:", fallbackUrl)
         router.push(fallbackUrl)
       } else {

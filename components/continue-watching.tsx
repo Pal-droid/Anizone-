@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { formatSeconds } from "@/lib/time"
 import { AnimeCard } from "@/components/anime-card"
 import { useAuth } from "@/contexts/auth-context"
+import { authManager } from "@/lib/auth"
 
 type ContinueEntry = {
   seriesKey: string
@@ -76,59 +77,56 @@ export function ContinueWatching() {
     if (!token) return {}
 
     try {
-      const response = await fetch("/user/continue-watching", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        return data
-      }
+      const data = await authManager.getContinueWatching()
+      console.log("[v0] Continue watching data from authManager:", data)
+      return data || {}
     } catch (error) {
-      console.error("Failed to fetch continue watching:", error)
+      console.error("[v0] Failed to fetch continue watching:", error)
+      return {}
     }
-
-    return {}
   }
 
   const load = useMemo(
     () => async () => {
-      if (!user || !token) return
+      if (!user || !token) {
+        console.log("[v0] No user or token, clearing continue watching")
+        setItems([])
+        return
+      }
 
       try {
-        const [localResponse, backendData] = await Promise.all([
-          fetch("/api/user-state", { cache: "no-store" }),
-          fetchContinueWatching(),
-        ])
+        console.log("[v0] Loading continue watching for user:", user.username)
 
-        const localJson = await localResponse.json()
+        const backendData = await fetchContinueWatching()
         let cw: ContinueEntry[] = []
 
-        if (localJson.ok) {
-          cw = Object.values((localJson.data as UserState).continueWatching || {}) as ContinueEntry[]
-        }
-
-        if (backendData.anime) {
-          const backendEntry: ContinueEntry = {
-            seriesKey: backendData.anime,
-            seriesPath: `/anime/${backendData.anime.toLowerCase().replace(/\s+/g, "-")}`,
-            title: backendData.anime,
-            episode: { num: backendData.episode || 1, href: "" },
-            updatedAt: Date.now(),
-            positionSeconds: backendData.progress ? parseTimeToSeconds(backendData.progress) : 0,
-          }
-
-          // Replace or add the backend entry
-          const existingIndex = cw.findIndex((item) => basePath(item.seriesKey) === basePath(backendEntry.seriesKey))
-
-          if (existingIndex >= 0) {
-            cw[existingIndex] = backendEntry
-          } else {
+        if (backendData && typeof backendData === "object") {
+          // Handle both old format (single anime) and new format (multiple entries)
+          if (backendData.anime) {
+            // Old format - single anime entry
+            const backendEntry: ContinueEntry = {
+              seriesKey: backendData.anime,
+              seriesPath: `/anime/${backendData.anime.toLowerCase().replace(/\s+/g, "-")}`,
+              title: backendData.anime,
+              episode: { num: backendData.episode || 1, href: "" },
+              updatedAt: Date.now(),
+              positionSeconds: backendData.progress ? parseTimeToSeconds(backendData.progress) : 0,
+            }
             cw.push(backendEntry)
+          } else {
+            // New format - multiple entries
+            cw = Object.entries(backendData).map(([animeId, data]: [string, any]) => ({
+              seriesKey: animeId,
+              seriesPath: `/anime/${animeId}`,
+              title: data.anime || animeId,
+              episode: { num: data.episode || 1, href: "" },
+              updatedAt: Date.now(),
+              positionSeconds: data.progress ? parseTimeToSeconds(data.progress) : 0,
+            }))
           }
         }
+
+        console.log("[v0] Continue watching entries:", cw)
 
         // hydrate meta
         const enriched = await Promise.all(
@@ -144,9 +142,11 @@ export function ContinueWatching() {
           }),
         )
         enriched.sort((a, b) => b.updatedAt - a.updatedAt)
+        console.log("[v0] Enriched continue watching:", enriched)
         setItems(enriched)
       } catch (error) {
-        console.error("Failed to load continue watching:", error)
+        console.error("[v0] Failed to load continue watching:", error)
+        setItems([])
       }
     },
     [user, token],

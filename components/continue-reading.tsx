@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { obfuscateId } from "@/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
+import { authManager } from "@/lib/auth"
 
 type ContinueReadingEntry = {
   manga_id: string
@@ -119,29 +120,43 @@ export function ContinueReading() {
           return
         }
 
-        const r = await fetch("https://stale-nananne-anizonee-3fa1a732.koyeb.app/user/continue-reading", {
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-            "Content-Type": "application/json",
-          },
-        })
+        console.log("[v0] Loading continue reading for user:", user.username)
 
-        if (!r.ok) {
-          throw new Error("Failed to load continue reading")
-        }
+        const continueReadingData = await authManager.getContinueReading()
+        console.log("[v0] Continue reading data:", continueReadingData)
 
-        const continueReadingData = await r.json()
         if (continueReadingData && Object.keys(continueReadingData).length > 0) {
-          // Convert the backend format to our expected format
-          const enriched = Object.entries(continueReadingData).map(([mangaId, data]: [string, any]) => ({
-            manga_id: mangaId,
-            chapter: data.chapter || 1,
-            page: data.page || 1,
-            title: data.title || mangaId,
-            image: data.image,
-            updatedAt: Date.now(),
-          }))
+          const enriched = await Promise.all(
+            Object.entries(continueReadingData).map(async ([mangaId, data]: [string, any]) => {
+              // Fetch manga metadata for title and image
+              let title = data.manga || mangaId
+              let image = data.image
+
+              try {
+                const response = await fetch(`/api/manga-info?id=${encodeURIComponent(mangaId)}`)
+                if (response.ok) {
+                  const metadata = await response.json()
+                  title = metadata.title || title
+                  image = metadata.image || image
+                  console.log("[v0] Fetched manga metadata:", { mangaId, title, image })
+                }
+              } catch (error) {
+                console.log("[v0] Failed to fetch manga metadata for:", mangaId, error)
+              }
+
+              return {
+                manga_id: mangaId,
+                chapter: data.chapter || 1,
+                page: data.page || 1,
+                title,
+                image,
+                updatedAt: Date.now(),
+              }
+            }),
+          )
+
           enriched.sort((a: any, b: any) => b.updatedAt - a.updatedAt)
+          console.log("[v0] Enriched continue reading:", enriched)
           setItems(enriched)
         } else {
           setItems([])

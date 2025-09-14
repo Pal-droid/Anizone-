@@ -76,7 +76,7 @@ export default function HomePage() {
                 <h1 className="text-5xl font-bold text-white font-[var(--font-playfair)]">Guarda anime in italiano</h1>
               </div>
               <p className="text-muted-foreground mb-8 text-xl font-[var(--font-source-sans)] leading-relaxed">
-                Trova episodi sub/dub ITA e riproducili direttamente nella migliore qualità disponibile.
+                Scopri e guarda i tuoi anime preferiti con sottotitoli e doppiaggio italiano.
               </p>
               <div className="relative max-w-2xl">
                 <HeroSearch />
@@ -137,7 +137,7 @@ export default function HomePage() {
               <h1 className="text-3xl font-bold text-white font-[var(--font-playfair)]">Guarda anime in italiano</h1>
             </div>
             <p className="text-muted-foreground mb-6 text-lg font-[var(--font-source-sans)]">
-              Trova episodi sub/dub ITA e riproducili direttamente nella migliore qualità.
+              Scopri e guarda i tuoi anime preferiti con sottotitoli e doppiaggio italiano.
             </p>
             <div className="relative">
               <HeroSearch />
