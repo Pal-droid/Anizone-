@@ -88,6 +88,7 @@ export function HeroSearch() {
             }))
 
       setResults(previewResults)
+      console.log("[DEBUG] Search results updated:", previewResults)
     } catch (err) {
       console.error("Search error:", err)
       setResults([])
@@ -97,30 +98,55 @@ export function HeroSearch() {
   }
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    if (e) e.preventDefault()
     if (!query.trim()) return
+
     const params = new URLSearchParams({ keyword: query.trim() })
     const searchPage = contentType === "anime" ? "/search" : "/search-manga"
-    router.push(`${searchPage}?${params}`)
+    const finalUrl = `${searchPage}?${params}`
+
+    console.log("[DEBUG] View All / Submit clicked, navigating to:", finalUrl)
+
     setShowResults(false)
+    router.push(finalUrl)
   }
 
   const handleResultClick = (href: string) => {
-    if (!href) return
+    console.log("[DEBUG] Search result clicked:", { href, contentType })
 
-    let idSegment = href.split("/").filter(Boolean).pop() || href
-    const finalUrl =
-      contentType === "anime"
-        ? `/anime/${obfuscateId(idSegment)}`
-        : `/manga/${obfuscateId(idSegment)}`
+    if (!href) {
+      console.warn("[DEBUG] href is empty, aborting navigation")
+      return
+    }
 
-    // Close overlay first
-    setShowResults(false)
+    try {
+      // Normalize href
+      let path = href.replace(/^https?:\/\/[^/]+/, "") // remove domain if present
+      path = path.replace(/^\/+/, "") // remove leading slash
 
-    // Delay push to allow overlay to unmount
-    setTimeout(() => {
-      router.push(finalUrl)
-    }, 0)
+      console.log("[DEBUG] Normalized path:", path)
+
+      const segments = path.split("/")
+      const idSegment = segments.pop() || path
+
+      console.log("[DEBUG] ID segment extracted:", idSegment)
+
+      const finalUrl =
+        contentType === "anime"
+          ? `/anime/${obfuscateId(idSegment)}`
+          : `/manga/${obfuscateId(idSegment)}`
+
+      console.log("[DEBUG] Final URL to navigate:", finalUrl)
+
+      setShowResults(false)
+
+      setTimeout(() => {
+        console.log("[DEBUG] Executing router.push")
+        router.push(finalUrl)
+      }, 0)
+    } catch (error) {
+      console.error("[DEBUG] Error processing search result click:", error, { href, contentType })
+    }
   }
 
   return (
