@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
+import { createPortal } from "react-dom"
 import { obfuscateId } from "@/lib/utils"
 
 interface SearchResult {
@@ -18,6 +19,11 @@ export function HeroSearch() {
   const [isLoading, setIsLoading] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number; width: number }>({
+    top: 0,
+    left: 0,
+    width: 0,
+  })
   const router = useRouter()
 
   // Perform search when query changes
@@ -51,13 +57,23 @@ export function HeroSearch() {
     }
   }, [])
 
+  // Update dropdown position
+  useEffect(() => {
+    if (showDropdown && searchRef.current) {
+      const rect = searchRef.current.getBoundingClientRect()
+      setDropdownPosition({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX, width: rect.width })
+    }
+  }, [showDropdown, query])
+
   const performSearch = async (searchQuery: string) => {
     setIsLoading(true)
     setShowDropdown(true)
+
     try {
       const params = new URLSearchParams({ keyword: searchQuery })
       const endpoint = contentType === "anime" ? "/api/unified-search" : "/api/manga-search"
       const response = await fetch(`${endpoint}?${params}`)
+
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
       const data = await response.json()
 
@@ -76,7 +92,6 @@ export function HeroSearch() {
               type: "Manga",
             }))
 
-      console.log("[DEBUG] Search results updated:", previewResults)
       setResults(previewResults)
     } catch (err) {
       console.error("Search error:", err)
@@ -97,75 +112,98 @@ export function HeroSearch() {
 
   const handleResultClick = (href: string) => {
     if (!href) return
+
     let idSegment = href.split("/").filter(Boolean).pop() || href
     const finalUrl =
       contentType === "anime"
         ? `/anime/${obfuscateId(idSegment)}`
         : `/manga/${obfuscateId(idSegment)}`
-    console.log("[DEBUG] Navigating to:", finalUrl)
+
     setShowDropdown(false)
-    setTimeout(() => router.push(finalUrl), 50)
+
+    setTimeout(() => {
+      router.push(finalUrl)
+    }, 0)
   }
+
+  // Dropdown JSX rendered via portal
+  const dropdown = showDropdown ? createPortal(
+    <ul
+      className="absolute bg-background border border-border/30 rounded-md shadow-lg overflow-hidden max-h-80 overflow-y-auto z-[1000]"
+      style={{
+        top: dropdownPosition.top,
+        left: dropdownPosition.left,
+        width: dropdownPosition.width,
+      }}
+    >
+      {isLoading && <li className="p-2 text-center text-muted-foreground">Loading...</li>}
+      {!isLoading && results.length === 0 && <li className="p-2 text-center text-muted-foreground">Nessun risultato</li>}
+      {!isLoading &&
+        results.map((item, index) => (
+          <li
+            key={index}
+            onClick={() => handleResultClick(item.href)}
+            className="p-2 hover:bg-primary/10 cursor-pointer flex items-center gap-2"
+          >
+            {item.image && <img src={item.image} alt={item.title} className="w-8 h-10 object-cover rounded" />}
+            <span>{item.title}</span>
+          </li>
+        ))}
+    </ul>,
+    document.body
+  ) : null
 
   return (
     <div ref={searchRef} className="relative space-y-3">
       <form onSubmit={handleSubmit} className="flex gap-2 items-stretch">
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => query.trim().length > 0 && setShowDropdown(true)}
-          placeholder="Es. naruto"
-          className="w-full rounded-lg border border-border/30 bg-background/50 backdrop-blur-sm placeholder:text-muted-foreground px-4 py-3 text-sm transition-smooth focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50"
-        />
+        <div className="flex-1 min-w-0 relative">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => {
+              if (query.trim().length > 0) setShowDropdown(true)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                handleSubmit(e as any)
+              }
+            }}
+            placeholder="Es. naruto"
+            className="w-full rounded-lg border border-border/30 bg-background/50 backdrop-blur-sm placeholder:text-muted-foreground px-4 py-3 text-sm transition-smooth focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50"
+            aria-label="Parola chiave"
+          />
+        </div>
       </form>
 
-      {/* Content Type Switch */}
-      <div className="flex justify-center mt-2">
+      <div className="flex justify-center">
         <div className="inline-flex rounded-lg border border-border/30 bg-background/50 backdrop-blur-sm p-1">
-          {["anime", "manga"].map((type) => (
-            <button
-              key={type}
-              type="button"
-              onClick={() => setContentType(type as "anime" | "manga")}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-smooth ${
-                contentType === type
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent/10"
-              }`}
-            >
-              {type.charAt(0).toUpperCase() + type.slice(1)}
-            </button>
-          ))}
+          <button
+            type="button"
+            onClick={() => setContentType("anime")}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-smooth ${
+              contentType === "anime"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent/10"
+            }`}
+          >
+            Anime
+          </button>
+          <button
+            type="button"
+            onClick={() => setContentType("manga")}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-smooth ${
+              contentType === "manga"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent/10"
+            }`}
+          >
+            Manga
+          </button>
         </div>
       </div>
 
-      {/* Dropdown */}
-      {showDropdown && (
-        <ul className="absolute z-50 mt-1 w-full bg-background border border-border/30 rounded-md shadow-lg overflow-hidden max-h-80 overflow-y-auto">
-          {isLoading ? (
-            <li className="px-4 py-2 text-sm text-muted-foreground">Caricamento...</li>
-          ) : results.length === 0 ? (
-            <li className="px-4 py-2 text-sm text-muted-foreground">Nessun risultato</li>
-          ) : (
-            results.map((res, idx) => (
-              <li
-                key={idx}
-                className="flex items-center gap-2 px-4 py-2 hover:bg-primary/10 cursor-pointer"
-                onClick={() => handleResultClick(res.href)}
-              >
-                {res.image && (
-                  <img
-                    src={res.image}
-                    alt={res.title}
-                    className="w-8 h-10 object-cover rounded"
-                  />
-                )}
-                <span className="text-sm">{res.title}</span>
-              </li>
-            ))
-          )}
-        </ul>
-      )}
+      {dropdown}
     </div>
   )
 }
