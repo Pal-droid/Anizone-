@@ -1,99 +1,12 @@
 "use client"
 
-import React, { useState, useEffect, useRef } from "react"
-import { createPortal } from "react-dom"
+import React, { useState } from "react"
 import { useRouter } from "next/navigation"
-import { obfuscateId } from "@/lib/utils"
-
-interface SearchResult {
-  title: string
-  href: string
-  image?: string
-  type?: string
-}
 
 export function HeroSearch() {
   const [query, setQuery] = useState("")
   const [contentType, setContentType] = useState<"anime" | "manga">("anime")
-  const [results, setResults] = useState<SearchResult[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [showResults, setShowResults] = useState(false)
-  const [searchRect, setSearchRect] = useState<DOMRect | null>(null)
-  const searchRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
-
-  // Search effect
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (query.trim().length > 2) performSearch(query.trim())
-      else {
-        setResults([])
-        setShowResults(false)
-      }
-    }, 300)
-    return () => clearTimeout(timeoutId)
-  }, [query, contentType])
-
-  // Outside click and Escape
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
-        setShowResults(false)
-      }
-    }
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setShowResults(false)
-    }
-    document.addEventListener("mousedown", handleClickOutside)
-    document.addEventListener("keydown", handleEscape)
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside)
-      document.removeEventListener("keydown", handleEscape)
-    }
-  }, [])
-
-  // Update dropdown position
-  useEffect(() => {
-    if (showResults && searchRef.current) {
-      setSearchRect(searchRef.current.getBoundingClientRect())
-    }
-  }, [showResults])
-
-  const performSearch = async (searchQuery: string) => {
-    setIsLoading(true)
-    setShowResults(true)
-
-    try {
-      const params = new URLSearchParams({ keyword: searchQuery })
-      const endpoint = contentType === "anime" ? "/api/unified-search" : "/api/manga-search"
-      const res = await fetch(`${endpoint}?${params}`)
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
-      const data = await res.json()
-
-      const previewResults: SearchResult[] =
-        contentType === "anime"
-          ? (data.items || []).slice(0, 5).map((item: any) => ({
-              title: item.title,
-              href: item.href,
-              image: item.image,
-              type: "Anime",
-            }))
-          : (data.results || []).slice(0, 5).map((item: any) => ({
-              title: item.title,
-              href: item.url,
-              image: item.image,
-              type: "Manga",
-            }))
-
-      console.log("[DEBUG] Search results updated:", previewResults)
-      setResults(previewResults)
-    } catch (err) {
-      console.error("Search error:", err)
-      setResults([])
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -101,79 +14,18 @@ export function HeroSearch() {
     const params = new URLSearchParams({ keyword: query.trim() })
     const searchPage = contentType === "anime" ? "/search" : "/search-manga"
     router.push(`${searchPage}?${params}`)
-    setShowResults(false)
-  }
-
-  const handleResultClick = (href: string) => {
-    if (!href) return
-
-    let idSegment = href
-    try {
-      if (href.startsWith("http")) {
-        const url = new URL(href)
-        idSegment = url.pathname.split("/").filter(Boolean).pop() || href
-      } else {
-        idSegment = href.split("/").filter(Boolean).pop() || href
-      }
-    } catch {
-      console.warn("[DEBUG] Failed to parse href, using raw:", href)
-    }
-
-    if (contentType === "anime") {
-      const watchPath = `/play/${idSegment}/episode-1`
-      const watchUrl = `/watch?path=${encodeURIComponent(watchPath)}`
-      console.log("[DEBUG] Redirecting to watch page:", watchUrl)
-      setShowResults(false)
-      setTimeout(() => router.push(watchUrl), 0)
-    } else {
-      const mangaUrl = `/manga/${obfuscateId(idSegment)}`
-      console.log("[DEBUG] Redirecting to manga page:", mangaUrl)
-      setShowResults(false)
-      setTimeout(() => router.push(mangaUrl), 0)
-    }
-  }
-
-  const Dropdown = () => {
-    if (!showResults || !searchRect) return null
-    return createPortal(
-      <div
-        className="absolute bg-background/90 backdrop-blur-md border border-border rounded-lg shadow-lg z-[9999] max-w-md w-full"
-        style={{ top: searchRect.bottom + 4, left: searchRect.left, width: searchRect.width }}
-      >
-        {isLoading ? (
-          <div className="p-4 text-center text-muted-foreground">Caricamento...</div>
-        ) : results.length ? (
-          results.map((r, i) => (
-            <div
-              key={i}
-              onClick={() => handleResultClick(r.href)}
-              className="flex items-center gap-3 p-3 cursor-pointer hover:bg-accent/10 transition-smooth"
-            >
-              {r.image && <img src={r.image} alt={r.title} className="w-10 h-14 object-cover rounded" />}
-              <div className="flex flex-col">
-                <span className="font-medium text-sm">{r.title}</span>
-                <span className="text-xs text-muted-foreground">{r.type}</span>
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="p-4 text-center text-muted-foreground">Nessun risultato</div>
-        )}
-      </div>,
-      document.body
-    )
   }
 
   return (
-    <div ref={searchRef} className="relative space-y-3">
+    <div className="space-y-3">
       <form onSubmit={handleSubmit} className="flex gap-2 items-stretch">
-        <div className="flex-1 min-w-0 relative">
+        <div className="flex-1 min-w-0">
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onFocus={() => query.trim().length > 0 && setShowResults(true)}
             placeholder="Es. naruto"
             className="w-full rounded-lg border border-border/30 bg-background/50 backdrop-blur-sm placeholder:text-muted-foreground px-4 py-3 text-sm transition-smooth focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50"
+            aria-label="Parola chiave"
           />
         </div>
       </form>
@@ -204,8 +56,6 @@ export function HeroSearch() {
           </button>
         </div>
       </div>
-
-      <Dropdown />
     </div>
   )
 }
