@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Film, BookOpen, Book, ExternalLink } from "lucide-react"
+import { obfuscateUrl, obfuscateId } from "@/lib/utils"
 
 type ContentType = "anime" | "manga" | "light-novel" | "series-movies"
 
@@ -38,10 +39,11 @@ export function ListItemCard({ itemId, contentType, listName, onRemove, fetchMet
     switch (contentType) {
       case "anime":
       case "series-movies":
-        return `/anime/${itemId}`
+        const animePath = `/play/${itemId}/episode-1`
+        return `/watch?p=${obfuscateUrl(animePath)}`
       case "manga":
       case "light-novel":
-        return `/manga/${itemId}`
+        return `/manga/${obfuscateId(itemId)}`
       default:
         return "#"
     }

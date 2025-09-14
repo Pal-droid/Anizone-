@@ -5,9 +5,9 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { formatSeconds } from "@/lib/time"
-import { AnimeCard } from "@/components/anime-card"
 import { useAuth } from "@/contexts/auth-context"
 import { authManager } from "@/lib/auth"
+import { obfuscateUrl } from "@/lib/utils"
 
 type ContinueEntry = {
   seriesKey: string
@@ -69,7 +69,7 @@ function basePath(p: string) {
 
 export function ContinueWatching() {
   const [items, setItems] = useState<ContinueEntry[]>([])
-  const [continueWatchingData, setContinueWatchingData] = useState<any>({})
+  const [loading, setLoading] = useState(true)
   const mountedRef = useRef(false)
   const { user, token } = useAuth()
 
@@ -77,6 +77,7 @@ export function ContinueWatching() {
     if (!token) return {}
 
     try {
+      console.log("[v0] Fetching continue watching data from backend...")
       const data = await authManager.getContinueWatching()
       console.log("[v0] Continue watching data from authManager:", data)
       return data || {}
@@ -86,22 +87,39 @@ export function ContinueWatching() {
     }
   }
 
+  const fetchInCorsoAnime = async () => {
+    if (!token) return []
+
+    try {
+      console.log("[v0] Fetching in corso anime from lists...")
+      const lists = await authManager.getAnimeLists()
+      console.log("[v0] Anime lists:", lists)
+      return lists.in_corso || []
+    } catch (error) {
+      console.error("[v0] Failed to fetch anime lists:", error)
+      return []
+    }
+  }
+
   const load = useMemo(
     () => async () => {
       if (!user || !token) {
         console.log("[v0] No user or token, clearing continue watching")
         setItems([])
+        setLoading(false)
         return
       }
 
       try {
         console.log("[v0] Loading continue watching for user:", user.username)
+        setLoading(true)
 
-        const backendData = await fetchContinueWatching()
+        const [backendData, inCorsoAnime] = await Promise.all([fetchContinueWatching(), fetchInCorsoAnime()])
+
         let cw: ContinueEntry[] = []
 
+        // Process continue watching data
         if (backendData && typeof backendData === "object") {
-          // Handle both old format (single anime) and new format (multiple entries)
           if (backendData.anime) {
             // Old format - single anime entry
             const backendEntry: ContinueEntry = {
@@ -126,6 +144,20 @@ export function ContinueWatching() {
           }
         }
 
+        const existingKeys = new Set(cw.map((item) => item.seriesKey))
+        for (const animeId of inCorsoAnime) {
+          if (!existingKeys.has(animeId)) {
+            cw.push({
+              seriesKey: animeId,
+              seriesPath: `/anime/${animeId}`,
+              title: animeId,
+              episode: { num: 1, href: "" },
+              updatedAt: Date.now(),
+              positionSeconds: 0,
+            })
+          }
+        }
+
         console.log("[v0] Continue watching entries:", cw)
 
         // hydrate meta
@@ -147,6 +179,8 @@ export function ContinueWatching() {
       } catch (error) {
         console.error("[v0] Failed to load continue watching:", error)
         setItems([])
+      } finally {
+        setLoading(false)
       }
     },
     [user, token],
@@ -181,7 +215,28 @@ export function ContinueWatching() {
     }
   }, [load])
 
-  if (!user || items.length === 0) return null
+  if (!user) return null
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader className="py-3">
+          <CardTitle className="text-base">Continua a guardare</CardTitle>
+        </CardHeader>
+        <CardContent className="flex gap-3 overflow-x-auto no-scrollbar">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="min-w-[140px] shrink-0 space-y-2">
+              <div className="aspect-[2/3] w-full bg-muted animate-pulse rounded-lg" />
+              <div className="h-4 bg-muted animate-pulse rounded" />
+              <div className="h-8 bg-muted animate-pulse rounded" />
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (items.length === 0) return null
 
   return (
     <Card>
@@ -195,26 +250,37 @@ export function ContinueWatching() {
           const displayEpisode = it.episode?.num && it.episode.num > 0 ? it.episode.num : 1
 
           return (
-            <div key={`${bp}-${it.episode?.num}`} className="min-w-[100px] sm:min-w-[120px] shrink-0 space-y-2">
+            <div key={`${bp}-${it.episode?.num}`} className="min-w-[140px] shrink-0 space-y-2">
               <div className="relative">
-                <AnimeCard
-                  title={it.title || "Anime"}
-                  href={`/watch?path=${encodeURIComponent(bp)}&ep=${encodeURIComponent(String(displayEpisode))}`}
-                  image={it.image || "/anime-poster.png"}
-                  className="w-full"
-                />
-                {/* Episode and progress overlay */}
-                <div className="absolute bottom-[60px] left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 rounded-b-none">
-                  <div className="text-xs text-white/90">
-                    E{displayEpisode}
-                    {it.positionSeconds && it.positionSeconds > 0 ? ` • ${resumeTime}` : ""}
-                  </div>
-                </div>
+                <Link href={`/watch?p=${obfuscateUrl(bp)}&ep=${encodeURIComponent(String(displayEpisode))}`}>
+                  <Card className="overflow-hidden hover:shadow-md transition-shadow h-full">
+                    <div className="relative aspect-[2/3] w-full bg-neutral-100 overflow-hidden">
+                      <img
+                        src={it.image || "/placeholder.svg?height=450&width=300&query=poster%20anime%20cover"}
+                        alt={it.title || "Anime"}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+                        <div className="text-xs text-white/90 font-medium">
+                          Ep. {displayEpisode}
+                          {it.positionSeconds && it.positionSeconds > 0 ? ` • ${resumeTime}` : ""}
+                        </div>
+                      </div>
+                    </div>
+                    <CardContent className="p-3 flex flex-col h-[60px]">
+                      <div className="text-sm font-medium flex-1 flex items-start justify-start leading-tight overflow-hidden">
+                        <span className="line-clamp-2 text-ellipsis">{it.title || "Anime"}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
               </div>
               <div>
-                <Link href={`/watch?path=${encodeURIComponent(bp)}&ep=${encodeURIComponent(String(displayEpisode))}`}>
+                <Link href={`/watch?p=${obfuscateUrl(bp)}&ep=${encodeURIComponent(String(displayEpisode))}`}>
                   <Button size="sm" className="w-full">
-                    Riprendi
+                    {it.positionSeconds && it.positionSeconds > 0 ? "Riprendi" : "Guarda"}
                   </Button>
                 </Link>
               </div>

@@ -183,7 +183,7 @@ export function ContinueReading() {
       </CardHeader>
       <CardContent className="flex gap-3 overflow-x-auto no-scrollbar">
         {items.map((item) => (
-          <div key={`${item.manga_id}-${item.chapter}`} className="min-w-[140px] sm:min-w-[160px] shrink-0 space-y-2">
+          <div key={`${item.manga_id}-${item.chapter}`} className="min-w-[160px] sm:min-w-[180px] shrink-0 space-y-2">
             <div className="relative">
               <div className="w-full aspect-[3/4] rounded-lg overflow-hidden bg-muted relative">
                 {item.image ? (
@@ -193,7 +193,7 @@ export function ContinueReading() {
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement
-                      target.src = `/placeholder.svg?height=200&width=150&query=manga cover`
+                      target.src = `/placeholder.svg?height=240&width=180&query=manga cover`
                     }}
                   />
                 ) : (
@@ -213,13 +213,13 @@ export function ContinueReading() {
                 </div>
               </div>
 
-              {/* Title below the card */}
-              <div className="px-1">
-                <h3 className="text-xs font-medium line-clamp-2 text-center">{item.title || "Manga"}</h3>
+              {/* Title below the card with proper height */}
+              <div className="px-1 h-[40px] flex items-start">
+                <h3 className="text-xs font-medium line-clamp-2 text-center w-full">{item.title || "Manga"}</h3>
               </div>
             </div>
             <div>
-              <Link href={`/manga/${obfuscateId(item.manga_id)}/read?chapter=${item.chapter}&page=${item.page}`}>
+              <Link href={`/manga/${obfuscateId(item.manga_id)}`}>
                 <Button size="sm" className="w-full">
                   Riprendi
                 </Button>

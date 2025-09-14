@@ -68,16 +68,13 @@ export default function HomePage() {
         </header>
 
         <section className="px-8 py-12 max-w-[1400px] mx-auto">
-          <div className="relative overflow-hidden rounded-3xl glass p-12 glow-strong animate-pulse-glow mb-12">
+          <div className="relative overflow-hidden rounded-3xl glass p-12 mb-12">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-accent/10 to-transparent"></div>
             <div className="relative z-10 max-w-4xl">
               <div className="flex items-center gap-4 mb-6">
                 <Sparkles className="text-accent animate-pulse" size={32} />
                 <h1 className="text-5xl font-bold text-white font-[var(--font-playfair)]">Guarda anime in italiano</h1>
               </div>
-              <p className="text-muted-foreground mb-8 text-xl font-[var(--font-source-sans)] leading-relaxed">
-                Scopri e guarda i tuoi anime preferiti con sottotitoli e doppiaggio italiano.
-              </p>
               <div className="relative max-w-2xl">
                 <HeroSearch />
               </div>
@@ -129,16 +126,13 @@ export default function HomePage() {
       </header>
 
       <section className="px-6 py-8 space-y-8 max-w-7xl mx-auto">
-        <div className="relative overflow-hidden rounded-2xl glass p-8 glow-strong animate-pulse-glow">
+        <div className="relative overflow-hidden rounded-2xl glass p-8">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-accent/10 to-transparent"></div>
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-4">
               <Sparkles className="text-accent animate-pulse" size={24} />
               <h1 className="text-3xl font-bold text-white font-[var(--font-playfair)]">Guarda anime in italiano</h1>
             </div>
-            <p className="text-muted-foreground mb-6 text-lg font-[var(--font-source-sans)]">
-              Scopri e guarda i tuoi anime preferiti con sottotitoli e doppiaggio italiano.
-            </p>
             <div className="relative">
               <HeroSearch />
             </div>

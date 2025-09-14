@@ -4,6 +4,7 @@ import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { SearchResultsOverlay } from "./search-results-overlay"
+import { obfuscateId } from "@/lib/utils"
 
 interface SearchResult {
   title: string
@@ -133,7 +134,7 @@ export function HeroSearch() {
           animeId = animeId.split("/").pop() || animeId
         }
         console.log("[v0] Anime ID extracted:", animeId)
-        const finalUrl = `/anime/${animeId}`
+        const finalUrl = `/anime/${obfuscateId(animeId)}`
         console.log("[v0] Final anime URL:", finalUrl)
         router.push(finalUrl)
       } else {
@@ -147,19 +148,19 @@ export function HeroSearch() {
           mangaId = mangaId.split("/").pop() || mangaId
         }
         console.log("[v0] Manga ID extracted:", mangaId)
-        const finalUrl = `/manga/${mangaId}`
+        const finalUrl = `/manga/${obfuscateId(mangaId)}`
         console.log("[v0] Final manga URL:", finalUrl)
         router.push(finalUrl)
       }
     } catch (error) {
       console.error("[v0] Error parsing href:", error, { href, contentType })
-      // Fallback: try to use href as-is
+      // Fallback: try to use href as-is with obfuscation
       if (contentType === "anime") {
-        const fallbackUrl = `/anime/${href}`
+        const fallbackUrl = `/anime/${obfuscateId(href)}`
         console.log("[v0] Fallback anime URL:", fallbackUrl)
         router.push(fallbackUrl)
       } else {
-        const fallbackUrl = `/manga/${href}`
+        const fallbackUrl = `/manga/${obfuscateId(href)}`
         console.log("[v0] Fallback manga URL:", fallbackUrl)
         router.push(fallbackUrl)
       }
