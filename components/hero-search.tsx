@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { createPortal } from "react-dom"
 import { obfuscateId } from "@/lib/utils"
 
 interface SearchResult {
@@ -19,11 +18,6 @@ export function HeroSearch() {
   const [isLoading, setIsLoading] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
-  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number; width: number }>({
-    top: 0,
-    left: 0,
-    width: 0,
-  })
   const router = useRouter()
 
   // Perform search when query changes
@@ -57,14 +51,6 @@ export function HeroSearch() {
     }
   }, [])
 
-  // Update dropdown position
-  useEffect(() => {
-    if (showDropdown && searchRef.current) {
-      const rect = searchRef.current.getBoundingClientRect()
-      setDropdownPosition({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX, width: rect.width })
-    }
-  }, [showDropdown, query])
-
   const performSearch = async (searchQuery: string) => {
     setIsLoading(true)
     setShowDropdown(true)
@@ -92,6 +78,7 @@ export function HeroSearch() {
               type: "Manga",
             }))
 
+      console.log("[DEBUG] Search results updated:", previewResults)
       setResults(previewResults)
     } catch (err) {
       console.error("Search error:", err)
@@ -113,45 +100,23 @@ export function HeroSearch() {
   const handleResultClick = (href: string) => {
     if (!href) return
 
-    let idSegment = href.split("/").filter(Boolean).pop() || href
+    let idSegment = href
+    try {
+      const url = new URL(href)
+      idSegment = url.pathname.split("/").filter(Boolean).pop() || href
+    } catch {
+      // href is not a URL, keep as-is
+    }
+
     const finalUrl =
       contentType === "anime"
-        ? `/anime/${obfuscateId(idSegment)}`
-        : `/manga/${obfuscateId(idSegment)}`
+        ? `/anime/${idSegment}` // temporarily skip obfuscation for testing
+        : `/manga/${idSegment}`
 
+    console.log("[DEBUG] Navigating to:", finalUrl)
     setShowDropdown(false)
-
-    setTimeout(() => {
-      router.push(finalUrl)
-    }, 0)
+    router.push(finalUrl)
   }
-
-  // Dropdown JSX rendered via portal
-  const dropdown = showDropdown ? createPortal(
-    <ul
-      className="absolute bg-background border border-border/30 rounded-md shadow-lg overflow-hidden max-h-80 overflow-y-auto z-[1000]"
-      style={{
-        top: dropdownPosition.top,
-        left: dropdownPosition.left,
-        width: dropdownPosition.width,
-      }}
-    >
-      {isLoading && <li className="p-2 text-center text-muted-foreground">Loading...</li>}
-      {!isLoading && results.length === 0 && <li className="p-2 text-center text-muted-foreground">Nessun risultato</li>}
-      {!isLoading &&
-        results.map((item, index) => (
-          <li
-            key={index}
-            onClick={() => handleResultClick(item.href)}
-            className="p-2 hover:bg-primary/10 cursor-pointer flex items-center gap-2"
-          >
-            {item.image && <img src={item.image} alt={item.title} className="w-8 h-10 object-cover rounded" />}
-            <span>{item.title}</span>
-          </li>
-        ))}
-    </ul>,
-    document.body
-  ) : null
 
   return (
     <div ref={searchRef} className="relative space-y-3">
@@ -203,7 +168,29 @@ export function HeroSearch() {
         </div>
       </div>
 
-      {dropdown}
+      {/* Dropdown */}
+      {showDropdown && results.length > 0 && (
+        <ul className="absolute z-50 w-full bg-background/90 backdrop-blur-sm border border-border/30 rounded-md mt-1 max-h-60 overflow-y-auto shadow-lg">
+          {results.map((item, idx) => (
+            <li
+              key={idx}
+              onClick={() => handleResultClick(item.href)}
+              className="cursor-pointer hover:bg-accent/20 transition px-4 py-2 flex items-center gap-3"
+            >
+              {item.image && (
+                <img src={item.image} alt={item.title} className="w-10 h-14 object-cover rounded-sm" />
+              )}
+              <span className="truncate">{item.title}</span>
+            </li>
+          ))}
+          <li
+            className="cursor-pointer hover:bg-accent/20 transition px-4 py-2 text-center font-medium text-primary"
+            onClick={handleSubmit}
+          >
+            View all results
+          </li>
+        </ul>
+      )}
     </div>
   )
 }
