@@ -1,7 +1,6 @@
 "use client"
 
-import type React from "react"
-import { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { SearchResultsOverlay } from "./search-results-overlay"
 import { obfuscateId } from "@/lib/utils"
@@ -23,11 +22,12 @@ export function HeroSearch() {
   const searchRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
 
-  // Perform search with debounce
+  // Perform search when query changes
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (query.trim().length > 2) performSearch(query.trim())
-      else {
+      if (query.trim().length > 2) {
+        performSearch(query.trim())
+      } else {
         setResults([])
         setShowResults(false)
       }
@@ -53,6 +53,7 @@ export function HeroSearch() {
     }
   }, [])
 
+  // Update search rect for overlay positioning
   useEffect(() => {
     if (showResults && searchRef.current) {
       setSearchRect(searchRef.current.getBoundingClientRect())
@@ -62,10 +63,12 @@ export function HeroSearch() {
   const performSearch = async (searchQuery: string) => {
     setIsLoading(true)
     setShowResults(true)
+
     try {
       const params = new URLSearchParams({ keyword: searchQuery })
       const endpoint = contentType === "anime" ? "/api/unified-search" : "/api/manga-search"
       const response = await fetch(`${endpoint}?${params}`)
+
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
       const data = await response.json()
 
@@ -85,30 +88,16 @@ export function HeroSearch() {
             }))
 
       setResults(previewResults)
-    } catch (error) {
-      console.error("Search error:", error)
+    } catch (err) {
+      console.error("Search error:", err)
       setResults([])
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleResultClick = (href: string) => {
-    try {
-      // Get last path segment as ID
-      const idSegment = href.split("/").filter(Boolean).pop() || href
-      const finalUrl =
-        contentType === "anime" ? `/anime/${obfuscateId(idSegment)}` : `/manga/${obfuscateId(idSegment)}`
-      router.push(finalUrl)
-    } catch (error) {
-      console.error("[v0] Failed to redirect:", error)
-    } finally {
-      setShowResults(false)
-    }
-  }
-
-  const handleSubmit = (e?: React.FormEvent) => {
-    e?.preventDefault()
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
     if (!query.trim()) return
     const params = new URLSearchParams({ keyword: query.trim() })
     const searchPage = contentType === "anime" ? "/search" : "/search-manga"
@@ -116,48 +105,71 @@ export function HeroSearch() {
     setShowResults(false)
   }
 
-  return (
-    <>
-      <div ref={searchRef} className="relative space-y-3">
-        <form onSubmit={handleSubmit} className="flex gap-2 items-stretch">
-          <div className="flex-1 min-w-0 relative">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onFocus={() => query.trim().length > 0 && setShowResults(true)}
-              onKeyDown={(e) => e.key === "Enter" && handleSubmit(e as any)}
-              placeholder="Es. naruto"
-              className="w-full rounded-lg border border-border/30 bg-background/50 backdrop-blur-sm placeholder:text-muted-foreground px-4 py-3 text-sm transition-smooth focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50"
-              aria-label="Parola chiave"
-            />
-          </div>
-        </form>
+  const handleResultClick = (href: string) => {
+    if (!href) return
 
-        <div className="flex justify-center">
-          <div className="inline-flex rounded-lg border border-border/30 bg-background/50 backdrop-blur-sm p-1">
-            <button
-              type="button"
-              onClick={() => setContentType("anime")}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-smooth ${
-                contentType === "anime"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent/10"
-              }`}
-            >
-              Anime
-            </button>
-            <button
-              type="button"
-              onClick={() => setContentType("manga")}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-smooth ${
-                contentType === "manga"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent/10"
-              }`}
-            >
-              Manga
-            </button>
-          </div>
+    let idSegment = href.split("/").filter(Boolean).pop() || href
+    const finalUrl =
+      contentType === "anime"
+        ? `/anime/${obfuscateId(idSegment)}`
+        : `/manga/${obfuscateId(idSegment)}`
+
+    // Close overlay first
+    setShowResults(false)
+
+    // Delay push to allow overlay to unmount
+    setTimeout(() => {
+      router.push(finalUrl)
+    }, 0)
+  }
+
+  return (
+    <div ref={searchRef} className="relative space-y-3">
+      <form onSubmit={handleSubmit} className="flex gap-2 items-stretch">
+        <div className="flex-1 min-w-0 relative">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => {
+              if (query.trim().length > 0) setShowResults(true)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                handleSubmit(e as any)
+              }
+            }}
+            placeholder="Es. naruto"
+            className="w-full rounded-lg border border-border/30 bg-background/50 backdrop-blur-sm placeholder:text-muted-foreground px-4 py-3 text-sm transition-smooth focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50"
+            aria-label="Parola chiave"
+          />
+        </div>
+      </form>
+
+      <div className="flex justify-center">
+        <div className="inline-flex rounded-lg border border-border/30 bg-background/50 backdrop-blur-sm p-1">
+          <button
+            type="button"
+            onClick={() => setContentType("anime")}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-smooth ${
+              contentType === "anime"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent/10"
+            }`}
+          >
+            Anime
+          </button>
+          <button
+            type="button"
+            onClick={() => setContentType("manga")}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-smooth ${
+              contentType === "manga"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent/10"
+            }`}
+          >
+            Manga
+          </button>
         </div>
       </div>
 
@@ -171,7 +183,7 @@ export function HeroSearch() {
         onClose={() => setShowResults(false)}
         searchRect={searchRect}
       />
-    </>
+    </div>
   )
 }
 
