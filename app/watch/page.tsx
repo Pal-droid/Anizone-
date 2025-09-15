@@ -49,8 +49,7 @@ export default function WatchPage() {
 
   const seriesKey = useMemo(() => {
     if (!path) return ""
-    const parts = path.split("/").filter(Boolean)
-    if (parts.length >= 2) return `/${parts[0]}/${parts[1]}`
+    // Use the full path for seriesKey instead of truncating to first two parts
     return path
   }, [path])
 
@@ -84,7 +83,7 @@ export default function WatchPage() {
         <div className="flex justify-center">
           <QuickListManager itemId={seriesKey} itemTitle={title || "Anime"} type="anime" itemPath={path} />
         </div>
-        <WatchInfo seriesPath={seriesKey} />
+        <WatchInfo seriesPath={path} />
       </section>
     </main>
   )

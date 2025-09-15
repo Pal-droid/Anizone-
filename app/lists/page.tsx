@@ -9,6 +9,7 @@ import { AuthPanel } from "@/components/auth-panel"
 import { SlideOutMenu } from "@/components/slide-out-menu"
 import { Film, BookOpen, Book } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
+import { obfuscateUrl } from "@/lib/utils"
 
 type ContentType = "anime" | "manga" | "light-novel" | "series-movies"
 
@@ -19,6 +20,7 @@ type ListItem = {
   title: string
   image?: string
   path?: string
+  sources?: any[]
 }
 
 const ANIME_ORDER: { key: AnimeListName; title: string }[] = [
@@ -49,6 +51,7 @@ const CONTENT_TYPES: { key: ContentType; title: string; icon: any }[] = [
 const ListItemCard = ({ itemId, contentType, listName, onRemove, fetchMetadata }) => {
   const [metadata, setMetadata] = useState({ title: itemId, image: null, path: null })
   const [loading, setLoading] = useState(true)
+  const [sources, setSources] = useState([])
 
   useEffect(() => {
     const loadMetadata = async () => {
@@ -56,6 +59,9 @@ const ListItemCard = ({ itemId, contentType, listName, onRemove, fetchMetadata }
       try {
         const meta = await fetchMetadata()
         setMetadata(meta)
+        if (meta.sources) {
+          setSources(meta.sources)
+        }
       } catch (error) {
         console.error("[v0] Error loading metadata for:", itemId, error)
         setMetadata({ title: itemId, image: null, path: null })
@@ -65,6 +71,28 @@ const ListItemCard = ({ itemId, contentType, listName, onRemove, fetchMetadata }
     }
     loadMetadata()
   }, [itemId, contentType, fetchMetadata])
+
+  const getNavigationUrl = () => {
+    if (contentType === "anime" || contentType === "series-movies") {
+      const animePath = `/play/${itemId}/episode-1`
+      return `/watch?p=${obfuscateUrl(animePath)}`
+    } else if (contentType === "manga" || contentType === "light-novel") {
+      return `/manga/${itemId}`
+    }
+    return "#"
+  }
+
+  const handleClick = () => {
+    if ((contentType === "anime" || contentType === "series-movies") && sources && sources.length > 0) {
+      try {
+        const animePath = `/play/${itemId}/episode-1`
+        sessionStorage.setItem(`anizone:sources:${animePath}`, JSON.stringify(sources))
+        console.log("[v0] Stored sources in sessionStorage for:", animePath, sources)
+      } catch (error) {
+        console.error("[v0] Failed to store sources in sessionStorage:", error)
+      }
+    }
+  }
 
   return (
     <div className="glass-card rounded-xl p-4 flex items-center gap-4 hover:glow transition-all duration-300">
@@ -120,21 +148,11 @@ const ListItemCard = ({ itemId, contentType, listName, onRemove, fetchMetadata }
       </div>
 
       <div className="flex gap-2 shrink-0">
-        {metadata.path && (
-          <Button size="sm" variant="outline" asChild>
-            <Link
-              href={
-                contentType === "anime" || contentType === "series-movies"
-                  ? `/anime/${itemId}`
-                  : contentType === "manga"
-                    ? `/manga/${itemId}`
-                    : `/manga/${itemId}`
-              }
-            >
-              Apri
-            </Link>
-          </Button>
-        )}
+        <Button size="sm" variant="outline" asChild>
+          <Link href={getNavigationUrl()} onClick={handleClick}>
+            Apri
+          </Link>
+        </Button>
         <Button
           size="sm"
           variant="outline"
@@ -192,7 +210,6 @@ export default function ListsPage() {
     try {
       console.log("[v0] Loading lists for user:", user.username)
 
-      // Load anime lists
       const animeResponse = await fetch("https://stale-nananne-anizonee-3fa1a732.koyeb.app/user/anime-lists", {
         headers: {
           Authorization: `Bearer ${user.token}`,
@@ -204,7 +221,6 @@ export default function ListsPage() {
         setAnimeLists(animeData)
       }
 
-      // Load manga lists
       const mangaResponse = await fetch("https://stale-nananne-anizonee-3fa1a732.koyeb.app/user/manga-lists", {
         headers: {
           Authorization: `Bearer ${user.token}`,
@@ -216,7 +232,6 @@ export default function ListsPage() {
         setMangaLists(mangaData)
       }
 
-      // Load light novel lists
       const lightNovelResponse = await fetch(
         "https://stale-nananne-anizonee-3fa1a732.koyeb.app/user/lightnovel-lists",
         {
@@ -231,7 +246,6 @@ export default function ListsPage() {
         setLightNovelLists(lightNovelData)
       }
 
-      // Load series & movies lists
       const seriesMoviesResponse = await fetch(
         "https://stale-nananne-anizonee-3fa1a732.koyeb.app/user/series-movies-lists",
         {
@@ -284,7 +298,6 @@ export default function ListsPage() {
           break
       }
 
-      // Remove item from the specific list
       if (currentLists[listName]) {
         currentLists[listName] = currentLists[listName].filter((item: string) => item !== title)
       }
@@ -299,7 +312,6 @@ export default function ListsPage() {
       })
 
       if (response.ok) {
-        // Update local state
         switch (contentType) {
           case "anime":
             setAnimeLists(currentLists)
@@ -326,10 +338,31 @@ export default function ListsPage() {
         const response = await fetch(`/api/anime-meta?path=${encodeURIComponent(itemId)}`)
         if (response.ok) {
           const data = await response.json()
+          let sources = []
+          try {
+            const sourcesResponse = await fetch(`/api/unified-search?keyword=${encodeURIComponent(itemId)}`)
+            if (sourcesResponse.ok) {
+              const sourcesData = await sourcesResponse.json()
+              if (sourcesData.ok && sourcesData.items && sourcesData.items.length > 0) {
+                const matchingAnime = sourcesData.items.find((item) => {
+                  const itemPath = item.href.replace(/^\/anime\//, "").replace(/\/$/, "")
+                  return itemPath === itemId || item.href.includes(itemId)
+                })
+                if (matchingAnime && matchingAnime.sources) {
+                  sources = matchingAnime.sources
+                  console.log("[v0] Found sources for anime:", itemId, sources)
+                }
+              }
+            }
+          } catch (sourcesError) {
+            console.log("[v0] Could not fetch sources for:", itemId, sourcesError)
+          }
+
           return {
             title: data.meta?.title || itemId,
             image: data.meta?.image,
             path: data.meta?.path || `/anime/${itemId}`,
+            sources: sources,
           }
         }
       } else if (contentType === "manga" || contentType === "light-novel") {
@@ -358,6 +391,7 @@ export default function ListsPage() {
       title: itemId.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
       image: null,
       path: contentType === "anime" || contentType === "series-movies" ? `/anime/${itemId}` : `/manga/${itemId}`,
+      sources: [],
     }
   }
 
