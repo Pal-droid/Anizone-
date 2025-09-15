@@ -138,19 +138,54 @@ export function QuickListManager({ itemId, itemTitle, itemImage, type, itemPath 
 
         if (type === "anime" && targetList === "in_corso" && episode) {
           try {
-            const continueWatching = (await authManager.getContinueWatching()) || {}
-            const updatedContinueWatching = {
-              ...continueWatching,
+            console.log("[v0] Syncing continue watching data for anime:", itemId)
+
+            // Update continue watching via backend API
+            const continueWatchingData = {
               [itemId]: {
                 anime: itemTitle,
                 episode: Number.parseInt(episode),
                 progress: "0:00",
               },
             }
-            await authManager.updateContinueWatching(updatedContinueWatching)
+
+            await authManager.updateContinueWatching(continueWatchingData)
             console.log("[v0] Updated continue watching with episode:", episode)
+
+            // Also trigger a custom event to refresh continue watching component
+            window.dispatchEvent(
+              new CustomEvent("anizone:continue-watching-updated", {
+                detail: { animeId: itemId, episode: Number.parseInt(episode) },
+              }),
+            )
           } catch (error) {
             console.error("[v0] Failed to update continue watching:", error)
+          }
+        }
+
+        if (type === "anime" && targetList === "in_corso" && !episode) {
+          try {
+            console.log("[v0] Auto-syncing continue watching for anime:", itemId)
+
+            const continueWatchingData = {
+              [itemId]: {
+                anime: itemTitle,
+                episode: 1,
+                progress: "0:00",
+              },
+            }
+
+            await authManager.updateContinueWatching(continueWatchingData)
+            console.log("[v0] Auto-synced continue watching with episode 1")
+
+            // Trigger refresh event
+            window.dispatchEvent(
+              new CustomEvent("anizone:continue-watching-updated", {
+                detail: { animeId: itemId, episode: 1 },
+              }),
+            )
+          } catch (error) {
+            console.error("[v0] Failed to auto-sync continue watching:", error)
           }
         }
 

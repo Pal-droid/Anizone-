@@ -71,6 +71,7 @@ export function ContinueWatching() {
   const [items, setItems] = useState<ContinueEntry[]>([])
   const [loading, setLoading] = useState(true)
   const mountedRef = useRef(false)
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const { user, token } = useAuth()
 
   const fetchContinueWatching = async () => {
@@ -78,8 +79,21 @@ export function ContinueWatching() {
 
     try {
       console.log("[v0] Fetching continue watching data from backend...")
-      const data = await authManager.getContinueWatching()
-      console.log("[v0] Continue watching data from authManager:", data)
+      // Use the correct backend endpoint directly
+      const response = await fetch("https://stale-nananne-anizonee-3fa1a732.koyeb.app/user/continue-watching", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          authManager.logout()
+          return {}
+        }
+        throw new Error(`HTTP ${response.status}`)
+      }
+
+      const data = await response.json()
+      console.log("[v0] Continue watching data from backend:", data)
       return data || {}
     } catch (error) {
       console.error("[v0] Failed to fetch continue watching:", error)
@@ -118,30 +132,15 @@ export function ContinueWatching() {
 
         let cw: ContinueEntry[] = []
 
-        // Process continue watching data
         if (backendData && typeof backendData === "object") {
-          if (backendData.anime) {
-            // Old format - single anime entry
-            const backendEntry: ContinueEntry = {
-              seriesKey: backendData.anime,
-              seriesPath: `/anime/${backendData.anime.toLowerCase().replace(/\s+/g, "-")}`,
-              title: backendData.anime,
-              episode: { num: backendData.episode || 1, href: "" },
-              updatedAt: Date.now(),
-              positionSeconds: backendData.progress ? parseTimeToSeconds(backendData.progress) : 0,
-            }
-            cw.push(backendEntry)
-          } else {
-            // New format - multiple entries
-            cw = Object.entries(backendData).map(([animeId, data]: [string, any]) => ({
-              seriesKey: animeId,
-              seriesPath: `/anime/${animeId}`,
-              title: data.anime || animeId,
-              episode: { num: data.episode || 1, href: "" },
-              updatedAt: Date.now(),
-              positionSeconds: data.progress ? parseTimeToSeconds(data.progress) : 0,
-            }))
-          }
+          cw = Object.entries(backendData).map(([animeId, data]: [string, any]) => ({
+            seriesKey: animeId,
+            seriesPath: animeId, // Use the anime ID directly as it's already the correct path
+            title: data.anime || animeId,
+            episode: { num: data.episode || 1, href: "" },
+            updatedAt: Date.now(),
+            positionSeconds: data.progress ? parseTimeToSeconds(data.progress) : 0,
+          }))
         }
 
         const existingKeys = new Set(cw.map((item) => item.seriesKey))
@@ -149,7 +148,7 @@ export function ContinueWatching() {
           if (!existingKeys.has(animeId)) {
             cw.push({
               seriesKey: animeId,
-              seriesPath: `/anime/${animeId}`,
+              seriesPath: animeId, // Use the anime ID directly as it's the correct path
               title: animeId,
               episode: { num: 1, href: "" },
               updatedAt: Date.now(),
@@ -197,6 +196,20 @@ export function ContinueWatching() {
   useEffect(() => {
     load()
     mountedRef.current = true
+
+    if (user && token) {
+      pollingIntervalRef.current = setInterval(() => {
+        console.log("[v0] Polling continue watching data...")
+        load()
+      }, 30000)
+    } else {
+      // Clear any existing polling when user logs out
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+        pollingIntervalRef.current = null
+      }
+    }
+
     // Listen to live progress updates from the player
     const onProgress = (e: Event) => {
       const ev = e as CustomEvent<{ seriesKey: string; episodeNum: number; position: number } | undefined>
@@ -209,13 +222,42 @@ export function ContinueWatching() {
         ),
       )
     }
-    window.addEventListener("anizone:progress", onProgress as EventListener)
-    return () => {
-      window.removeEventListener("anizone:progress", onProgress as EventListener)
-    }
-  }, [load])
 
-  if (!user) return null
+    const onContinueWatchingUpdate = (e: Event) => {
+      console.log("[v0] Continue watching updated, refreshing data...")
+      load()
+    }
+
+    window.addEventListener("anizone:progress", onProgress as EventListener)
+    window.addEventListener("anizone:continue-watching-updated", onContinueWatchingUpdate as EventListener)
+
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+        pollingIntervalRef.current = null
+      }
+      window.removeEventListener("anizone:progress", onProgress as EventListener)
+      window.removeEventListener("anizone:continue-watching-updated", onContinueWatchingUpdate as EventListener)
+    }
+  }, [load, user, token])
+
+  if (!user) {
+    return (
+      <Card>
+        <CardHeader className="py-3">
+          <CardTitle className="text-base">Continua a guardare</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center py-8">
+          <div className="text-center space-y-3">
+            <div className="text-muted-foreground text-sm">Accedi per vedere i tuoi anime in corso</div>
+            <Link href="/login">
+              <Button size="sm">Accedi</Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   if (loading) {
     return (
@@ -226,9 +268,11 @@ export function ContinueWatching() {
         <CardContent className="flex gap-3 overflow-x-auto no-scrollbar">
           {[...Array(3)].map((_, i) => (
             <div key={i} className="min-w-[140px] shrink-0 space-y-2">
-              <div className="aspect-[2/3] w-full bg-muted animate-pulse rounded-lg" />
-              <div className="h-4 bg-muted animate-pulse rounded" />
-              <div className="h-8 bg-muted animate-pulse rounded" />
+              <div className="aspect-[2/3] w-full bg-gradient-to-br from-muted/50 to-muted animate-pulse rounded-lg relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
+              </div>
+              <div className="h-4 bg-gradient-to-r from-muted/70 to-muted/30 animate-pulse rounded" />
+              <div className="h-8 bg-gradient-to-r from-muted/50 to-muted/20 animate-pulse rounded" />
             </div>
           ))}
         </CardContent>
@@ -236,7 +280,23 @@ export function ContinueWatching() {
     )
   }
 
-  if (items.length === 0) return null
+  if (items.length === 0) {
+    return (
+      <Card>
+        <CardHeader className="py-3">
+          <CardTitle className="text-base">Continua a guardare</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center py-8">
+          <div className="text-center space-y-3">
+            <div className="text-muted-foreground text-sm">Nessun anime in corso. Inizia a guardare qualcosa!</div>
+            <Link href="/search">
+              <Button size="sm">Cerca anime</Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card>
