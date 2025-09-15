@@ -118,7 +118,9 @@ export function ContinueWatching() {
 
   const load = useMemo(
     () => async () => {
+     console.log("[DEBUG] load() called with user:", user, "token:", token)
       if (!user || !token) {
+        console.warn("[DEBUG] No user or token, skipping fetchContinueWatching")
         console.log("[v0] No user or token, clearing continue watching")
         setItems([])
         setLoading(false)
