@@ -79,6 +79,7 @@ export function ContinueWatching() {
 
     try {
       console.log("[v0] Fetching continue watching data from backend...")
+      console.log("[v0] Current token:", token)
       // Use the correct backend endpoint directly
       const response = await fetch("https://stale-nananne-anizonee-3fa1a732.koyeb.app/user/continue-watching", {
         headers: { Authorization: `Bearer ${token}` },
