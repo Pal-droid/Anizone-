@@ -21,7 +21,7 @@ const sourceSansPro = Source_Sans_Pro({
 export const metadata: Metadata = {
   title: "Anizone - Guarda anime in italiano",
   description: "Trova e guarda anime con episodi sub/dub ITA",
-  generator: "v0.dev",
+  generator: "pal",
   icons: {
     icon: "/favicon.ico",
   },
