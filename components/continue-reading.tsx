@@ -104,10 +104,7 @@ export function ContinueReading() {
           return
         }
 
-        console.log("[v0] Loading continue reading for user:", user.username)
-
         const continueReadingData = await authManager.getContinueReading()
-        console.log("[v0] Continue reading data:", continueReadingData)
 
         if (continueReadingData && Object.keys(continueReadingData).length > 0) {
           const enriched = await Promise.all(
@@ -126,11 +123,7 @@ export function ContinueReading() {
                     image = metadata.image || image
                   }
                 } catch (error) {
-                  console.log(
-                    "[v0] Failed to fetch manga metadata for:",
-                    mangaId,
-                    error,
-                  )
+                  console.log("[v0] Failed to fetch manga metadata for:", mangaId, error)
                 }
 
                 return {
@@ -178,7 +171,7 @@ export function ContinueReading() {
           ? Array.from({ length: 4 }).map((_, i) => (
               <div
                 key={i}
-                className="min-w-[160px] sm:min-w-[180px] shrink-0 space-y-2 animate-pulse"
+                className="w-[160px] sm:w-[180px] shrink-0 space-y-2 animate-pulse"
               >
                 <div className="w-full h-[220px] sm:h-[250px] rounded-lg bg-gray-200" />
                 <div className="h-5 bg-gray-200 rounded w-3/4 mx-auto" />
@@ -188,13 +181,13 @@ export function ContinueReading() {
           : items.map((item) => (
               <div
                 key={`${item.manga_id}-${item.chapter}`}
-                className="min-w-[160px] sm:min-w-[180px] shrink-0 space-y-2"
+                className="w-[160px] sm:w-[180px] shrink-0 space-y-2"
               >
                 <div className="relative">
                   <div className="w-full h-[220px] sm:h-[250px] rounded-lg overflow-hidden bg-muted relative">
                     {item.image ? (
                       <img
-                        src={item.image || "/placeholder.svg"}
+                        src={item.image}
                         alt={item.title || "Manga"}
                         className="w-full h-full object-cover"
                         onError={(e) => {
@@ -204,10 +197,8 @@ export function ContinueReading() {
                       />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-                        <div className="text-center text-muted-foreground">
-                          <div className="text-xs font-medium">
-                            {item.title || "Manga"}
-                          </div>
+                        <div className="text-center text-muted-foreground text-xs font-medium">
+                          {item.title || "Manga"}
                         </div>
                       </div>
                     )}
@@ -220,7 +211,7 @@ export function ContinueReading() {
                     </div>
                   </div>
 
-                  <h3 className="text-xs font-medium line-clamp-2 text-center mt-1">
+                  <h3 className="text-xs font-medium line-clamp-2 overflow-hidden text-ellipsis text-center mt-1">
                     {item.title || "Manga"}
                   </h3>
                 </div>
