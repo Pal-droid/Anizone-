@@ -194,7 +194,6 @@ export function ContinueWatching() {
     }
   }, [user, token])
 
-  // --- UI Rendering ---
   if (!user) {
     return (
       <Card>
@@ -221,8 +220,8 @@ export function ContinueWatching() {
         </CardHeader>
         <CardContent className="flex gap-3 overflow-x-auto no-scrollbar">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="min-w-[140px] shrink-0 space-y-2 max-h-[220px]">
-              <div className="w-full h-[140px] bg-muted animate-pulse rounded-lg" />
+            <div key={i} className="min-w-[120px] max-w-[140px] shrink-0 space-y-2">
+              <div className="w-full aspect-[2/3] bg-muted animate-pulse rounded-lg" />
               <div className="h-4 bg-muted/70 animate-pulse rounded" />
               <div className="h-6 bg-muted/50 animate-pulse rounded" />
             </div>
@@ -262,10 +261,10 @@ export function ContinueWatching() {
           const displayEpisode = it.episode?.num && it.episode.num > 0 ? it.episode.num : 1
 
           return (
-            <div key={`${bp}-${it.episode?.num}`} className="min-w-[140px] shrink-0 space-y-2 max-h-[220px]">
+            <div key={`${bp}-${it.episode?.num}`} className="min-w-[120px] max-w-[140px] shrink-0 space-y-2">
               <Link href={`/watch?p=${obfuscateUrl(bp)}&ep=${encodeURIComponent(String(displayEpisode))}`}>
-                <Card className="overflow-hidden hover:shadow-md transition-shadow h-full flex flex-col">
-                  <div className="relative w-full max-h-[140px] overflow-hidden rounded-lg">
+                <Card className="overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+                  <div className="relative w-full aspect-[2/3] overflow-hidden rounded-lg">
                     <img
                       src={it.image || "/placeholder.svg?height=450&width=300&query=poster%20anime%20cover"}
                       alt={it.title || "Anime"}
@@ -279,11 +278,9 @@ export function ContinueWatching() {
                       </div>
                     </div>
                   </div>
-
                   <CardContent className="p-2 flex-none">
                     <div className="text-sm font-medium leading-tight line-clamp-2">{it.title || "Anime"}</div>
                   </CardContent>
-
                   <Button size="sm" className="w-full flex-none">
                     {it.positionSeconds && it.positionSeconds > 0 ? "Riprendi" : "Guarda"}
                   </Button>
@@ -296,3 +293,4 @@ export function ContinueWatching() {
     </Card>
   )
 }
+
