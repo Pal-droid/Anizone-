@@ -44,7 +44,6 @@ async function getMeta(path: string) {
       return entry
     }
   } catch {}
-  // LocalStorage fallback
   try {
     const raw = localStorage.getItem(`anizone:meta:${key}`)
     if (raw) {
@@ -75,20 +74,15 @@ export function ContinueWatching() {
   const { user } = useAuth()
   const token = user?.token
 
-  console.log("[v0] ContinueWatching component rendered - user:", user?.username, "token:", !!token)
-
   const load = async () => {
     if (!user || !token) {
-      console.log("[v0] No user or token, clearing continue watching")
       setItems([])
       setLoading(false)
       return
     }
 
     try {
-      console.log("[v0] Loading continue watching for user:", user.username)
       setLoading(true)
-
       const [backendData, inCorsoAnime] = await Promise.all([fetchContinueWatching(), fetchInCorsoAnime()])
 
       let cw: ContinueEntry[] = []
@@ -96,7 +90,7 @@ export function ContinueWatching() {
       if (backendData && typeof backendData === "object") {
         cw = Object.entries(backendData).map(([animeId, data]: [string, any]) => ({
           seriesKey: animeId,
-          seriesPath: animeId, // Use the anime ID directly as it's already the correct path
+          seriesPath: animeId,
           title: data.anime || animeId,
           episode: { num: data.episode || 1, href: "" },
           updatedAt: Date.now(),
@@ -109,7 +103,7 @@ export function ContinueWatching() {
         if (!existingKeys.has(animeId)) {
           cw.push({
             seriesKey: animeId,
-            seriesPath: animeId, // Use the anime ID directly as it's the correct path
+            seriesPath: animeId,
             title: animeId,
             episode: { num: 1, href: "" },
             updatedAt: Date.now(),
@@ -118,9 +112,6 @@ export function ContinueWatching() {
         }
       }
 
-      console.log("[v0] Continue watching entries:", cw)
-
-      // hydrate meta
       const enriched = await Promise.all(
         cw.map(async (it) => {
           const meta = await getMeta(it.seriesPath || it.seriesKey)
@@ -134,10 +125,9 @@ export function ContinueWatching() {
         }),
       )
       enriched.sort((a, b) => b.updatedAt - a.updatedAt)
-      console.log("[v0] Enriched continue watching:", enriched)
       setItems(enriched)
     } catch (error) {
-      console.error("[v0] Failed to load continue watching:", error)
+      console.error("Failed to load continue watching:", error)
       setItems([])
     } finally {
       setLoading(false)
@@ -148,8 +138,6 @@ export function ContinueWatching() {
     if (!token) return {}
 
     try {
-      console.log("[v0] Fetching continue watching data from backend...")
-      // Use the correct backend endpoint directly
       const response = await fetch("https://stale-nananne-anizonee-3fa1a732.koyeb.app/user/continue-watching", {
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -163,63 +151,44 @@ export function ContinueWatching() {
       }
 
       const data = await response.json()
-      console.log("[v0] Continue watching data from backend:", data)
       return data || {}
     } catch (error) {
-      console.error("[v0] Failed to fetch continue watching:", error)
+      console.error("Failed to fetch continue watching:", error)
       return {}
     }
   }
 
   const fetchInCorsoAnime = async () => {
     if (!token) return []
-
     try {
-      console.log("[v0] Fetching in corso anime from lists...")
       const lists = await authManager.getAnimeLists()
-      console.log("[v0] Anime lists:", lists)
       return lists.in_corso || []
     } catch (error) {
-      console.error("[v0] Failed to fetch anime lists:", error)
+      console.error("Failed to fetch anime lists:", error)
       return []
     }
   }
 
   const parseTimeToSeconds = (timeString: string): number => {
     const parts = timeString.split(":")
-    if (parts.length === 2) {
-      return Number.parseInt(parts[0]) * 60 + Number.parseInt(parts[1])
-    }
+    if (parts.length === 2) return Number.parseInt(parts[0]) * 60 + Number.parseInt(parts[1])
     return 0
   }
 
   useEffect(() => {
-    console.log("[v0] ContinueWatching useEffect triggered - user:", user?.username, "token:", !!token)
-    if (user && token) {
-      console.log("[v0] User/token changed, reloading continue watching...")
-      load()
-    }
+    if (user && token) load()
   }, [user, token])
 
   useEffect(() => {
     mountedRef.current = true
 
-    console.log("[v0] Setting up polling - user:", user?.username, "token:", !!token)
-
     if (user && token) {
-      pollingIntervalRef.current = setInterval(() => {
-        console.log("[v0] Polling continue watching data...")
-        load()
-      }, 30000)
-    } else {
-      // Clear any existing polling when user logs out
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current)
-        pollingIntervalRef.current = null
-      }
+      pollingIntervalRef.current = setInterval(load, 30000)
+    } else if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current)
+      pollingIntervalRef.current = null
     }
 
-    // Listen to live progress updates from the player
     const onProgress = (e: Event) => {
       const ev = e as CustomEvent<{ seriesKey: string; episodeNum: number; position: number } | undefined>
       if (!ev?.detail) return
@@ -232,19 +201,13 @@ export function ContinueWatching() {
       )
     }
 
-    const onContinueWatchingUpdate = (e: Event) => {
-      console.log("[v0] Continue watching updated, refreshing data...")
-      load()
-    }
+    const onContinueWatchingUpdate = () => load()
 
     window.addEventListener("anizone:progress", onProgress as EventListener)
     window.addEventListener("anizone:continue-watching-updated", onContinueWatchingUpdate as EventListener)
 
     return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current)
-        pollingIntervalRef.current = null
-      }
+      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current)
       window.removeEventListener("anizone:progress", onProgress as EventListener)
       window.removeEventListener("anizone:continue-watching-updated", onContinueWatchingUpdate as EventListener)
     }
@@ -277,11 +240,11 @@ export function ContinueWatching() {
         <CardContent className="flex gap-3 overflow-x-auto no-scrollbar">
           {[...Array(3)].map((_, i) => (
             <div key={i} className="min-w-[140px] shrink-0 space-y-2">
-              <div className="aspect-[2/3] w-full bg-gradient-to-br from-muted/50 to-muted animate-pulse rounded-lg relative overflow-hidden">
+              <div className="aspect-[3/4] w-full bg-gradient-to-br from-muted/50 to-muted animate-pulse rounded-lg relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
               </div>
               <div className="h-4 bg-gradient-to-r from-muted/70 to-muted/30 animate-pulse rounded" />
-              <div className="h-8 bg-gradient-to-r from-muted/50 to-muted/20 animate-pulse rounded" />
+              <div className="h-6 bg-gradient-to-r from-muted/50 to-muted/20 animate-pulse rounded" />
             </div>
           ))}
         </CardContent>
@@ -319,40 +282,35 @@ export function ContinueWatching() {
           const displayEpisode = it.episode?.num && it.episode.num > 0 ? it.episode.num : 1
 
           return (
-            <div key={`${bp}-${it.episode?.num}`} className="min-w-[140px] shrink-0 space-y-2">
-              <div className="relative">
-                <Link href={`/watch?p=${obfuscateUrl(bp)}&ep=${encodeURIComponent(String(displayEpisode))}`}>
-                  <Card className="overflow-hidden hover:shadow-md transition-shadow h-full">
-                    <div className="relative aspect-[2/3] w-full bg-neutral-100 overflow-hidden">
-                      <img
-                        src={it.image || "/placeholder.svg?height=450&width=300&query=poster%20anime%20cover"}
-                        alt={it.title || "Anime"}
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                      />
-
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-                        <div className="text-xs text-white/90 font-medium">
-                          Ep. {displayEpisode}
-                          {it.positionSeconds && it.positionSeconds > 0 ? ` • ${resumeTime}` : ""}
-                        </div>
+            <div key={`${bp}-${it.episode?.num}`} className="min-w-[140px] max-h-[300px] shrink-0 space-y-2">
+              <Link href={`/watch?p=${obfuscateUrl(bp)}&ep=${encodeURIComponent(String(displayEpisode))}`}>
+                <Card className="overflow-hidden hover:shadow-md transition-shadow">
+                  <div className="relative aspect-[3/4] w-full bg-neutral-100 overflow-hidden">
+                    <img
+                      src={it.image || "/placeholder.svg?height=450&width=300&query=poster%20anime%20cover"}
+                      alt={it.title || "Anime"}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
+                      <div className="text-xs text-white/90 font-medium">
+                        Ep. {displayEpisode}
+                        {it.positionSeconds && it.positionSeconds > 0 ? ` • ${resumeTime}` : ""}
                       </div>
                     </div>
-                    <CardContent className="p-3 flex flex-col h-[60px]">
-                      <div className="text-sm font-medium flex-1 flex items-start justify-start leading-tight overflow-hidden">
-                        <span className="line-clamp-2 text-ellipsis">{it.title || "Anime"}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              </div>
-              <div>
-                <Link href={`/watch?p=${obfuscateUrl(bp)}&ep=${encodeURIComponent(String(displayEpisode))}`}>
-                  <Button size="sm" className="w-full">
-                    {it.positionSeconds && it.positionSeconds > 0 ? "Riprendi" : "Guarda"}
-                  </Button>
-                </Link>
-              </div>
+                  </div>
+                  <CardContent className="p-2 flex flex-col">
+                    <div className="text-sm font-medium flex-1 flex items-start leading-tight overflow-hidden">
+                      <span className="line-clamp-2">{it.title || "Anime"}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+              <Link href={`/watch?p=${obfuscateUrl(bp)}&ep=${encodeURIComponent(String(displayEpisode))}`}>
+                <Button size="sm" className="w-full">
+                  {it.positionSeconds && it.positionSeconds > 0 ? "Riprendi" : "Guarda"}
+                </Button>
+              </Link>
             </div>
           )
         })}
