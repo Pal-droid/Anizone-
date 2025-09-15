@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { formatSeconds } from "@/lib/time"
@@ -72,14 +72,83 @@ export function ContinueWatching() {
   const [loading, setLoading] = useState(true)
   const mountedRef = useRef(false)
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const { user, token } = useAuth()
+  const { user } = useAuth()
+  const token = user?.token
+
+  console.log("[v0] ContinueWatching component rendered - user:", user?.username, "token:", !!token)
+
+  const load = async () => {
+    if (!user || !token) {
+      console.log("[v0] No user or token, clearing continue watching")
+      setItems([])
+      setLoading(false)
+      return
+    }
+
+    try {
+      console.log("[v0] Loading continue watching for user:", user.username)
+      setLoading(true)
+
+      const [backendData, inCorsoAnime] = await Promise.all([fetchContinueWatching(), fetchInCorsoAnime()])
+
+      let cw: ContinueEntry[] = []
+
+      if (backendData && typeof backendData === "object") {
+        cw = Object.entries(backendData).map(([animeId, data]: [string, any]) => ({
+          seriesKey: animeId,
+          seriesPath: animeId, // Use the anime ID directly as it's already the correct path
+          title: data.anime || animeId,
+          episode: { num: data.episode || 1, href: "" },
+          updatedAt: Date.now(),
+          positionSeconds: data.progress ? parseTimeToSeconds(data.progress) : 0,
+        }))
+      }
+
+      const existingKeys = new Set(cw.map((item) => item.seriesKey))
+      for (const animeId of inCorsoAnime) {
+        if (!existingKeys.has(animeId)) {
+          cw.push({
+            seriesKey: animeId,
+            seriesPath: animeId, // Use the anime ID directly as it's the correct path
+            title: animeId,
+            episode: { num: 1, href: "" },
+            updatedAt: Date.now(),
+            positionSeconds: 0,
+          })
+        }
+      }
+
+      console.log("[v0] Continue watching entries:", cw)
+
+      // hydrate meta
+      const enriched = await Promise.all(
+        cw.map(async (it) => {
+          const meta = await getMeta(it.seriesPath || it.seriesKey)
+          const episodeNum = it.episode?.num && it.episode.num > 0 ? it.episode.num : 1
+          return {
+            ...it,
+            title: meta.title || it.title,
+            image: meta.image,
+            episode: { ...it.episode, num: episodeNum },
+          }
+        }),
+      )
+      enriched.sort((a, b) => b.updatedAt - a.updatedAt)
+      console.log("[v0] Enriched continue watching:", enriched)
+      setItems(enriched)
+    } catch (error) {
+      console.error("[v0] Failed to load continue watching:", error)
+      setItems([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const fetchContinueWatching = async () => {
     if (!token) return {}
 
     try {
       console.log("[v0] Fetching continue watching data from backend...")
-      console.log("[v0] Current token:", token)
       // Use the correct backend endpoint directly
       const response = await fetch("https://stale-nananne-anizonee-3fa1a732.koyeb.app/user/continue-watching", {
         headers: { Authorization: `Bearer ${token}` },
@@ -116,78 +185,6 @@ export function ContinueWatching() {
     }
   }
 
-  const load = useMemo(
-    () => async () => {
-     console.log("[DEBUG] load() called with user:", user, "token:", token)
-      if (!user || !token) {
-        console.warn("[DEBUG] No user or token, skipping fetchContinueWatching")
-        console.log("[v0] No user or token, clearing continue watching")
-        setItems([])
-        setLoading(false)
-        return
-      }
-
-      try {
-        console.log("[v0] Loading continue watching for user:", user.username)
-        setLoading(true)
-
-        const [backendData, inCorsoAnime] = await Promise.all([fetchContinueWatching(), fetchInCorsoAnime()])
-
-        let cw: ContinueEntry[] = []
-
-        if (backendData && typeof backendData === "object") {
-          cw = Object.entries(backendData).map(([animeId, data]: [string, any]) => ({
-            seriesKey: animeId,
-            seriesPath: animeId, // Use the anime ID directly as it's already the correct path
-            title: data.anime || animeId,
-            episode: { num: data.episode || 1, href: "" },
-            updatedAt: Date.now(),
-            positionSeconds: data.progress ? parseTimeToSeconds(data.progress) : 0,
-          }))
-        }
-
-        const existingKeys = new Set(cw.map((item) => item.seriesKey))
-        for (const animeId of inCorsoAnime) {
-          if (!existingKeys.has(animeId)) {
-            cw.push({
-              seriesKey: animeId,
-              seriesPath: animeId, // Use the anime ID directly as it's the correct path
-              title: animeId,
-              episode: { num: 1, href: "" },
-              updatedAt: Date.now(),
-              positionSeconds: 0,
-            })
-          }
-        }
-
-        console.log("[v0] Continue watching entries:", cw)
-
-        // hydrate meta
-        const enriched = await Promise.all(
-          cw.map(async (it) => {
-            const meta = await getMeta(it.seriesPath || it.seriesKey)
-            const episodeNum = it.episode?.num && it.episode.num > 0 ? it.episode.num : 1
-            return {
-              ...it,
-              title: meta.title || it.title,
-              image: meta.image,
-              episode: { ...it.episode, num: episodeNum },
-            }
-          }),
-        )
-        enriched.sort((a, b) => b.updatedAt - a.updatedAt)
-        console.log("[v0] Enriched continue watching:", enriched)
-        setItems(enriched)
-      } catch (error) {
-        console.error("[v0] Failed to load continue watching:", error)
-        setItems([])
-      } finally {
-        setLoading(false)
-      }
-    },
-    [user, token],
-  )
-
   const parseTimeToSeconds = (timeString: string): number => {
     const parts = timeString.split(":")
     if (parts.length === 2) {
@@ -197,8 +194,17 @@ export function ContinueWatching() {
   }
 
   useEffect(() => {
-    load()
+    console.log("[v0] ContinueWatching useEffect triggered - user:", user?.username, "token:", !!token)
+    if (user && token) {
+      console.log("[v0] User/token changed, reloading continue watching...")
+      load()
+    }
+  }, [user, token])
+
+  useEffect(() => {
     mountedRef.current = true
+
+    console.log("[v0] Setting up polling - user:", user?.username, "token:", !!token)
 
     if (user && token) {
       pollingIntervalRef.current = setInterval(() => {
@@ -242,7 +248,7 @@ export function ContinueWatching() {
       window.removeEventListener("anizone:progress", onProgress as EventListener)
       window.removeEventListener("anizone:continue-watching-updated", onContinueWatchingUpdate as EventListener)
     }
-  }, [load, user, token])
+  }, [user, token])
 
   if (!user) {
     return (
