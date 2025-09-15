@@ -279,7 +279,9 @@ export function ContinueWatching() {
                     </div>
                   </div>
                   <CardContent className="p-2 flex-none">
-                    <div className="text-sm font-medium leading-tight line-clamp-2">{it.title || "Anime"}</div>
+                    <div className="text-sm font-medium leading-tight line-clamp-2 overflow-hidden text-ellipsis">
+                      {it.title || "Anime"}
+                    </div>
                   </CardContent>
                   <Button size="sm" className="w-full flex-none">
                     {it.positionSeconds && it.positionSeconds > 0 ? "Riprendi" : "Guarda"}
@@ -293,4 +295,3 @@ export function ContinueWatching() {
     </Card>
   )
 }
-
