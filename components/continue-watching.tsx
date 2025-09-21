@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -175,8 +177,7 @@ export function ContinueWatching() {
       if (!ev?.detail) return
       setItems((prev) =>
         prev.map((it) =>
-          basePath(it.seriesKey) === basePath(ev.detail!.seriesKey) &&
-          it.episode?.num === ev.detail!.episodeNum
+          basePath(it.seriesKey) === basePath(ev.detail!.seriesKey) && it.episode?.num === ev.detail!.episodeNum
             ? { ...it, positionSeconds: ev.detail!.position, updatedAt: Date.now() }
             : it,
         ),
@@ -202,8 +203,8 @@ export function ContinueWatching() {
         </CardHeader>
         <CardContent className="flex items-center justify-center py-8">
           <div className="text-center space-y-3">
-            <div className="text-muted-foreground text-sm">Accedi per vedere i tuoi anime in corso</div>
-            <Link href="/login">
+            <div className="text-muted-foreground text-xs">Accedi per aggiungere alle liste</div>
+            <Link href="/lists">
               <Button size="sm">Accedi</Button>
             </Link>
           </div>
@@ -260,11 +261,83 @@ export function ContinueWatching() {
           const bp = basePath(it.seriesPath || it.seriesKey)
           const displayEpisode = it.episode?.num && it.episode.num > 0 ? it.episode.num : 1
 
+          const extractAnimeId = (path: string): string => {
+            const match = path.match(/\/play\/([^/?#]+)/)
+            if (match) return match[1]
+
+            // Handle direct anime IDs
+            const cleanPath = path.replace(/^\/+/, "")
+            if (cleanPath.includes("/")) {
+              const parts = cleanPath.split("/")
+              return parts[parts.length - 1] || parts[0]
+            }
+            return cleanPath
+          }
+
+          const animeId = extractAnimeId(bp)
+
+          const handleClick = async (e: React.MouseEvent) => {
+            e.preventDefault()
+
+            // Added debug logging for better error tracking
+            console.log("[v0] Continue watching click - animeId:", animeId, "episode:", displayEpisode)
+
+            try {
+              // Fetch episodes using the unified API as specified
+              const episodesResponse = await fetch(
+                `https://aw-au-as-api.vercel.app/api/episodes?AW=${encodeURIComponent(animeId)}`,
+                {
+                  headers: {
+                    "User-Agent":
+                      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) AnizoneBot/1.0 Safari/537.36",
+                    Accept: "application/json, text/plain, */*",
+                    "Accept-Language": "it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7",
+                  },
+                },
+              )
+
+              if (episodesResponse.ok) {
+                const episodes = await episodesResponse.json()
+                console.log("[v0] Episodes fetched:", episodes.length)
+
+                // Find the correct episode or use the first available
+                const targetEpisode = episodes.find((ep: any) => ep.episode_number === displayEpisode) || episodes[0]
+
+                if (targetEpisode?.sources?.AnimeWorld?.id) {
+                  // Store episode data in sessionStorage for the watch page
+                  sessionStorage.setItem(
+                    "currentAnimeSource",
+                    JSON.stringify({
+                      animeId,
+                      episodeId: targetEpisode.sources.AnimeWorld.id,
+                      episodeNumber: displayEpisode,
+                      title: it.title,
+                      allEpisodes: episodes,
+                    }),
+                  )
+
+                  // Navigate to watch page with proper episode ID format
+                  window.location.href = `/watch?p=${encodeURIComponent(`/play/${animeId}/${targetEpisode.sources.AnimeWorld.id}`)}`
+                  return
+                }
+              } else {
+                console.error("[v0] Episodes API failed:", episodesResponse.status)
+              }
+            } catch (error) {
+              console.error("[v0] Failed to fetch episode data:", error)
+            }
+
+            // Fallback navigation if API fails
+            console.log("[v0] Using fallback navigation")
+            window.location.href = `/watch?p=${obfuscateUrl(bp)}&ep=${encodeURIComponent(String(displayEpisode))}`
+          }
+
           return (
-            <div key={`${bp}-${it.episode?.num}`} className="min-w-[120px] max-w-[140px] shrink-0 space-y-2">
-              <Link href={`/watch?p=${obfuscateUrl(bp)}&ep=${encodeURIComponent(String(displayEpisode))}`}>
-                <Card className="overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-                  <div className="relative w-full aspect-[2/3] overflow-hidden rounded-lg">
+            // Set consistent card width and height for uniform appearance
+            <div key={`${bp}-${it.episode?.num}`} className="w-[120px] shrink-0 flex flex-col">
+              <div onClick={handleClick} className="cursor-pointer">
+                <div className="space-y-2">
+                  <div className="relative w-full aspect-[2/3] overflow-hidden rounded-lg bg-muted">
                     <img
                       src={it.image || "/placeholder.svg?height=450&width=300&query=poster%20anime%20cover"}
                       alt={it.title || "Anime"}
@@ -278,16 +351,17 @@ export function ContinueWatching() {
                       </div>
                     </div>
                   </div>
-                  <CardContent className="p-2 flex-none">
-                    <div className="text-sm font-medium leading-tight line-clamp-2 overflow-hidden text-ellipsis">
+                  {/* Fixed height for title container to prevent card size variations */}
+                  <div className="h-8 flex items-start">
+                    <div className="text-xs font-medium leading-tight line-clamp-2 text-center w-full">
                       {it.title || "Anime"}
                     </div>
-                  </CardContent>
-                  <Button size="sm" className="w-full flex-none">
+                  </div>
+                  <Button size="sm" className="w-full">
                     {it.positionSeconds && it.positionSeconds > 0 ? "Riprendi" : "Guarda"}
                   </Button>
-                </Card>
-              </Link>
+                </div>
+              </div>
             </div>
           )
         })}

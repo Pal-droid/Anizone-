@@ -24,44 +24,74 @@ interface AnimeInfo {
 export default function AnimePage({ params }: { params: { id: string } }) {
   const router = useRouter()
   const [animeInfo, setAnimeInfo] = useState<AnimeInfo | null>(null)
+  const [episodes, setEpisodes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const loadAnimeInfo = async () => {
+    const loadAnimeData = async () => {
       try {
-        console.log("[v0] Loading anime info for ID:", params.id)
+        console.log("[v0] Loading anime data for ID:", params.id)
 
-        const response = await fetch(`/api/anime-meta?path=${encodeURIComponent(params.id)}`)
+        let animeId = params.id
+        if (animeId.includes("/")) {
+          const pathMatch = animeId.match(/\/play\/([^/?#]+)/)
+          if (pathMatch) {
+            animeId = pathMatch[1]
+          }
+        }
 
-        if (response.ok) {
-          const data = await response.json()
+        const episodesResponse = await fetch(
+          `https://aw-au-as-api.vercel.app/api/episodes?AW=${encodeURIComponent(animeId)}`,
+          {
+            headers: {
+              "User-Agent":
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) AnizoneBot/1.0 Safari/537.36",
+              Accept: "application/json, text/plain, */*",
+              "Accept-Language": "it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7",
+            },
+          },
+        )
+
+        let episodesList = []
+        if (episodesResponse.ok) {
+          episodesList = await episodesResponse.json()
+          setEpisodes(episodesList)
+          console.log("[v0] Episodes loaded:", episodesList.length)
+        }
+
+        const animePageUrl = `https://www.animeworld.ac/play/${animeId}`
+        const metaResponse = await fetch(`/api/anime-meta?path=${encodeURIComponent(animePageUrl)}`)
+
+        if (metaResponse.ok) {
+          const data = await metaResponse.json()
           console.log("[v0] Anime metadata loaded:", data)
 
           setAnimeInfo({
-            title: data.meta?.title || params.id.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+            title: data.meta?.title || animeId.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
             description: data.meta?.description || "Descrizione non disponibile.",
             image: data.meta?.image || "/anime-poster.png",
-            genre: data.meta?.genre || ["Anime"],
-            year: data.meta?.year || new Date().getFullYear(),
+            genre: data.meta?.genres?.map((g: any) => g.name) || ["Anime"],
+            year: data.meta?.releaseDate ? new Date(data.meta.releaseDate).getFullYear() : new Date().getFullYear(),
             status: data.meta?.status || "Sconosciuto",
             rating: data.meta?.rating,
-            episodes: data.meta?.episodes,
+            episodes: episodesList.length || data.meta?.episodesCount,
             studio: data.meta?.studio,
           })
         } else {
           console.log("[v0] API failed, using fallback data")
           setAnimeInfo({
-            title: params.id.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+            title: animeId.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
             description: "Descrizione non disponibile. Seleziona un episodio per iniziare a guardare.",
             image: "/anime-poster.png",
             genre: ["Anime"],
             year: new Date().getFullYear(),
             status: "Disponibile",
+            episodes: episodesList.length,
           })
         }
       } catch (error) {
-        console.error("[v0] Error loading anime info:", error)
+        console.error("[v0] Error loading anime data:", error)
         setError("Errore nel caricamento delle informazioni")
 
         setAnimeInfo({
@@ -77,10 +107,20 @@ export default function AnimePage({ params }: { params: { id: string } }) {
       }
     }
 
-    loadAnimeInfo()
+    loadAnimeData()
   }, [params.id])
 
   const handleWatchClick = () => {
+    if (episodes.length > 0) {
+      const firstEpisode = episodes[0]
+      const episodeId = firstEpisode.sources?.AnimeWorld?.id || firstEpisode.sources?.AnimeSaturn?.id
+      if (episodeId) {
+        router.push(`/watch?p=${encodeURIComponent(`/play/${params.id}/${episodeId}`)}`)
+        return
+      }
+    }
+
+    // Fallback to old method
     const animePath = `/play/${params.id}/episode-1`
     router.push(`/watch?path=${encodeURIComponent(animePath)}`)
   }

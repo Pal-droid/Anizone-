@@ -28,15 +28,12 @@ export async function saveMangaProgress(
     const token = localStorage.getItem("auth_token")
     if (!token) throw new Error("No auth token found")
 
-    const getCurrentData = await fetch(
-      "https://stale-nananne-anizonee-3fa1a732.koyeb.app/user/data",
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
+    const getCurrentData = await fetch("https://stale-nananne-anizonee-3fa1a732.koyeb.app/user/data", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
-    )
+    })
 
     if (!getCurrentData.ok) throw new Error("Failed to get current user data")
 
@@ -51,9 +48,7 @@ export async function saveMangaProgress(
       },
     }
 
-    const existingIndex = userData.continue_reading.findIndex(
-      (item: any) => item.manga_id === mangaId,
-    )
+    const existingIndex = userData.continue_reading.findIndex((item: any) => item.manga_id === mangaId)
 
     const readingEntry = { manga_id: mangaId, chapter, page }
 
@@ -67,17 +62,14 @@ export async function saveMangaProgress(
       userData.manga_lists.in_corso.push(mangaId)
     }
 
-    const saveResponse = await fetch(
-      "https://stale-nananne-anizonee-3fa1a732.koyeb.app/user/data",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(userData),
+    const saveResponse = await fetch("https://stale-nananne-anizonee-3fa1a732.koyeb.app/user/data", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
-    )
+      body: JSON.stringify(userData),
+    })
 
     if (!saveResponse.ok) throw new Error("Failed to save manga progress")
 
@@ -108,34 +100,30 @@ export function ContinueReading() {
 
         if (continueReadingData && Object.keys(continueReadingData).length > 0) {
           const enriched = await Promise.all(
-            Object.entries(continueReadingData).map(
-              async ([mangaId, data]: [string, any]) => {
-                let title = data.manga || mangaId
-                let image = data.image
+            Object.entries(continueReadingData).map(async ([mangaId, data]: [string, any]) => {
+              let title = data.manga || mangaId
+              let image = data.image
 
-                try {
-                  const response = await fetch(
-                    `/api/manga-info?id=${encodeURIComponent(mangaId)}`,
-                  )
-                  if (response.ok) {
-                    const metadata = await response.json()
-                    title = metadata.title || title
-                    image = metadata.image || image
-                  }
-                } catch (error) {
-                  console.log("[v0] Failed to fetch manga metadata for:", mangaId, error)
+              try {
+                const response = await fetch(`/api/manga-info?id=${encodeURIComponent(mangaId)}`)
+                if (response.ok) {
+                  const metadata = await response.json()
+                  title = metadata.title || title
+                  image = metadata.image || image
                 }
+              } catch (error) {
+                console.log("[v0] Failed to fetch manga metadata for:", mangaId, error)
+              }
 
-                return {
-                  manga_id: mangaId,
-                  chapter: data.chapter || 1,
-                  page: data.page || 1,
-                  title,
-                  image,
-                  updatedAt: Date.now(),
-                }
-              },
-            ),
+              return {
+                manga_id: mangaId,
+                chapter: data.chapter || 1,
+                page: data.page || 1,
+                title,
+                image,
+                updatedAt: Date.now(),
+              }
+            }),
           )
 
           enriched.sort((a, b) => b.updatedAt - a.updatedAt)
@@ -169,58 +157,54 @@ export function ContinueReading() {
       <CardContent className="flex gap-3 overflow-x-auto no-scrollbar">
         {loading
           ? Array.from({ length: 4 }).map((_, i) => (
-              <div
-                key={i}
-                className="w-[160px] sm:w-[180px] shrink-0 space-y-2 animate-pulse"
-              >
-                <div className="w-full h-[220px] sm:h-[250px] rounded-lg bg-gray-200" />
-                <div className="h-5 bg-gray-200 rounded w-3/4 mx-auto" />
-                <div className="h-8 w-full" />
+              <div key={i} className="w-[120px] shrink-0 space-y-2 animate-pulse">
+                <div className="w-full aspect-[2/3] rounded-lg bg-gray-200" />
+                <div className="h-8 bg-gray-200 rounded" />
+                <div className="h-8 bg-gray-200 rounded" />
               </div>
             ))
           : items.map((item) => (
-              <div
-                key={`${item.manga_id}-${item.chapter}`}
-                className="w-[160px] sm:w-[180px] shrink-0 space-y-2"
-              >
-                <div className="relative">
-                  <div className="w-full h-[220px] sm:h-[250px] rounded-lg overflow-hidden bg-muted relative">
-                    {item.image ? (
-                      <img
-                        src={item.image}
-                        alt={item.title || "Manga"}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement
-                          target.src = `/placeholder.svg?height=240&width=180&query=manga cover`
-                        }}
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-                        <div className="text-center text-muted-foreground text-xs font-medium">
-                          {item.title || "Manga"}
+              <div key={`${item.manga_id}-${item.chapter}`} className="w-[120px] shrink-0 flex flex-col">
+                <div className="space-y-2">
+                  <div className="relative">
+                    <div className="w-full aspect-[2/3] rounded-lg overflow-hidden bg-muted relative">
+                      {item.image ? (
+                        <img
+                          src={item.image || "/placeholder.svg"}
+                          alt={item.title || "Manga"}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement
+                            target.src = `/placeholder.svg?height=240&width=180&query=manga cover`
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                          <div className="text-center text-muted-foreground text-xs font-medium p-2">
+                            {item.title || "Manga"}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-                      <div className="text-xs text-white/90 font-medium">
-                        Cap. {item.chapter}
-                        {item.page > 0 ? ` • Pag. ${item.page}` : ""}
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
+                        <div className="text-xs text-white/90 font-medium">
+                          Cap. {item.chapter}
+                          {item.page > 0 ? ` • Pag. ${item.page}` : ""}
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  <h3 className="text-xs font-medium line-clamp-2 overflow-hidden text-ellipsis text-center mt-1">
-                    {item.title || "Manga"}
-                  </h3>
-                </div>
+                  <div className="h-16 flex items-start">
+                    <h3 className="text-xs font-medium line-clamp-2 text-center w-full">{item.title || "Manga"}</h3>
+                  </div>
 
-                <Link href={`/manga/${obfuscateId(item.manga_id)}`}>
-                  <Button size="sm" className="w-full">
-                    Riprendi
-                  </Button>
-                </Link>
+                  <Link href={`/manga/${obfuscateId(item.manga_id)}`}>
+                    <Button size="sm" className="w-full">
+                      Riprendi
+                    </Button>
+                  </Link>
+                </div>
               </div>
             ))}
       </CardContent>

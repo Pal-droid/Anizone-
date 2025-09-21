@@ -99,6 +99,7 @@ export function EpisodePlayer({
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
   const [useHlsFallback, setUseHlsFallback] = useState(false)
   const hlsRef = useRef<any>(null)
+  const currentPathRef = useRef<string>("")
 
   const seriesKeyForStore = useMemo(() => seriesBaseFromPath(path), [path])
   const lastSentAtRef = useRef<number>(0)
@@ -111,6 +112,46 @@ export function EpisodePlayer({
   }, [sources])
 
   const isEmbedServer = selectedServer === "AnimeSaturn"
+
+  useEffect(() => {
+    if (currentPathRef.current && currentPathRef.current !== path) {
+      console.log("[v0] Anime path changed from", currentPathRef.current, "to", path, "- clearing cached data")
+
+      // Clear all cached episode and stream data for the old anime
+      try {
+        const oldAnimeId = extractAnimeIdFromUrl(currentPathRef.current)
+        const newAnimeId = extractAnimeIdFromUrl(path)
+
+        if (oldAnimeId !== newAnimeId) {
+          // Clear sessionStorage for the old anime
+          sessionStorage.removeItem(`anizone:sources:${currentPathRef.current}`)
+
+          // Clear localStorage cache for episodes and streams
+          const keysToRemove = []
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i)
+            if (key && (key.includes(oldAnimeId) || key.includes(currentPathRef.current))) {
+              keysToRemove.push(key)
+            }
+          }
+          keysToRemove.forEach((key) => localStorage.removeItem(key))
+
+          // Reset component state
+          setEpisodes([])
+          setSelectedKey(null)
+          setStreamUrl(null)
+          setEmbedUrl(null)
+          setEpisodeRefUrl(null)
+          setProxyUrl(null)
+          setError(null)
+          setLoadingEpisodes(true)
+        }
+      } catch (e) {
+        console.log("[v0] Error clearing cached data:", e)
+      }
+    }
+    currentPathRef.current = path
+  }, [path])
 
   useEffect(() => {
     try {
