@@ -1,6 +1,30 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { ANIMEWORLD_BASE, parseWatchMeta, parseAnimeSaturnMeta } from "@/lib/animeworld"
 import { fetchHtml } from "@/lib/fetch-html"
+import { load } from "cheerio"
+
+function parseNextEpisodeCountdown(html: string): { nextEpisodeDate?: string; nextEpisodeTime?: string } {
+  const $ = load(html)
+
+  // Look for the countdown element with data attributes
+  const countdownElement = $("#next-episode")
+  if (countdownElement.length > 0) {
+    const date = countdownElement.attr("data-calendar-date")
+    const time = countdownElement.attr("data-calendar-time")
+
+    console.log("[v0] Found countdown data:", { date, time })
+
+    if (date && time) {
+      return {
+        nextEpisodeDate: date,
+        nextEpisodeTime: time,
+      }
+    }
+  }
+
+  console.log("[v0] No countdown data found")
+  return {}
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -55,14 +79,27 @@ export async function GET(req: NextRequest) {
       meta = parseWatchMeta(html)
     }
 
+    const countdownData = parseNextEpisodeCountdown(html)
+
     console.log("[v0] Parsed meta:", meta ? "success" : "failed")
     if (!meta) {
       console.log("[v0] Metadata fetch result:", { ok: false, error: "Meta non trovati", source: finalUrl })
       return NextResponse.json({ ok: false, error: "Meta non trovati", source: finalUrl }, { status: 404 })
     }
 
-    console.log("[v0] Metadata fetch result:", { ok: true, meta: "success", source: finalUrl })
-    return NextResponse.json({ ok: true, meta, source: finalUrl })
+    const response = {
+      ok: true,
+      meta: { ...meta, ...countdownData },
+      source: finalUrl,
+    }
+
+    console.log("[v0] Metadata fetch result:", {
+      ok: true,
+      meta: "success",
+      source: finalUrl,
+      hasCountdown: !!(countdownData.nextEpisodeDate && countdownData.nextEpisodeTime),
+    })
+    return NextResponse.json(response)
   } catch (e: any) {
     console.log("[v0] anime-meta API error:", e?.message)
     return NextResponse.json({ ok: false, error: e?.message || "Errore meta" }, { status: 500 })

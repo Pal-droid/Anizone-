@@ -25,6 +25,8 @@ export default function WatchPage() {
 
   const [title, setTitle] = useState<string>("")
   const [sources, setSources] = useState<Source[]>([])
+  const [nextEpisodeDate, setNextEpisodeDate] = useState<string>()
+  const [nextEpisodeTime, setNextEpisodeTime] = useState<string>()
 
   useEffect(() => {
     if (!path) return
@@ -45,6 +47,33 @@ export default function WatchPage() {
         setSources(parsedSources)
       }
     } catch {}
+
+    const fetchCountdownData = async () => {
+      try {
+        console.log("[v0] Fetching countdown data for path:", path)
+        const response = await fetch(`/api/anime-meta?path=${encodeURIComponent(path)}`)
+        if (response.ok) {
+          const data = await response.json()
+          if (data.ok && data.meta) {
+            console.log("[v0] Received meta data:", data.meta)
+            if (data.meta.nextEpisodeDate && data.meta.nextEpisodeTime) {
+              console.log("[v0] Setting countdown data:", {
+                date: data.meta.nextEpisodeDate,
+                time: data.meta.nextEpisodeTime,
+              })
+              setNextEpisodeDate(data.meta.nextEpisodeDate)
+              setNextEpisodeTime(data.meta.nextEpisodeTime)
+            } else {
+              console.log("[v0] No countdown data in meta")
+            }
+          }
+        }
+      } catch (error) {
+        console.log("[v0] Error fetching countdown data:", error)
+      }
+    }
+
+    fetchCountdownData()
   }, [path])
 
   const seriesKey = useMemo(() => {
@@ -79,9 +108,15 @@ export default function WatchPage() {
         </div>
       </header>
       <section className="px-4 py-4 space-y-6 overflow-x-hidden">
-        <EpisodePlayer path={path} seriesTitle={title} sources={sources} />
+        <EpisodePlayer
+          path={path}
+          seriesTitle={title}
+          sources={sources}
+          nextEpisodeDate={nextEpisodeDate}
+          nextEpisodeTime={nextEpisodeTime}
+        />
         <div className="flex justify-center">
-          <QuickListManager itemId={seriesKey} itemTitle={title || "Anime"} type="anime" itemPath={path} />
+          <QuickListManager itemId={seriesKey} itemTitle={title || "Anime"} itemPath={path} />
         </div>
         <WatchInfo seriesPath={path} />
       </section>

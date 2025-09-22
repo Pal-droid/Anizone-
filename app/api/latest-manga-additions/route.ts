@@ -53,7 +53,8 @@ export async function GET() {
       const href = link.attr("href")
       const title = link.attr("title") || $entry.find(".manga-title").text().trim()
       const image = $entry.find("img").attr("src")
-      const type = $entry.find(".font-weight-bold").next("a").text().trim()
+      const rawType = $entry.find(".font-weight-bold").next("a").text().trim()
+      const type = rawType.replace(/Mangaln/g, "Manga ln")
       const status = $entry.find(".font-weight-bold").eq(1).next("a").text().trim()
       const date = $entry.find(".font-weight-bold").eq(2).next().text().trim()
 

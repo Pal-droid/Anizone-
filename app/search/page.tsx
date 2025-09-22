@@ -214,8 +214,20 @@ export default function SearchPage() {
   }, [searchType, keyword])
 
   const navigateToPage = (pageNum: number) => {
+    if (!pagination) return
+
+    let targetPage = pageNum
+
+    // Wrap around logic - if trying to go beyond max page, wrap to page 1
+    if (pageNum > pagination.totalPages) {
+      targetPage = 1
+    } else if (pageNum < 1) {
+      // If trying to go below page 1, wrap to last page
+      targetPage = pagination.totalPages
+    }
+
     const newParams = new URLSearchParams(sp.toString())
-    newParams.set("page", pageNum.toString())
+    newParams.set("page", targetPage.toString())
     router.push(`/search?${newParams.toString()}`)
   }
 
