@@ -7,6 +7,7 @@ export async function GET() {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "Accept-Language": "it-IT,it;q=0.9,en;q=0.8",
       },
     })
 
@@ -19,14 +20,14 @@ export async function GET() {
 
     const upcomingAnime: any[] = []
 
-    // Find the "Uscite Autunno 2025" section
-    $(".widget-title").each((_, titleElement) => {
-      const titleText = $(titleElement).find(".title").text().trim()
-      if (titleText.includes("Uscite Autunno 2025") || titleText.includes("Autunno 2025")) {
-        // Find the carousel items in the next widget-body
-        const widgetBody = $(titleElement).next(".widget-body")
+    // ✅ Fix: traverse by .widget instead of .widget-title.next()
+    $(".widget").each((_, widgetElement) => {
+      const $widget = $(widgetElement)
+      const titleText = $widget.find(".widget-title .title").text().trim()
 
-        // Look for owl-stage items
+      if (titleText.includes("Uscite Autunno 2025") || titleText.includes("Autunno 2025")) {
+        const widgetBody = $widget.find(".widget-body")
+
         widgetBody.find(".owl-item .item").each((_, element) => {
           const $item = $(element)
           const $inner = $item.find(".inner")
@@ -35,11 +36,10 @@ export async function GET() {
 
           const href = $poster.attr("href")
           const imgSrc = $poster.find("img").attr("src")
-          const alt = $poster.find("img").attr("alt")
           const title = $nameLink.attr("title") || $nameLink.text().trim()
           const japaneseTitle = $nameLink.attr("data-jtitle") || ""
 
-          // Check for status indicators
+          // Status indicators
           const $status = $poster.find(".status")
           const isDub = $status.find(".dub").length > 0
           const isOna = $status.find(".ona").length > 0
@@ -47,12 +47,12 @@ export async function GET() {
           if (href && imgSrc && title) {
             upcomingAnime.push({
               id: href.split("/").pop()?.split(".")[0] || "",
-              title: title,
-              japaneseTitle: japaneseTitle,
-              image: imgSrc.startsWith("http") ? imgSrc : `https://img.animeworld.ac${imgSrc}`,
+              title,
+              japaneseTitle,
+              image: imgSrc.startsWith("http") ? imgSrc : `https://www.animeworld.ac${imgSrc}`,
               url: href.startsWith("http") ? href : `https://www.animeworld.ac${href}`,
-              isDub: isDub,
-              isOna: isOna,
+              isDub,
+              isOna,
               type: "upcoming",
             })
           }
@@ -60,7 +60,7 @@ export async function GET() {
       }
     })
 
-    // If no items found in the specific section, look for upcoming items in general
+    // ✅ Fallback: general upcoming check if none found
     if (upcomingAnime.length === 0) {
       $(".owl-stage .owl-item .item").each((_, element) => {
         const $item = $(element)
@@ -70,34 +70,30 @@ export async function GET() {
 
         const href = $poster.attr("href")
         const imgSrc = $poster.find("img").attr("src")
-        const alt = $poster.find("img").attr("alt")
         const title = $nameLink.attr("title") || $nameLink.text().trim()
         const japaneseTitle = $nameLink.attr("data-jtitle") || ""
 
-        // Check for status indicators
         const $status = $poster.find(".status")
         const isDub = $status.find(".dub").length > 0
         const isOna = $status.find(".ona").length > 0
-
-        // Only include items that don't have episode progress (upcoming)
         const episodeText = $status.find(".ep").text().trim()
 
         if (href && imgSrc && title && !episodeText) {
           upcomingAnime.push({
             id: href.split("/").pop()?.split(".")[0] || "",
-            title: title,
-            japaneseTitle: japaneseTitle,
-            image: imgSrc.startsWith("http") ? imgSrc : `https://img.animeworld.ac${imgSrc}`,
+            title,
+            japaneseTitle,
+            image: imgSrc.startsWith("http") ? imgSrc : `https://www.animeworld.ac${imgSrc}`,
             url: href.startsWith("http") ? href : `https://www.animeworld.ac${href}`,
-            isDub: isDub,
-            isOna: isOna,
+            isDub,
+            isOna,
             type: "upcoming",
           })
         }
       })
     }
 
-    // Remove duplicates and limit to reasonable number
+    // ✅ Deduplicate & limit
     const uniqueAnime = upcomingAnime
       .filter((anime, index, self) => index === self.findIndex((a) => a.id === anime.id))
       .slice(0, 20)
