@@ -45,7 +45,7 @@ function parseNewAdditions(html: string): NewAdditionItem[] {
 
       const $link = $item.find("a").first()
       const href = $link.attr("href") || ""
-      const image = $item.find("img").attr("src") || ""
+      const image = $item.find("img.thumb").attr("src") || $item.find("img").attr("src") || ""
       const title = $link.attr("title") || $item.find(".name").text().trim() || ""
 
       if (!href || !title) return
@@ -62,11 +62,15 @@ function parseNewAdditions(html: string): NewAdditionItem[] {
       const releaseDate = dateMatch ? dateMatch[1] : undefined
 
       const fullHref = href.startsWith("http") ? href : `${ANIMEWORLD_BASE}${href}`
+      const fullImage =
+        image && !image.startsWith("http") && !image.startsWith("/placeholder")
+          ? `https://img.animeworld.ac${image.startsWith("/") ? "" : "/"}${image}`
+          : image
 
       items.push({
         title,
         href: fullHref,
-        image,
+        image: fullImage,
         releaseDate,
         status,
         isDub,
@@ -138,7 +142,7 @@ export async function GET() {
         {
           title: "Kaiju No. 8 Season 2",
           href: `${ANIMEWORLD_BASE}/play/kaiju-no-8-2.hXbK0`,
-          image: "/anime-poster.png",
+          image: "https://img.animeworld.ac/locandine/hXbK0.png",
           releaseDate: "2024",
           status: "In corso",
           sources: [
@@ -149,7 +153,7 @@ export async function GET() {
         {
           title: "To Be Hero X",
           href: `${ANIMEWORLD_BASE}/play/to-be-hero-x.-rI-g`,
-          image: "/anime-poster.png",
+          image: "https://img.animeworld.ac/locandine/-rI-g.jpg",
           status: "Finito",
           sources: [
             { name: "AnimeWorld", url: `${ANIMEWORLD_BASE}/play/to-be-hero-x.-rI-g`, id: "to-be-hero-x.-rI-g" },
@@ -159,7 +163,7 @@ export async function GET() {
         {
           title: "Demon Slayer: Kimetsu no Yaiba",
           href: `${ANIMEWORLD_BASE}/play/demon-slayer-season-4`,
-          image: "/demon-slayer-anime-poster.png",
+          image: "https://img.animeworld.ac/locandine/demon-slayer.jpg",
           status: "In corso",
           sources: [
             { name: "AnimeWorld", url: `${ANIMEWORLD_BASE}/play/demon-slayer-season-4`, id: "demon-slayer-season-4" },
@@ -169,7 +173,7 @@ export async function GET() {
         {
           title: "Jujutsu Kaisen Season 3",
           href: `${ANIMEWORLD_BASE}/play/jujutsu-kaisen-s3`,
-          image: "/jujutsu-kaisen-poster.png",
+          image: "https://img.animeworld.ac/locandine/jujutsu-kaisen.jpg",
           status: "In corso",
           sources: [{ name: "AnimeWorld", url: `${ANIMEWORLD_BASE}/play/jujutsu-kaisen-s3`, id: "jujutsu-kaisen-s3" }],
           has_multi_servers: false,

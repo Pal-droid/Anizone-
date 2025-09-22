@@ -9,6 +9,8 @@ import { DiscoverSections } from "@/components/discover"
 import { AnimeContentSections } from "@/components/anime-content-sections"
 import { AnimatedLogo } from "@/components/animated-logo"
 import { NewAdditions } from "@/components/new-additions"
+import { OngoingAnime } from "@/components/ongoing-anime"
+import UpcomingFall2025 from "@/components/upcoming-fall-2025"
 import { LazySection } from "@/components/lazy-section"
 import { useIsDesktop } from "@/hooks/use-desktop"
 import { BugReportDialog } from "@/components/bug-report-dialog"
@@ -102,6 +104,14 @@ export default function HomePage() {
               </LazySection>
 
               <LazySection className="glass rounded-xl p-6 transition-smooth hover:glow">
+                <OngoingAnime />
+              </LazySection>
+
+              <LazySection>
+                <UpcomingFall2025 />
+              </LazySection>
+
+              <LazySection className="glass rounded-xl p-6 transition-smooth hover:glow">
                 <DiscoverSections />
               </LazySection>
             </div>
@@ -150,6 +160,14 @@ export default function HomePage() {
 
           <LazySection className="glass rounded-xl p-6 transition-smooth hover:glow">
             <NewAdditions />
+          </LazySection>
+
+          <LazySection className="glass rounded-xl p-6 transition-smooth hover:glow">
+            <OngoingAnime />
+          </LazySection>
+
+          <LazySection>
+            <UpcomingFall2025 />
           </LazySection>
 
           <LazySection className="glass rounded-xl p-6 transition-smooth hover:glow">
