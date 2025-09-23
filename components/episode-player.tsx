@@ -180,89 +180,29 @@ export function EpisodePlayer({
       try {
         console.log("[v0] Loading episodes for server:", selectedServer, "with sources:", sources)
 
-        if (!sources || sources.length === 0) {
-          console.log("[v0] No sources provided, trying to get from sessionStorage")
+        let currentSources = sources
 
-          try {
-            const storedSources = sessionStorage.getItem(`anizone:sources:${path}`)
-            if (storedSources) {
-              const parsedSources = JSON.parse(storedSources)
-              if (Array.isArray(parsedSources) && parsedSources.length > 0) {
-                console.log("[v0] Found sources in sessionStorage:", parsedSources)
-                const awSource = parsedSources.find((s: any) => s.name === "AnimeWorld")
-                const asSource = parsedSources.find((s: any) => s.name === "AnimeSaturn")
-
-                if (awSource || asSource) {
-                  const params = new URLSearchParams()
-                  if (awSource) {
-                    const animeId = extractAnimeIdFromUrl(awSource.url)
-                    params.set("AW", animeId)
-                    console.log("[v0] Using anime ID from URL:", animeId, "extracted from:", awSource.url)
-                  }
-                  if (asSource) {
-                    params.set("AS", asSource.id)
-                    console.log("[v0] Using AnimeSaturn ID:", asSource.id, "from source object")
-                  }
-
-                  const apiUrl = `https://aw-au-as-api.vercel.app/api/episodes?${params}`
-                  console.log("[v0] Calling unified episodes API with stored sources:", apiUrl)
-
-                  const r = await fetch(apiUrl, {
-                    signal: abort.signal,
-                    headers: {
-                      "User-Agent":
-                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) AnizoneBot/1.0 Safari/537.36",
-                    },
-                  })
-
-                  if (r.ok) {
-                    const unifiedEpisodes = await r.json()
-                    if (Array.isArray(unifiedEpisodes)) {
-                      const eps: Episode[] = unifiedEpisodes
-                        .map((ep: any) => ({
-                          num: ep.episode_number,
-                          href:
-                            selectedServer === "AnimeWorld"
-                              ? ep.sources.AnimeWorld?.url || ""
-                              : ep.sources.AnimeSaturn?.url || "",
-                          id:
-                            selectedServer === "AnimeWorld"
-                              ? ep.sources.AnimeWorld?.id || ""
-                              : ep.sources.AnimeSaturn?.id || "",
-                          unifiedData: ep,
-                        }))
-                        .filter((ep: Episode) => ep.href || ep.id)
-
-                      setEpisodes(eps)
-
-                      let epParam: number | null = null
-                      try {
-                        const u = new URL(typeof window !== "undefined" ? window.location.href : "https://dummy.local")
-                        const v = u.searchParams.get("ep")
-                        if (v) epParam = Number.parseInt(v, 10)
-                      } catch {}
-
-                      if (epParam && eps.some((e) => e.num === epParam)) {
-                        const match = eps.find((e) => e.num === epParam)!
-                        setSelectedKey(epKey(match))
-                      } else if (eps.length > 0) {
-                        setSelectedKey(epKey(eps[0]))
-                      }
-                      return
-                    }
-                  }
-                }
-              }
+        // Try to get fresh sources from sessionStorage first
+        try {
+          const storedSources = sessionStorage.getItem(`anizone:sources:${path}`)
+          if (storedSources) {
+            const parsedSources = JSON.parse(storedSources)
+            if (Array.isArray(parsedSources) && parsedSources.length > 0) {
+              console.log("[v0] Using fresh sources from sessionStorage:", parsedSources)
+              currentSources = parsedSources
             }
-          } catch (e) {
-            console.log("[v0] Failed to get sources from sessionStorage:", e)
           }
+        } catch (e) {
+          console.log("[v0] Could not get sources from sessionStorage:", e)
+        }
 
+        if (!currentSources || currentSources.length === 0) {
+          console.log("[v0] No sources available after checking both props and sessionStorage")
           throw new Error("No sources available. Please go back and select an anime from the main page.")
         }
 
-        const awSource = sources.find((s) => s.name === "AnimeWorld")
-        const asSource = sources.find((s) => s.name === "AnimeSaturn")
+        const awSource = currentSources.find((s) => s.name === "AnimeWorld")
+        const asSource = currentSources.find((s) => s.name === "AnimeSaturn")
 
         console.log("[v0] Found sources:", { awSource, asSource })
 
@@ -297,7 +237,6 @@ export function EpisodePlayer({
 
         if (!r.ok) {
           const errorText = await r.text()
-          console.log("[v0] Unified episodes API error response:", errorText)
           throw new Error(`Unified API failed with status ${r.status}: ${errorText}`)
         }
 
@@ -377,7 +316,20 @@ export function EpisodePlayer({
           throw new Error("No unified data available for this episode")
         }
 
-        if (!sources || sources.length === 0) {
+        let currentSources = sources
+        try {
+          const storedSources = sessionStorage.getItem(`anizone:sources:${path}`)
+          if (storedSources) {
+            const parsedSources = JSON.parse(storedSources)
+            if (Array.isArray(parsedSources) && parsedSources.length > 0) {
+              currentSources = parsedSources
+            }
+          }
+        } catch (e) {
+          console.log("[v0] Could not get sources from sessionStorage for streaming:", e)
+        }
+
+        if (!currentSources || currentSources.length === 0) {
           throw new Error("No sources available for streaming")
         }
 
@@ -453,7 +405,7 @@ export function EpisodePlayer({
       }
     })()
     return () => abort.abort()
-  }, [selectedEpisode, selectedServer, sources])
+  }, [selectedEpisode, selectedServer, path])
 
   useEffect(() => {
     if (!useHlsFallback || !proxyUrl || !videoRef.current) return
