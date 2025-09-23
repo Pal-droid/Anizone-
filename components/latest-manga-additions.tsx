@@ -37,7 +37,8 @@ export function LatestMangaAdditions() {
             {
               id: "4384",
               title: "Beck",
-              image: "https://cdn.mangaworld.cx/mangas/68cc497d16935f6c3d5c684d.jpg?1758288180120",
+              image:
+                "https://cdn.mangaworld.cx/mangas/68cc497d16935f6c3d5c684d.jpg?1758288180120",
               type: "Manga",
               status: "Finito",
               date: "18 Settembre 2025",
@@ -46,13 +47,13 @@ export function LatestMangaAdditions() {
             {
               id: "4383",
               title: "You Just Made My Day",
-              image: "https://cdn.mangaworld.cx/mangas/68cb45d249d2566c95be3867.png?1758287844331",
+              image:
+                "https://cdn.mangaworld.cx/mangas/68cb45d249d2566c95be3867.png?1758287844331",
               type: "Manhwa",
               status: "In corso",
               date: "18 Settembre 2025",
               url: "/manga/4383",
             },
-            // ... other fallback data
           ])
         }
       } catch (error) {
@@ -101,7 +102,11 @@ export function LatestMangaAdditions() {
       <Card className="p-4">
         <div className="space-y-3">
           {latestData.map((manga) => (
-            <Link key={manga.id} href={`/manga/${obfuscateId(manga.id)}`} className="block">
+            <Link
+              key={manga.id}
+              href={`/manga/${obfuscateId(manga.id)}`}
+              className="block"
+            >
               <div className="flex gap-3 p-2 rounded hover:bg-muted/50 transition-colors">
                 <div className="flex-shrink-0">
                   <img
@@ -118,21 +123,28 @@ export function LatestMangaAdditions() {
                   </h3>
 
                   <div className="space-y-1 text-xs">
+                    {/* Tipo */}
                     <div>
                       <span className="font-semibold">Tipo: </span>
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge variant="secondary" className="text-xs mr-1">
                         {manga.type}
                       </Badge>
                     </div>
+
+                    {/* Stato */}
                     <div>
                       <span className="font-semibold">Stato: </span>
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="outline" className="text-xs mr-1">
                         {manga.status}
                       </Badge>
                     </div>
+
+                    {/* Data */}
                     <div>
                       <span className="font-semibold">Data: </span>
-                      <span className="text-muted-foreground">{manga.date}</span>
+                      <span className="text-muted-foreground">
+                        {manga.date}
+                      </span>
                     </div>
                   </div>
                 </div>
