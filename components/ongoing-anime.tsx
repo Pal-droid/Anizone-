@@ -125,13 +125,6 @@ export function OngoingAnime() {
                 {item.currentEpisode}/{item.totalEpisodes}
               </div>
 
-              {/* DUB indicator */}
-              {item.isDub && (
-                <div className="absolute top-2 right-2 py-0.5 px-1.5 rounded bg-orange-600/90 text-white text-xs font-medium">
-                  DUB
-                </div>
-              )}
-
               {/* ONA indicator */}
               {item.isONA && (
                 <div className="absolute top-8 right-2 py-0.5 px-1.5 rounded bg-purple-600/90 text-white text-xs font-medium">
