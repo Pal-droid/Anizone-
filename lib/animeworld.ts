@@ -1,7 +1,7 @@
 import { load } from "cheerio";
 
 export const ANIMEWORLD_BASE = "https://www.animeworld.ac";
-export const ANIMESATURN_BASE = "https://www.animesaturn.cx";
+export const ANIMESATURN_BASE = "https://www.anisaturn.com";
 
 export type TopItem = {
   rank: number;
@@ -465,54 +465,66 @@ export type DaySchedule = {
   items: ScheduleItem[];
 };
 
+export function formatDateRange(startDate: Date | null, endDate: Date | null): string {
+  const months = [
+    "gennaio",
+    "febbraio",
+    "marzo",
+    "aprile",
+    "maggio",
+    "giugno",
+    "luglio",
+    "agosto",
+    "settembre",
+    "ottobre",
+    "novembre",
+    "dicembre",
+  ];
+  if (startDate && endDate) {
+    const startDay = startDate.getDate();
+    const startMonth = months[startDate.getMonth()];
+    const endDay = endDate.getDate();
+    const endMonth = months[endDate.getMonth()];
+    return `${startDay} ${startMonth} - ${endDay} ${endMonth}`;
+  }
+  return "";
+}
+
 export function parseSchedule(html: string): DaySchedule[] {
   const $ = load(html);
   const schedule: DaySchedule[] = [];
 
+  // Extract date range text
   const dateRangeText = $(".widget-schedule-page .widget-body p").first().text().trim();
 
-  const parseItalianDate = (dateStr: string): Date | null => {
-    const months = {
-      gennaio: 0,
-      febbraio: 1,
-      marzo: 2,
-      aprile: 3,
-      maggio: 4,
-      giugno: 5,
-      luglio: 6,
-      agosto: 7,
-      settembre: 8,
-      ottobre: 9,
-      novembre: 10,
-      dicembre: 11,
-    };
-
-    const match = dateStr.match(/(\d+)\s+(\w+)/);
-    if (match) {
-      const day = Number.parseInt(match[1]);
-      const monthName = match[2].toLowerCase();
-      const month = months[monthName as keyof typeof months];
-      if (month !== undefined) {
-        const currentYear = new Date().getFullYear();
-        return new Date(currentYear, month, day);
-      }
-    }
-    return null;
-  };
-
+  // Parse start and end dates
   let startDate: Date | null = null;
+  let endDate: Date | null = null;
   if (dateRangeText) {
-    const dateMatch = dateRangeText.match(/(\d+\s+\w+)/);
+    const dateMatch = dateRangeText.match(/(\d+\s+\w+)\s*-\s*(\d+\s+\w+)/);
     if (dateMatch) {
       startDate = parseItalianDate(dateMatch[1]);
+      endDate = parseItalianDate(dateMatch[2]);
     }
   }
 
-  let dayOffset = 0;
+  // Map day names to their order (Italian week: Monday to Sunday)
+  const dayOrder: { [key: string]: number } = {
+    LUNEDÌ: 0,
+    MARTEDÌ: 1,
+    MERCOLEDÌ: 2,
+    GIOVEDÌ: 3,
+    VENERDÌ: 4,
+    SABATO: 5,
+    DOMENICA: 6,
+  };
+
+  // Process each day section
   $(".costr").each((_, dayHeader) => {
     const $dayHeader = $(dayHeader);
-    const dayName = $dayHeader.find(".day-header").text().trim();
+    const dayName = $dayHeader.find(".day-header").text().trim().toUpperCase();
 
+    // Skip indeterminate releases
     if (!dayName || dayName === "USCITE INDETERMINATE") return;
 
     const items: ScheduleItem[] = [];
@@ -548,12 +560,13 @@ export function parseSchedule(html: string): DaySchedule[] {
           time,
           title,
           episode,
-          href: watchPath,
+          href: absolutize(watchPath),
           image,
         });
       }
     });
 
+    // Sort items by time
     items.sort((a, b) => {
       const parseTime = (timeStr: string) => {
         const [hours, minutes] = timeStr.split(":").map((n) => Number.parseInt(n));
@@ -562,24 +575,56 @@ export function parseSchedule(html: string): DaySchedule[] {
       return parseTime(a.time) - parseTime(b.time);
     });
 
-    if (items.length > 0) {
-      let actualDate = "";
-      if (startDate) {
-        const dayDate = new Date(startDate);
-        dayDate.setDate(startDate.getDate() + dayOffset);
-        actualDate = dayDate.toISOString().split("T")[0];
-      }
+    if (items.length > 0 && startDate && dayName in dayOrder) {
+      // Calculate the date for this day based on its position in the week
+      const dayIndex = dayOrder[dayName];
+      const dayDate = new Date(startDate);
+      dayDate.setDate(startDate.getDate() + dayIndex);
 
-      schedule.push({
-        date: actualDate,
-        dayName,
-        items,
-      });
-      dayOffset++;
+      // Ensure the date is within the range
+      if (endDate && dayDate <= endDate) {
+        schedule.push({
+          date: dayDate.toISOString().split("T")[0],
+          dayName,
+          items,
+        });
+      }
     }
   });
 
+  // Sort schedule by date
+  schedule.sort((a, b) => a.date.localeCompare(b.date));
+
   return schedule;
+}
+
+function parseItalianDate(dateStr: string): Date | null {
+  const months = {
+    gennaio: 0,
+    febbraio: 1,
+    marzo: 2,
+    aprile: 3,
+    maggio: 4,
+    giugno: 5,
+    luglio: 6,
+    agosto: 7,
+    settembre: 8,
+    ottobre: 9,
+    novembre: 10,
+    dicembre: 11,
+  };
+
+  const match = dateStr.match(/(\d+)\s+(\w+)/);
+  if (match) {
+    const day = Number.parseInt(match[1]);
+    const monthName = match[2].toLowerCase();
+    const month = months[monthName as keyof typeof months];
+    if (month !== undefined) {
+      const currentYear = new Date().getFullYear();
+      return new Date(currentYear, month, day);
+    }
+  }
+  return null;
 }
 
 export async function fetchScheduleForDate(date?: string): Promise<DaySchedule[]> {
@@ -669,7 +714,7 @@ export function parseAnimeSaturnMeta(html: string): AnimeSaturnMeta | null {
 
   const related: { title: string; href: string; image?: string }[] = [];
   const $carouselItems = $("#carousel .slick-track .owl-item.anime-card-newanime.main-anime-card:not(.slick-cloned)");
-  
+
   $carouselItems.each((_, el) => {
     const $card = $(el);
     const $link = $card.find(".card a").first();
