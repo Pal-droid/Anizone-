@@ -1,3 +1,4 @@
+export const runtime = "nodejs"
 import { NextResponse } from "next/server"
 import * as cheerio from "cheerio"
 import https from "https"
