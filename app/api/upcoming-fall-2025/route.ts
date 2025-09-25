@@ -24,14 +24,18 @@ export async function GET() {
     const $ = cheerio.load(html)
     const upcomingAnime: any[] = []
 
-    // Find the "Uscite Autunno 2025" section
-    $(".widget-title").each((_, titleElement) => {
-      const titleText = $(titleElement).find(".title").text().trim()
+    // Loop through all widgets and dynamically check the title
+    $(".widget").each((_, widget) => {
+      const titleElem = $(widget).find(".widget-title .title")
+      const titleText = titleElem.text().trim()
 
-      if (titleText.includes("Uscite Autunno 2025") || titleText.includes("Autunno 2025")) {
-        const widgetBody = $(titleElement).next(".widget-body")
+      // Only process widgets that mention "2025"
+      if (!titleText.includes("2025")) return
 
-        widgetBody.find(".owl-item .item").each((_, element) => {
+      // Select all items inside the carousel
+      $(widget)
+        .find(".owl-carousel .item")
+        .each((_, element) => {
           const $item = $(element)
           const $inner = $item.find(".inner")
           const $poster = $inner.find(".poster")
@@ -41,7 +45,6 @@ export async function GET() {
           const imgSrc = $poster.find("img").attr("src")
           const title = $nameLink.attr("title") || $nameLink.text().trim()
           const japaneseTitle = $nameLink.attr("data-jtitle") || ""
-
           const $status = $poster.find(".status")
           const isDub = $status.find(".dub").length > 0
           const isOna = $status.find(".ona").length > 0
@@ -59,40 +62,9 @@ export async function GET() {
             })
           }
         })
-      }
     })
 
-    // Fallback if no items found
-    if (upcomingAnime.length === 0) {
-      $(".owl-stage .owl-item .item").each((_, element) => {
-        const $item = $(element)
-        const $inner = $item.find(".inner")
-        const $poster = $inner.find(".poster")
-        const $nameLink = $inner.find(".name")
-
-        const href = $poster.attr("href")
-        const imgSrc = $poster.find("img").attr("src")
-        const title = $nameLink.attr("title") || $nameLink.text().trim()
-        const japaneseTitle = $nameLink.attr("data-jtitle") || ""
-
-        const $status = $poster.find(".status")
-        const episodeText = $status.find(".ep").text().trim()
-
-        if (href && imgSrc && title && !episodeText) {
-          upcomingAnime.push({
-            id: href.split("/").pop()?.split(".")[0] || "",
-            title,
-            japaneseTitle,
-            image: imgSrc.startsWith("http") ? imgSrc : `https://img.animeworld.ac${imgSrc}`,
-            url: href.startsWith("http") ? href : `https://www.animeworld.ac${href}`,
-            isDub: $status.find(".dub").length > 0,
-            isOna: $status.find(".ona").length > 0,
-            type: "upcoming",
-          })
-        }
-      })
-    }
-
+    // Remove duplicates and limit to 20
     const uniqueAnime = upcomingAnime
       .filter((anime, index, self) => index === self.findIndex((a) => a.id === anime.id))
       .slice(0, 20)
@@ -101,18 +73,20 @@ export async function GET() {
       success: true,
       data: uniqueAnime,
       count: uniqueAnime.length,
+      widgetTitle: $(".widget-title .title").first().text().trim(), // dynamic widget title
       debug: {
-        foundItems: uniqueAnime.length, // <- frontend can log this
+        foundItems: uniqueAnime.length,
       },
     })
   } catch (error) {
-    console.error("Error fetching upcoming fall 2025 anime:", error)
+    console.error("Error fetching upcoming anime:", error)
     return NextResponse.json(
       {
         success: false,
         error: "Failed to fetch upcoming anime",
         data: [],
         count: 0,
+        widgetTitle: "",
         debug: { foundItems: 0 },
       },
       { status: 500 }
