@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, ExternalLink, Loader2 } from "lucide-react"
+import { Calendar, Loader2 } from "lucide-react"
 import Link from "next/link"
 
 interface UpcomingAnime {
@@ -38,7 +38,6 @@ export default function UpcomingFall2025() {
         const response = await fetch("/api/upcoming-fall-2025")
         const data: ApiResponse = await response.json()
 
-        // Log the number of items found to the browser console
         console.log("Items found in API:", data.debug?.foundItems)
 
         if (data.success) {
@@ -119,21 +118,10 @@ export default function UpcomingFall2025() {
   return (
     <Card className="glass rounded-xl transition-smooth hover:glow">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
-            <Calendar className="h-5 w-5 text-orange-400" />
-            Uscite Autunno 2025
-          </CardTitle>
-          <Link
-            href="https://www.animeworld.ac/upcoming/2025/fall"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Guarda tutto
-            <ExternalLink className="h-3 w-3" />
-          </Link>
-        </div>
+        <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
+          <Calendar className="h-5 w-5 text-orange-400" />
+          Uscite Autunno 2025
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-3 max-h-96 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted">
