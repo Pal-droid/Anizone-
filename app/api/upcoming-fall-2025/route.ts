@@ -8,25 +8,18 @@ import axios from "axios"
 
 export async function GET() {
   try {
-    // Custom HTTPS agent to disable SSL verification
-    const httpsAgent = new https.Agent({
-      rejectUnauthorized: false,
-    })
+    const httpsAgent = new https.Agent({ rejectUnauthorized: false })
 
-    // Fetch page using axios
     const { data: html } = await axios.get("https://www.animeworld.ac/", {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
       },
       httpsAgent,
       maxRedirects: 5,
     })
-
-    console.log("Fetched HTML length:", html.length)
-    console.log("First 500 chars of HTML:", html.slice(0, 500))
 
     const $ = cheerio.load(html)
     const upcomingAnime: any[] = []
@@ -34,12 +27,11 @@ export async function GET() {
     // Find the "Uscite Autunno 2025" section
     $(".widget-title").each((_, titleElement) => {
       const titleText = $(titleElement).find(".title").text().trim()
-      console.log(`Found widget title: "${titleText}"`)
 
       if (titleText.includes("Uscite Autunno 2025") || titleText.includes("Autunno 2025")) {
         const widgetBody = $(titleElement).next(".widget-body")
 
-        widgetBody.find(".owl-item .item").each((i, element) => {
+        widgetBody.find(".owl-item .item").each((_, element) => {
           const $item = $(element)
           const $inner = $item.find(".inner")
           const $poster = $inner.find(".poster")
@@ -55,7 +47,6 @@ export async function GET() {
           const isOna = $status.find(".ona").length > 0
 
           if (href && imgSrc && title) {
-            console.log(`Found Autunno 2025 item: ${title}`)
             upcomingAnime.push({
               id: href.split("/").pop()?.split(".")[0] || "",
               title,
@@ -73,7 +64,7 @@ export async function GET() {
 
     // Fallback if no items found
     if (upcomingAnime.length === 0) {
-      $(".owl-stage .owl-item .item").each((i, element) => {
+      $(".owl-stage .owl-item .item").each((_, element) => {
         const $item = $(element)
         const $inner = $item.find(".inner")
         const $poster = $inner.find(".poster")
@@ -85,27 +76,22 @@ export async function GET() {
         const japaneseTitle = $nameLink.attr("data-jtitle") || ""
 
         const $status = $poster.find(".status")
-        const isDub = $status.find(".dub").length > 0
-        const isOna = $status.find(".ona").length > 0
         const episodeText = $status.find(".ep").text().trim()
 
         if (href && imgSrc && title && !episodeText) {
-          console.log(`Found fallback upcoming item: ${title}`)
           upcomingAnime.push({
             id: href.split("/").pop()?.split(".")[0] || "",
             title,
             japaneseTitle,
             image: imgSrc.startsWith("http") ? imgSrc : `https://img.animeworld.ac${imgSrc}`,
             url: href.startsWith("http") ? href : `https://www.animeworld.ac${href}`,
-            isDub,
-            isOna,
+            isDub: $status.find(".dub").length > 0,
+            isOna: $status.find(".ona").length > 0,
             type: "upcoming",
           })
         }
       })
     }
-
-    console.log(`Total upcoming items found: ${upcomingAnime.length}`)
 
     const uniqueAnime = upcomingAnime
       .filter((anime, index, self) => index === self.findIndex((a) => a.id === anime.id))
@@ -115,6 +101,9 @@ export async function GET() {
       success: true,
       data: uniqueAnime,
       count: uniqueAnime.length,
+      debug: {
+        foundItems: uniqueAnime.length, // <- frontend can log this
+      },
     })
   } catch (error) {
     console.error("Error fetching upcoming fall 2025 anime:", error)
@@ -124,6 +113,7 @@ export async function GET() {
         error: "Failed to fetch upcoming anime",
         data: [],
         count: 0,
+        debug: { foundItems: 0 },
       },
       { status: 500 }
     )
