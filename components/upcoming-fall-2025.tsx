@@ -22,6 +22,9 @@ interface ApiResponse {
   data: UpcomingAnime[]
   count: number
   error?: string
+  debug?: {
+    foundItems: number
+  }
 }
 
 export default function UpcomingFall2025() {
@@ -34,6 +37,9 @@ export default function UpcomingFall2025() {
       try {
         const response = await fetch("/api/upcoming-fall-2025")
         const data: ApiResponse = await response.json()
+
+        // Log the number of items found to the browser console
+        console.log("Items found in API:", data.debug?.foundItems)
 
         if (data.success) {
           setAnime(data.data)
@@ -52,7 +58,6 @@ export default function UpcomingFall2025() {
   }, [])
 
   const handleAnimeClick = (animeItem: UpcomingAnime) => {
-    // Store source for analytics
     sessionStorage.setItem("anime_source", "upcoming_fall_2025")
     sessionStorage.setItem("anime_section", "Uscite Autunno 2025")
   }
