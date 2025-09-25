@@ -22,11 +22,11 @@ export async function GET() {
         "Accept-Language": "en-US,en;q=0.9",
       },
       httpsAgent,
-      maxRedirects: 5, // follow redirects
+      maxRedirects: 5,
     })
 
-    // Debug log first 500 characters
-    console.log("Fetched HTML (first 500 chars):", html.slice(0, 500))
+    console.log("Fetched HTML length:", html.length)
+    console.log("First 500 chars of HTML:", html.slice(0, 500))
 
     const $ = cheerio.load(html)
     const upcomingAnime: any[] = []
@@ -34,10 +34,12 @@ export async function GET() {
     // Find the "Uscite Autunno 2025" section
     $(".widget-title").each((_, titleElement) => {
       const titleText = $(titleElement).find(".title").text().trim()
+      console.log(`Found widget title: "${titleText}"`)
+
       if (titleText.includes("Uscite Autunno 2025") || titleText.includes("Autunno 2025")) {
         const widgetBody = $(titleElement).next(".widget-body")
 
-        widgetBody.find(".owl-item .item").each((_, element) => {
+        widgetBody.find(".owl-item .item").each((i, element) => {
           const $item = $(element)
           const $inner = $item.find(".inner")
           const $poster = $inner.find(".poster")
@@ -53,6 +55,7 @@ export async function GET() {
           const isOna = $status.find(".ona").length > 0
 
           if (href && imgSrc && title) {
+            console.log(`Found Autunno 2025 item: ${title}`)
             upcomingAnime.push({
               id: href.split("/").pop()?.split(".")[0] || "",
               title,
@@ -68,9 +71,9 @@ export async function GET() {
       }
     })
 
-    // Fallback if no items found in the specific section
+    // Fallback if no items found
     if (upcomingAnime.length === 0) {
-      $(".owl-stage .owl-item .item").each((_, element) => {
+      $(".owl-stage .owl-item .item").each((i, element) => {
         const $item = $(element)
         const $inner = $item.find(".inner")
         const $poster = $inner.find(".poster")
@@ -87,6 +90,7 @@ export async function GET() {
         const episodeText = $status.find(".ep").text().trim()
 
         if (href && imgSrc && title && !episodeText) {
+          console.log(`Found fallback upcoming item: ${title}`)
           upcomingAnime.push({
             id: href.split("/").pop()?.split(".")[0] || "",
             title,
@@ -100,6 +104,8 @@ export async function GET() {
         }
       })
     }
+
+    console.log(`Total upcoming items found: ${upcomingAnime.length}`)
 
     const uniqueAnime = upcomingAnime
       .filter((anime, index, self) => index === self.findIndex((a) => a.id === anime.id))
