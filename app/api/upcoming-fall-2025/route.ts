@@ -4,31 +4,28 @@ export const runtime = "nodejs"
 import { NextResponse } from "next/server"
 import * as cheerio from "cheerio"
 import https from "https"
+import axios from "axios"
 
 export async function GET() {
   try {
-    // Custom agent to disable SSL checks
+    // Custom HTTPS agent to disable SSL verification
     const httpsAgent = new https.Agent({
       rejectUnauthorized: false,
     })
 
-    const response = await fetch("https://www.animeworld.ac/", {
+    // Fetch page using axios
+    const { data: html } = await axios.get("https://www.animeworld.ac/", {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
       },
-      redirect: "follow",
-      // @ts-ignore
-      agent: httpsAgent,
+      httpsAgent,
+      maxRedirects: 5, // follow redirects
     })
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    const html = await response.text()
-
-    // Debug log to verify content
+    // Debug log first 500 characters
     console.log("Fetched HTML (first 500 chars):", html.slice(0, 500))
 
     const $ = cheerio.load(html)
@@ -71,7 +68,7 @@ export async function GET() {
       }
     })
 
-    // If no items found in that section, fall back to general upcoming
+    // Fallback if no items found in the specific section
     if (upcomingAnime.length === 0) {
       $(".owl-stage .owl-item .item").each((_, element) => {
         const $item = $(element)
@@ -122,7 +119,7 @@ export async function GET() {
         data: [],
         count: 0,
       },
-      { status: 500 },
+      { status: 500 }
     )
   }
 }
