@@ -3,105 +3,84 @@ import { ANIMEWORLD_BASE, parseWatchMeta, parseAnimeSaturnMeta } from "@/lib/ani
 import { fetchHtml } from "@/lib/fetch-html"
 import { load } from "cheerio"
 
+// Parse next episode countdown (same as before)
 function parseNextEpisodeCountdown(html: string): { nextEpisodeDate?: string; nextEpisodeTime?: string } {
   const $ = load(html)
-
-  // Look for the countdown element with data attributes
   const countdownElement = $("#next-episode")
   if (countdownElement.length > 0) {
     const date = countdownElement.attr("data-calendar-date")
     const time = countdownElement.attr("data-calendar-time")
-
-    console.log("[v0] Found countdown data:", { date, time })
-
-    if (date && time) {
-      return {
-        nextEpisodeDate: date,
-        nextEpisodeTime: time,
-      }
-    }
+    if (date && time) return { nextEpisodeDate: date, nextEpisodeTime: time }
   }
-
-  console.log("[v0] No countdown data found")
   return {}
+}
+
+// Parse related anime from AnimeSaturn page
+function parseAnimeSaturnRelated(html: string) {
+  const $ = load(html)
+  const related: { title: string; url: string; image: string }[] = []
+
+  $(".owl-item.anime-card-newanime.main-anime-card").each((_, el) => {
+    const card = $(el).find(".card > a").first()
+    const url = card.attr("href")
+    const image = card.find("img").attr("src")
+    const title = card.attr("title") || $(el).find(".anime-card-newanime-overlay span").text().trim()
+
+    if (url && title && image) related.push({ title, url, image })
+  })
+
+  return related
+}
+
+// Wrap the existing AnimeSaturn parser to include related anime
+function parseAnimeSaturnMetaWithRelated(html: string) {
+  const meta = parseAnimeSaturnMeta(html) || {}
+  meta.related = parseAnimeSaturnRelated(html)
+  return meta
 }
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const path = searchParams.get("path")
-    console.log("[v0] anime-meta API called with path:", path)
-
     if (!path) return NextResponse.json({ ok: false, error: "Parametro 'path' mancante" }, { status: 400 })
 
     let url: string
     if (path.startsWith("http")) {
       url = path
-      console.log("[v0] Using full URL:", url)
     } else if (path.includes("animesaturn") || path.startsWith("/anime/")) {
-      // Handle AnimeSaturn paths
       url = path.startsWith("http") ? path : `https://www.animesaturn.cx${path}`
-      console.log("[v0] Detected AnimeSaturn path, using URL:", url)
     } else {
-      let animePath = path
-      animePath = animePath.replace(/\/+/g, "/")
-
-      // Handle calendar anime paths that come from watch URLs
+      let animePath = path.replace(/\/+/g, "/")
       if (animePath.includes("/play/")) {
-        // Extract the anime ID from the path
         const playMatch = animePath.match(/\/play\/([^/?]+)/)
-        if (playMatch) {
-          animePath = `/play/${playMatch[1]}`
-        }
+        if (playMatch) animePath = `/play/${playMatch[1]}`
       } else if (!animePath.startsWith("/")) {
-        // If it's just an anime ID, add the play prefix
         animePath = `/play/${animePath}`
       } else if (!animePath.startsWith("/play/") && !animePath.includes(".")) {
-        // If it's a path but not a play path and has no extension, add play prefix
-        const cleanPath = animePath.replace(/^\/+/, "")
-        animePath = `/play/${cleanPath}`
+        animePath = `/play/${animePath.replace(/^\/+/, "")}`
       }
-
       url = `${ANIMEWORLD_BASE}${animePath}`.replace(/([^:]\/)\/+/g, "$1")
-      console.log("[v0] Using AnimeWorld URL:", url)
     }
 
-    console.log("[v0] Fetching HTML from:", url)
     const { html, finalUrl } = await fetchHtml(url)
-    console.log("[v0] Final URL after fetch:", finalUrl)
 
     let meta
     if (finalUrl.includes("animesaturn.cx") || url.includes("animesaturn.cx")) {
-      console.log("[v0] Using AnimeSaturn parser")
-      meta = parseAnimeSaturnMeta(html)
+      meta = parseAnimeSaturnMetaWithRelated(html)
     } else {
-      console.log("[v0] Using AnimeWorld parser")
       meta = parseWatchMeta(html)
     }
 
     const countdownData = parseNextEpisodeCountdown(html)
+    if (!meta) return NextResponse.json({ ok: false, error: "Meta non trovati", source: finalUrl }, { status: 404 })
 
-    console.log("[v0] Parsed meta:", meta ? "success" : "failed")
-    if (!meta) {
-      console.log("[v0] Metadata fetch result:", { ok: false, error: "Meta non trovati", source: finalUrl })
-      return NextResponse.json({ ok: false, error: "Meta non trovati", source: finalUrl }, { status: 404 })
-    }
-
-    const response = {
+    return NextResponse.json({
       ok: true,
       meta: { ...meta, ...countdownData },
       source: finalUrl,
-    }
-
-    console.log("[v0] Metadata fetch result:", {
-      ok: true,
-      meta: "success",
-      source: finalUrl,
-      hasCountdown: !!(countdownData.nextEpisodeDate && countdownData.nextEpisodeTime),
     })
-    return NextResponse.json(response)
   } catch (e: any) {
-    console.log("[v0] anime-meta API error:", e?.message)
     return NextResponse.json({ ok: false, error: e?.message || "Errore meta" }, { status: 500 })
   }
 }
