@@ -21,16 +21,18 @@ interface ApiResponse {
   success: boolean
   data: UpcomingAnime[]
   count: number
+  widgetTitle?: string
   error?: string
   debug?: {
     foundItems: number
   }
 }
 
-export default function UpcomingFall2025() {
+export default function UpcomingFall() {
   const [anime, setAnime] = useState<UpcomingAnime[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [widgetTitle, setWidgetTitle] = useState<string>("")
 
   useEffect(() => {
     const fetchUpcomingAnime = async () => {
@@ -42,6 +44,7 @@ export default function UpcomingFall2025() {
 
         if (data.success) {
           setAnime(data.data)
+          setWidgetTitle(data.widgetTitle || "")
         } else {
           setError(data.error || "Failed to load upcoming anime")
         }
@@ -58,8 +61,10 @@ export default function UpcomingFall2025() {
 
   const handleAnimeClick = (animeItem: UpcomingAnime) => {
     sessionStorage.setItem("anime_source", "upcoming_fall_2025")
-    sessionStorage.setItem("anime_section", "Uscite Autunno 2025")
+    sessionStorage.setItem("anime_section", widgetTitle || "Uscite Autunno 2025")
   }
+
+  const displayTitle = widgetTitle || "Uscite Autunno 2025"
 
   if (loading) {
     return (
@@ -67,7 +72,7 @@ export default function UpcomingFall2025() {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
             <Calendar className="h-5 w-5 text-orange-400" />
-            Uscite Autunno 2025
+            {displayTitle}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -85,7 +90,7 @@ export default function UpcomingFall2025() {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
             <Calendar className="h-5 w-5 text-orange-400" />
-            Uscite Autunno 2025
+            {displayTitle}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -103,7 +108,7 @@ export default function UpcomingFall2025() {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
             <Calendar className="h-5 w-5 text-orange-400" />
-            Uscite Autunno 2025
+            {displayTitle}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -120,7 +125,7 @@ export default function UpcomingFall2025() {
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
           <Calendar className="h-5 w-5 text-orange-400" />
-          Uscite Autunno 2025
+          {displayTitle}
         </CardTitle>
       </CardHeader>
       <CardContent>
