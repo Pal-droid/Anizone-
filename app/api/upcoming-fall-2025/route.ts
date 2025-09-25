@@ -23,45 +23,48 @@ export async function GET() {
 
     const $ = cheerio.load(html)
     const upcomingAnime: any[] = []
+    let widgetTitle = ""
 
-    // Loop through all widgets and dynamically check the title
+    // Loop through all widgets and find the one with /upcoming/ in its link
     $(".widget").each((_, widget) => {
-      const titleElem = $(widget).find(".widget-title .title")
+      const $widget = $(widget)
+      const moreLink = $widget.find(".widget-title .more").attr("href") || ""
+      const titleElem = $widget.find(".widget-title .title")
       const titleText = titleElem.text().trim()
 
-      // Only process widgets that mention "2025"
-      if (!titleText.includes("2025")) return
+      // Only process widgets that are upcoming
+      if (!moreLink.includes("/upcoming/")) return
+
+      widgetTitle = titleText // capture the correct title
 
       // Select all items inside the carousel
-      $(widget)
-        .find(".owl-carousel .item")
-        .each((_, element) => {
-          const $item = $(element)
-          const $inner = $item.find(".inner")
-          const $poster = $inner.find(".poster")
-          const $nameLink = $inner.find(".name")
+      $widget.find(".owl-carousel .item").each((_, element) => {
+        const $item = $(element)
+        const $inner = $item.find(".inner")
+        const $poster = $inner.find(".poster")
+        const $nameLink = $inner.find(".name")
 
-          const href = $poster.attr("href")
-          const imgSrc = $poster.find("img").attr("src")
-          const title = $nameLink.attr("title") || $nameLink.text().trim()
-          const japaneseTitle = $nameLink.attr("data-jtitle") || ""
-          const $status = $poster.find(".status")
-          const isDub = $status.find(".dub").length > 0
-          const isOna = $status.find(".ona").length > 0
+        const href = $poster.attr("href")
+        const imgSrc = $poster.find("img").attr("src")
+        const title = $nameLink.attr("title") || $nameLink.text().trim()
+        const japaneseTitle = $nameLink.attr("data-jtitle") || ""
+        const $status = $poster.find(".status")
+        const isDub = $status.find(".dub").length > 0
+        const isOna = $status.find(".ona").length > 0
 
-          if (href && imgSrc && title) {
-            upcomingAnime.push({
-              id: href.split("/").pop()?.split(".")[0] || "",
-              title,
-              japaneseTitle,
-              image: imgSrc.startsWith("http") ? imgSrc : `https://img.animeworld.ac${imgSrc}`,
-              url: href.startsWith("http") ? href : `https://www.animeworld.ac${href}`,
-              isDub,
-              isOna,
-              type: "upcoming",
-            })
-          }
-        })
+        if (href && imgSrc && title) {
+          upcomingAnime.push({
+            id: href.split("/").pop()?.split(".")[0] || "",
+            title,
+            japaneseTitle,
+            image: imgSrc.startsWith("http") ? imgSrc : `https://img.animeworld.ac${imgSrc}`,
+            url: href.startsWith("http") ? href : `https://www.animeworld.ac${href}`,
+            isDub,
+            isOna,
+            type: "upcoming",
+          })
+        }
+      })
     })
 
     // Remove duplicates and limit to 20
@@ -73,10 +76,8 @@ export async function GET() {
       success: true,
       data: uniqueAnime,
       count: uniqueAnime.length,
-      widgetTitle: $(".widget-title .title").first().text().trim(), // dynamic widget title
-      debug: {
-        foundItems: uniqueAnime.length,
-      },
+      widgetTitle, // the correct dynamic widget title
+      debug: { foundItems: uniqueAnime.length },
     })
   } catch (error) {
     console.error("Error fetching upcoming anime:", error)
