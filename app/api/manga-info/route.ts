@@ -152,44 +152,53 @@ export async function GET(request: NextRequest) {
       $(".manga-summary").text().trim() ||
       $(".entry-content p").first().text().trim()
 
-    // chapters & volumes (kept same as your code)
+    // chapters & volumes
     const volumes: any[] = []
+
     $(".volume-element").each((_, volumeEl) => {
       const $volume = $(volumeEl)
       const volumeName = $volume.find(".volume-name").text().trim()
       const volumeImage = $volume.find("[data-volume-image]").attr("data-volume-image")
       const chapters: any[] = []
+
       $volume.find(".volume-chapters .chapter").each((_, chapterEl) => {
         const $chapter = $(chapterEl)
-        const chapterLink = $chapter.find(".chap")
-        let chapterTitle = chapterLink.text().trim()
+        const chapterLink = $chapter.find(".chap").first()
+        if (!chapterLink.length) return
+
+        const chapterTitle = chapterLink.find("span.d-inline-block").first().text().trim()
+        const chapterDate = chapterLink.find("i.chap-date").first().text().trim()
         const chapterUrl = chapterLink.attr("href")
-        const chapterDate = $chapter.find(".chap-date").text().trim()
         const isNew = $chapter.find('img[alt="Nuovo"]').length > 0
+
         if (chapterTitle && chapterUrl) {
           chapters.push({ title: chapterTitle, url: chapterUrl, date: chapterDate, isNew })
         }
       })
-      if (volumeName) {
-        volumes.push({ name: volumeName, image: volumeImage, chapters })
+
+      if (volumeName || chapters.length) {
+        volumes.push({ name: volumeName || "Volume", image: volumeImage, chapters })
       }
     })
 
+    // fallback for mangas without volumes
     if (volumes.length === 0) {
       const chapters: any[] = []
       $(".chapters-wrapper .chapter, .chapter-list .chapter, .chapters-list .chapter").each((_, chapterEl) => {
         const $chapter = $(chapterEl)
         const chapterLink = $chapter.find("a.chap").first() || $chapter.find("a").first()
-        let chapterTitle = chapterLink.text().trim()
+        if (!chapterLink.length) return
+
+        const chapterTitle = chapterLink.find("span.d-inline-block").first().text().trim() || chapterLink.text().trim()
+        const chapterDate = chapterLink.find("i.chap-date").first().text().trim() || $chapter.find(".chap-date, .date, .chapter-date").text().trim()
         const chapterUrl = chapterLink.attr("href")
-        const chapterDate = $chapter.find(".chap-date, .date, .chapter-date").text().trim()
+        const isNew = $chapter.find('img[alt="Nuovo"]').length > 0
+
         if (chapterTitle && chapterUrl) {
-          chapters.push({ title: chapterTitle, url: chapterUrl, date: chapterDate, isNew: false })
+          chapters.push({ title: chapterTitle, url: chapterUrl, date: chapterDate, isNew })
         }
       })
-      if (chapters.length > 0) {
-        volumes.push({ name: "Chapters", chapters })
-      }
+      if (chapters.length > 0) volumes.push({ name: "Chapters", chapters })
     }
 
     const mangaData = { title, image, type, status, author, artist, year, genres, trama, volumes, url: mangaUrl }
