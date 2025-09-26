@@ -54,55 +54,51 @@ export function TopAnime() {
 
     return (
       <div className="space-y-4">
-        {/* Featured #1 item */}
+        {/* Featured #1 banner */}
         {featured && (
-          <div className="flex gap-3 p-3 bg-gradient-to-r from-primary/5 to-transparent rounded-lg border">
-            <div className="relative shrink-0">
-              <img
-                src={featured.image || "/placeholder.svg"}
-                alt={featured.title}
-                className="w-16 h-24 object-cover rounded"
-                loading="lazy"
-              />
-              <div className="absolute -top-1 -left-1 w-6 h-6 bg-yellow-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                1
-              </div>
-            </div>
-            <div className="flex-1 min-w-0">
-              <Link
-                href={`/watch?path=${encodeURIComponent(
-                  (() => {
-                    try {
-                      const u = new URL(featured.href)
-                      return u.pathname
-                    } catch {
-                      return featured.href
-                    }
-                  })(),
-                )}`}
-                className="hover:text-primary transition-colors"
-                onClick={() => {
+          <Link
+            href={`/watch?path=${encodeURIComponent(
+              (() => {
+                try {
+                  const u = new URL(featured.href)
+                  return u.pathname
+                } catch {
+                  return featured.href
+                }
+              })(),
+            )}`}
+            onClick={() => {
+              try {
+                const path = (() => {
                   try {
-                    const path = (() => {
-                      try {
-                        const u = new URL(featured.href)
-                        return u.pathname
-                      } catch {
-                        return featured.href
-                      }
-                    })()
-                    const sources = [
-                      { name: "AnimeWorld", url: featured.href, id: featured.href.split("/").pop() || "" },
-                    ]
-                    sessionStorage.setItem(`anizone:sources:${path}`, JSON.stringify(sources))
-                  } catch {}
-                }}
-              >
-                <h3 className="font-semibold text-sm mb-1 overflow-hidden">
-                  <span className="line-clamp-2 break-words">{featured.title}</span>
-                </h3>
-              </Link>
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    const u = new URL(featured.href)
+                    return u.pathname
+                  } catch {
+                    return featured.href
+                  }
+                })()
+                const sources = [
+                  { name: "AnimeWorld", url: featured.href, id: featured.href.split("/").pop() || "" },
+                ]
+                sessionStorage.setItem(`anizone:sources:${path}`, JSON.stringify(sources))
+              } catch {}
+            }}
+            className="block relative rounded-lg overflow-hidden group"
+          >
+            <img
+              src={featured.image || "/placeholder.svg"}
+              alt={featured.title}
+              className="w-full h-48 sm:h-64 object-cover transition-transform duration-300 group-hover:scale-105"
+              loading="lazy"
+            />
+            <div className="absolute inset-0 bg-black/30 flex flex-col justify-end p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="bg-yellow-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                  1
+                </div>
+                <h3 className="text-white text-lg font-bold line-clamp-2">{featured.title}</h3>
+              </div>
+              <div className="flex items-center gap-3 text-xs text-white/90">
                 {featured.views && (
                   <div className="flex items-center gap-1">
                     <Eye size={12} />
@@ -117,7 +113,7 @@ export function TopAnime() {
                 )}
               </div>
             </div>
-          </div>
+          </Link>
         )}
 
         {/* Rest of the rankings */}
@@ -192,30 +188,6 @@ export function TopAnime() {
     )
   }
 
-  const renderRow = (items: TopItem[]) => {
-    if (!items || items.length === 0) {
-      return <div className="text-sm text-muted-foreground">Nessun elemento trovato.</div>
-    }
-    return (
-      <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
-        {items.map((it) => (
-          <div key={`${it.rank}-${it.href}`} className="relative shrink-0 w-[150px]">
-            <AnimeCard
-              title={it.title}
-              href={it.href}
-              image={it.image}
-              className="w-[150px]"
-              sources={[{ name: "AnimeWorld", url: it.href, id: it.href.split("/").pop() || "" }]}
-            />
-            <div className="absolute top-2 left-2 py-0.5 px-2 rounded bg-neutral-900/80 text-white text-xs">
-              #{it.rank}
-            </div>
-          </div>
-        ))}
-      </div>
-    )
-  }
-
   return (
     <Card>
       <CardHeader className="py-3">
@@ -244,7 +216,6 @@ export function TopAnime() {
                 <TabsTrigger value="week">Settimana</TabsTrigger>
                 <TabsTrigger value="month">Mese</TabsTrigger>
               </TabsList>
-              {/* Sliding indicator */}
               <div
                 className="absolute bottom-0 h-0.5 bg-primary transition-transform duration-300 ease-in-out"
                 style={{
