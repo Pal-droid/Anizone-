@@ -17,79 +17,66 @@ export default function WatchPage() {
   const legacyPath = sp.get("path")
 
   const path = useMemo(() => {
-    if (obfuscatedPath) {
-      return deobfuscateUrl(obfuscatedPath)
-    }
+    if (obfuscatedPath) return deobfuscateUrl(obfuscatedPath)
     return legacyPath
   }, [obfuscatedPath, legacyPath])
 
-  const [title, setTitle] = useState<string>("")
+  const [title, setTitle] = useState<string>("Anime")
   const [sources, setSources] = useState<Source[]>([])
   const [nextEpisodeDate, setNextEpisodeDate] = useState<string>()
   const [nextEpisodeTime, setNextEpisodeTime] = useState<string>()
 
   useEffect(() => {
     if (!path) return
+
+    // --- Fallback title from slug ---
     const slug = path.split("/").pop() || ""
     const namePart = path.split("/").at(2) || slug
     const name = namePart.replace(/\.([A-Za-z0-9_-]+)$/, "").replace(/-/g, " ")
     const capitalizedName = name
       .split(" ")
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
       .join(" ")
-    setTitle(capitalizedName ? capitalizedName : "Anime")
+    setTitle(capitalizedName || "Anime")
 
-    // Try to get sources from sessionStorage (set by search page)
+    // --- Load sources from sessionStorage ---
     try {
       const stored = sessionStorage.getItem(`anizone:sources:${path}`)
-      if (stored) {
-        const parsedSources = JSON.parse(stored) as Source[]
-        setSources(parsedSources)
-      }
+      if (stored) setSources(JSON.parse(stored) as Source[])
     } catch {}
 
-    const fetchCountdownData = async () => {
+    // --- Fetch meta data (title + next episode) ---
+    const fetchMeta = async () => {
       try {
-        console.log("[v0] Fetching countdown data for path:", path)
         const response = await fetch(`/api/anime-meta?path=${encodeURIComponent(path)}`)
-        if (response.ok) {
-          const data = await response.json()
-          if (data.ok && data.meta) {
-            console.log("[v0] Received meta data:", data.meta)
-            if (data.meta.nextEpisodeDate && data.meta.nextEpisodeTime) {
-              console.log("[v0] Setting countdown data:", {
-                date: data.meta.nextEpisodeDate,
-                time: data.meta.nextEpisodeTime,
-              })
-              setNextEpisodeDate(data.meta.nextEpisodeDate)
-              setNextEpisodeTime(data.meta.nextEpisodeTime)
-            } else {
-              console.log("[v0] No countdown data in meta")
-            }
+        if (!response.ok) return
+        const data = await response.json()
+        if (data.ok && data.meta) {
+          // Use API title if available
+          if (data.meta.title) setTitle(data.meta.title)
+
+          // Set countdown data
+          if (data.meta.nextEpisodeDate && data.meta.nextEpisodeTime) {
+            setNextEpisodeDate(data.meta.nextEpisodeDate)
+            setNextEpisodeTime(data.meta.nextEpisodeTime)
           }
         }
-      } catch (error) {
-        console.log("[v0] Error fetching countdown data:", error)
+      } catch (err) {
+        console.log("[WatchPage] Error fetching meta:", err)
       }
     }
 
-    fetchCountdownData()
+    fetchMeta()
   }, [path])
 
-  const seriesKey = useMemo(() => {
-    if (!path) return ""
-    // Use the full path for seriesKey instead of truncating to first two parts
-    return path
-  }, [path])
+  const seriesKey = useMemo(() => (path ? path : ""), [path])
 
   if (!path) {
     return (
       <main className="px-4 py-8 overflow-x-hidden">
         <div className="text-sm text-red-600">Parametro "path" mancante.</div>
         <div className="mt-4">
-          <Link href="/" className="underline">
-            Torna alla home
-          </Link>
+          <Link href="/" className="underline">Torna alla home</Link>
         </div>
       </main>
     )
@@ -116,7 +103,7 @@ export default function WatchPage() {
           nextEpisodeTime={nextEpisodeTime}
         />
         <div className="flex justify-center">
-          <QuickListManager itemId={seriesKey} itemTitle={title || "Anime"} itemPath={path} />
+          <QuickListManager itemId={seriesKey} itemTitle={title} itemPath={path} />
         </div>
         <WatchInfo seriesPath={path} />
       </section>
