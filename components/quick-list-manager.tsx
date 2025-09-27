@@ -264,7 +264,7 @@ export function QuickListManager({ itemId, itemTitle, itemImage, type, itemPath 
   if (!user) {
       return (
         <>
-          <Button variant="outline" size="sm" onClick={() => setShowLogin(true)} className="gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowLogin(true)} className="flex flex-row items-center justify-center gap-2 whitespace-nowrap text-center">
             <BookOpen className="h-4 w-4" />
             Accedi per aggiungere alle liste
           </Button>
