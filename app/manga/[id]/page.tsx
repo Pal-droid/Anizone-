@@ -66,6 +66,7 @@ export default function MangaMetadataPage() {
         setLoading(false)
       }
     }
+
     if (actualMangaId) fetchMangaData()
   }, [actualMangaId])
 
@@ -122,104 +123,105 @@ export default function MangaMetadataPage() {
           <Button variant="ghost" size="sm" onClick={() => router.back()}>
             <ArrowLeft size={16} />
           </Button>
-          <h1 className="text-lg font-bold line-clamp-1">{mangaData.title}</h1>
+          <h1 className="text-lg font-bold line-clamp-1">{mangaData?.title || "Caricamento..."}</h1>
         </div>
       </header>
 
       <div className="px-4 py-6 space-y-6">
         {/* Manga Info Card */}
         <Card className="overflow-hidden">
-          <CardContent className="p-6 flex gap-4">
+          <CardContent className="p-6 flex flex-col gap-3 items-start">
             {/* Cover Image */}
-            <div className="shrink-0">
-              <img
-                src={mangaData.image || "/placeholder.svg"}
-                alt={mangaData.title || "Manga"}
-                className="w-28 h-40 object-cover rounded-lg shadow-md"
-                onError={(e) => ((e.target as HTMLImageElement).src = "/manga-cover.png")}
-              />
+            <img
+              src={mangaData.image || "/placeholder.svg"}
+              alt={mangaData.title || "Manga"}
+              className="w-28 h-40 object-cover rounded-lg shadow-md"
+              onError={(e) => ((e.target as HTMLImageElement).src = "/manga-cover.png")}
+            />
+
+            {/* Title */}
+            <h1 className="text-2xl font-bold text-balance leading-tight">{mangaData.title}</h1>
+
+            {/* Author */}
+            {mangaData.author && (
+              <div className="flex items-center gap-2 text-sm">
+                <User size={16} className="text-muted-foreground" />
+                <span className="text-muted-foreground">{mangaData.author}</span>
+              </div>
+            )}
+
+            {/* Illustrator */}
+            {mangaData.artist && mangaData.artist !== mangaData.author && (
+              <div className="flex items-center gap-2 text-sm">
+                <Palette size={16} className="text-muted-foreground" />
+                <span className="text-muted-foreground">{mangaData.artist}</span>
+              </div>
+            )}
+
+            {/* Type / Status / Year */}
+            <div className="flex items-center gap-2 text-sm flex-wrap">
+              {mangaData.type && (
+                <div className="flex items-center gap-1">
+                  <BookOpen size={16} className="text-muted-foreground" />
+                  <Badge variant="secondary">{mangaData.type}</Badge>
+                </div>
+              )}
+              {mangaData.status && (
+                <div className="flex items-center gap-1">
+                  <Star size={16} className="text-muted-foreground" />
+                  <Badge variant={mangaData.status === "Finito" ? "default" : "outline"}>
+                    {mangaData.status}
+                  </Badge>
+                </div>
+              )}
+              {mangaData.year && (
+                <div className="flex items-center gap-1">
+                  <Calendar size={16} className="text-muted-foreground" />
+                  <span className="text-muted-foreground">{mangaData.year}</span>
+                </div>
+              )}
             </div>
 
-            {/* Info Column */}
-            <div className="flex-1 flex flex-col gap-2">
-              {/* Title */}
-              <h1 className="text-2xl font-bold text-balance leading-tight">{mangaData.title}</h1>
+            {/* Separator */}
+            <hr className="w-full border-t border-muted/50 my-2" />
 
-              {/* Author */}
-              {mangaData.author && (
-                <div className="flex items-center gap-2 text-sm">
-                  <User size={16} className="text-muted-foreground" />
-                  <span className="text-muted-foreground">{mangaData.author}</span>
-                </div>
-              )}
-
-              {/* Illustrator */}
-              {mangaData.artist && mangaData.artist !== mangaData.author && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Palette size={16} className="text-muted-foreground" />
-                  <span className="text-muted-foreground">{mangaData.artist}</span>
-                </div>
-              )}
-
-              {/* Type / Status / Year */}
-              <div className="flex items-center gap-2 text-sm flex-wrap">
-                {mangaData.type && (
-                  <div className="flex items-center gap-1">
-                    <BookOpen size={16} className="text-muted-foreground" />
-                    <Badge variant="secondary">{mangaData.type}</Badge>
-                  </div>
-                )}
-                {mangaData.status && (
-                  <div className="flex items-center gap-1">
-                    <Star size={16} className="text-muted-foreground" />
-                    <Badge variant={mangaData.status === "Finito" ? "default" : "outline"}>
-                      {mangaData.status}
-                    </Badge>
-                  </div>
-                )}
-                {mangaData.year && (
-                  <div className="flex items-center gap-1">
-                    <Calendar size={16} className="text-muted-foreground" />
-                    <span className="text-muted-foreground">{mangaData.year}</span>
-                  </div>
-                )}
+            {/* Genres */}
+            {mangaData.genres.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {mangaData.genres.map((genre, index) => (
+                  <Badge key={index} variant="outline" className="text-xs">
+                    {genre}
+                  </Badge>
+                ))}
               </div>
+            )}
 
-              {/* Genres */}
-              {mangaData.genres.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {mangaData.genres.map((genre, index) => (
-                    <Badge key={index} variant="outline" className="text-xs">
-                      {genre}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-
-              {/* QuickList / Add to list */}
+            {/* QuickList / Login */}
+            <div className="mt-2 w-full">
               <QuickListManager
                 itemId={actualMangaId}
                 itemTitle={mangaData.title}
                 itemImage={mangaData.image}
                 type="manga"
               />
-
-              {/* Inizia a leggere button */}
-              {mangaData.volumes.length > 0 && mangaData.volumes[0].chapters.length > 0 && (
-                <Link
-                  href={`/manga/${params.id}/read?u=${obfuscateUrl(
-                    mangaData.volumes[0].chapters[0].url
-                  )}&title=${encodeURIComponent(mangaData.title)}&chapter=${encodeURIComponent(
-                    mangaData.volumes[0].chapters[0].title
-                  )}`}
-                >
-                  <Button size="sm" variant="outline" className="mt-2">
-                    <BookOpen size={16} className="mr-2" />
-                    Inizia a leggere
-                  </Button>
-                </Link>
-              )}
             </div>
+
+            {/* Inizia a leggere button */}
+            {mangaData.volumes.length > 0 && mangaData.volumes[0].chapters.length > 0 && (
+              <Link
+                href={`/manga/${params.id}/read?u=${obfuscateUrl(
+                  mangaData.volumes[0].chapters[0].url
+                )}&title=${encodeURIComponent(mangaData.title)}&chapter=${encodeURIComponent(
+                  mangaData.volumes[0].chapters[0].title
+                )}`}
+                className="w-full"
+              >
+                <Button size="sm" variant="outline" className="mt-2 w-full">
+                  <BookOpen size={16} className="mr-2" />
+                  Inizia a leggere
+                </Button>
+              </Link>
+            )}
           </CardContent>
         </Card>
 
@@ -262,7 +264,9 @@ export default function MangaMetadataPage() {
                             )}&chapter=${encodeURIComponent(chapter.title)}`}
                             className="flex-1 text-sm hover:text-primary transition-colors group-hover:text-primary"
                           >
-                            {chapter.title.replace(/\s*-\s*\d{1,2}\/\d{1,2}\/\d{4}.*$/, "")}
+                            {chapter.title
+                              .replace(/\s*-\s*\d{1,2}\/\d{1,2}\/\d{4}.*$/, "")
+                              .replace(/\s*$$\d{1,2}\/\d{1,2}\/\d{4}$$.*$/, "")}
                           </Link>
                           <div className="flex items-center gap-2">
                             {chapter.isNew && (
@@ -303,7 +307,9 @@ export default function MangaMetadataPage() {
                                   )}&chapter=${encodeURIComponent(chapter.title)}`}
                                   className="flex-1 text-sm hover:text-primary transition-colors group-hover:text-primary"
                                 >
-                                  {chapter.title.replace(/\s*-\s*\d{1,2}\/\d{1,2}\/\d{4}.*$/, "")}
+                                  {chapter.title
+                                    .replace(/\s*-\s*\d{1,2}\/\d{1,2}\/\d{4}.*$/, "")
+                                    .replace(/\s*$$\d{1,2}\/\d{1,2}\/\d{4}$$.*$/, "")}
                                 </Link>
                                 <div className="flex items-center gap-2">
                                   {chapter.isNew && (
