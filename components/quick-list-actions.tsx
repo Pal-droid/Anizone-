@@ -54,6 +54,11 @@ const LIST_ACTIONS = [
   },
 ]
 
+// Detect if path belongs to manga or anime
+function detectType(path: string): "manga" | "anime" {
+  return path.startsWith("/manga/") ? "manga" : "anime"
+}
+
 function normalizeSeriesKey(path: string): string {
   try {
     const url = new URL(path, "https://dummy.local")
@@ -78,6 +83,7 @@ export function QuickListActions({ seriesKey, seriesPath, title, image, classNam
 
   const normalizedSeriesKey = normalizeSeriesKey(seriesKey)
   const normalizedSeriesPath = normalizeSeriesKey(seriesPath)
+  const type = detectType(normalizedSeriesPath)
 
   useEffect(() => {
     setIsHydrated(true)
@@ -91,7 +97,12 @@ export function QuickListActions({ seriesKey, seriesPath, title, image, classNam
           const data = await response.json()
           if (data.ok && data.data?.lists) {
             for (const [listKey, listItems] of Object.entries(data.data.lists)) {
-              if (listItems && typeof listItems === "object" && normalizedSeriesKey in listItems) {
+              if (
+                listItems &&
+                typeof listItems === "object" &&
+                listItems[type] && // ✅ check under correct type
+                normalizedSeriesKey in listItems[type]
+              ) {
                 setCurrentList(listKey as ListKey)
                 break
               }
@@ -99,19 +110,19 @@ export function QuickListActions({ seriesKey, seriesPath, title, image, classNam
           }
         }
       } catch (error) {
-        console.error("[v0] Failed to check list status:", error)
+        console.error("[QuickListActions] Failed to check list status:", error)
       }
     }
 
     if (normalizedSeriesKey && isHydrated) {
       checkListStatus()
     }
-  }, [normalizedSeriesKey, isHydrated])
+  }, [normalizedSeriesKey, isHydrated, type])
 
   async function toggleList(listKey: ListKey) {
     if (isLoading) return
-
     setIsLoading(true)
+
     try {
       if (currentList === listKey) {
         // Remove from current list
@@ -122,12 +133,11 @@ export function QuickListActions({ seriesKey, seriesPath, title, image, classNam
             op: "list-remove",
             list: listKey,
             seriesKey: normalizedSeriesKey,
+            type,
           }),
         })
 
-        if (response.ok) {
-          setCurrentList(null)
-        }
+        if (response.ok) setCurrentList(null)
       } else {
         // Remove from current list if exists
         if (currentList) {
@@ -138,6 +148,7 @@ export function QuickListActions({ seriesKey, seriesPath, title, image, classNam
               op: "list-remove",
               list: currentList,
               seriesKey: normalizedSeriesKey,
+              type,
             }),
           })
         }
@@ -153,15 +164,14 @@ export function QuickListActions({ seriesKey, seriesPath, title, image, classNam
             seriesPath: normalizedSeriesPath,
             title,
             image,
+            type,
           }),
         })
 
-        if (response.ok) {
-          setCurrentList(listKey)
-        }
+        if (response.ok) setCurrentList(listKey)
       }
     } catch (error) {
-      console.error("[v0] Error toggling list:", error)
+      console.error("[QuickListActions] Error toggling list:", error)
     } finally {
       setIsLoading(false)
     }
