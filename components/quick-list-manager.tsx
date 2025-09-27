@@ -266,7 +266,7 @@ export function QuickListManager({ itemId, itemTitle, itemImage, type, itemPath 
         <>
           <Button variant="outline" size="sm" onClick={() => setShowLogin(true)} className="gap-2">
             <BookOpen className="h-4 w-4" />
-            Accedi per aggiungere<br />alle liste
+            Accedi per aggiungere alle liste
           </Button>
           <LoginDialog isOpen={showLogin} onClose={() => setShowLogin(false)} />
         </>
