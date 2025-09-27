@@ -83,14 +83,50 @@ export default function MangaMetadataPage() {
         <SlideOutMenu currentPath={`/manga/${params.id}`} />
         <header className="border-b sticky top-0 bg-background/95 backdrop-blur z-10">
           <div className="px-4 py-3 flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => router.back()}>
+            <Button variant="ghost" size="sm">
               <ArrowLeft size={16} />
             </Button>
             <h1 className="text-lg font-bold">Caricamento...</h1>
           </div>
         </header>
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+
+        <div className="px-4 py-6 space-y-6 animate-pulse">
+          {/* Manga Cover Skeleton */}
+          <div className="w-full flex justify-center">
+            <div className="w-28 h-40 bg-muted rounded-lg shadow-md"></div>
+          </div>
+
+          {/* Title & author skeleton */}
+          <div className="flex flex-col items-center gap-2">
+            <div className="h-6 w-48 bg-muted rounded"></div>
+            <div className="h-4 w-32 bg-muted rounded"></div>
+          </div>
+
+          {/* Genres skeleton */}
+          <div className="flex justify-center gap-2 flex-wrap">
+            {Array(4).fill(0).map((_, i) => (
+              <div key={i} className="h-6 w-16 bg-muted rounded-full"></div>
+            ))}
+          </div>
+
+          {/* Trama skeleton */}
+          <div className="space-y-2">
+            {Array(3).fill(0).map((_, i) => (
+              <div key={i} className="h-4 w-full bg-muted rounded"></div>
+            ))}
+          </div>
+
+          {/* Chapters / Volumes skeleton */}
+          <div className="space-y-2">
+            {Array(2).fill(0).map((_, volIndex) => (
+              <div key={volIndex} className="border rounded-lg p-4 space-y-2">
+                <div className="h-5 w-40 bg-muted rounded"></div>
+                {Array(3).fill(0).map((_, chapIndex) => (
+                  <div key={chapIndex} className="h-4 w-full bg-muted rounded"></div>
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
       </main>
     )
