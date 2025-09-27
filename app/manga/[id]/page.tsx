@@ -130,44 +130,35 @@ export default function MangaMetadataPage() {
       <div className="px-4 py-6 space-y-6">
         {/* Manga Info Card */}
         <Card className="overflow-hidden">
-          <CardContent className="p-6 flex flex-col gap-3 items-start">
-            {/* Cover Image */}
+          <CardContent className="p-6 flex flex-col gap-3 items-center text-center">
             <img
               src={mangaData.image || "/placeholder.svg"}
               alt={mangaData.title || "Manga"}
               className="w-28 h-40 object-cover rounded-lg shadow-md"
               onError={(e) => ((e.target as HTMLImageElement).src = "/manga-cover.png")}
             />
-
-            {/* Title */}
             <h1 className="text-2xl font-bold text-balance leading-tight">{mangaData.title}</h1>
-
-            {/* Author */}
             {mangaData.author && (
-              <div className="flex items-center gap-2 text-sm">
+              <div className="flex items-center justify-center gap-2 text-sm">
                 <User size={16} className="text-muted-foreground" />
                 <span className="text-muted-foreground">{mangaData.author}</span>
               </div>
             )}
-
-            {/* Illustrator */}
             {mangaData.artist && mangaData.artist !== mangaData.author && (
-              <div className="flex items-center gap-2 text-sm">
+              <div className="flex items-center justify-center gap-2 text-sm">
                 <Palette size={16} className="text-muted-foreground" />
                 <span className="text-muted-foreground">{mangaData.artist}</span>
               </div>
             )}
-
-            {/* Type / Status / Year */}
-            <div className="flex items-center gap-2 text-sm flex-wrap">
+            <div className="flex items-center justify-center gap-2 text-sm flex-wrap">
               {mangaData.type && (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center justify-center gap-1">
                   <BookOpen size={16} className="text-muted-foreground" />
                   <Badge variant="secondary">{mangaData.type}</Badge>
                 </div>
               )}
               {mangaData.status && (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center justify-center gap-1">
                   <Star size={16} className="text-muted-foreground" />
                   <Badge variant={mangaData.status === "Finito" ? "default" : "outline"}>
                     {mangaData.status}
@@ -175,19 +166,15 @@ export default function MangaMetadataPage() {
                 </div>
               )}
               {mangaData.year && (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center justify-center gap-1">
                   <Calendar size={16} className="text-muted-foreground" />
                   <span className="text-muted-foreground">{mangaData.year}</span>
                 </div>
               )}
             </div>
-
-            {/* Separator */}
             <hr className="w-full border-t border-muted/50 my-2" />
-
-            {/* Genres */}
             {mangaData.genres.length > 0 && (
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap justify-center gap-1">
                 {mangaData.genres.map((genre, index) => (
                   <Badge key={index} variant="outline" className="text-xs">
                     {genre}
@@ -195,9 +182,7 @@ export default function MangaMetadataPage() {
                 ))}
               </div>
             )}
-
-            {/* QuickList / Login */}
-            <div className="mt-2 w-full">
+            <div className="mt-2 w-full flex justify-center">
               <QuickListManager
                 itemId={actualMangaId}
                 itemTitle={mangaData.title}
@@ -205,8 +190,6 @@ export default function MangaMetadataPage() {
                 type="manga"
               />
             </div>
-
-            {/* Inizia a leggere button */}
             {mangaData.volumes.length > 0 && mangaData.volumes[0].chapters.length > 0 && (
               <Link
                 href={`/manga/${params.id}/read?u=${obfuscateUrl(
@@ -214,9 +197,9 @@ export default function MangaMetadataPage() {
                 )}&title=${encodeURIComponent(mangaData.title)}&chapter=${encodeURIComponent(
                   mangaData.volumes[0].chapters[0].title
                 )}`}
-                className="w-full"
+                className="w-full flex justify-center"
               >
-                <Button size="sm" variant="outline" className="mt-2 w-full">
+                <Button size="sm" variant="outline" className="mt-2">
                   <BookOpen size={16} className="mr-2" />
                   Inizia a leggere
                 </Button>
