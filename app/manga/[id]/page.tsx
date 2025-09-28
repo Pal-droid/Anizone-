@@ -89,34 +89,25 @@ export default function MangaMetadataPage() {
             <h1 className="text-lg font-bold">Caricamento...</h1>
           </div>
         </header>
-
         <div className="px-4 py-6 space-y-6 animate-pulse">
-          {/* Manga Cover Skeleton */}
+          {/* Skeleton placeholders */}
           <div className="w-full flex justify-center">
             <div className="w-28 h-40 bg-muted rounded-lg shadow-md"></div>
           </div>
-
-          {/* Title & author skeleton */}
           <div className="flex flex-col items-center gap-2">
             <div className="h-6 w-48 bg-muted rounded"></div>
             <div className="h-4 w-32 bg-muted rounded"></div>
           </div>
-
-          {/* Genres skeleton */}
           <div className="flex justify-center gap-2 flex-wrap">
             {Array(4).fill(0).map((_, i) => (
               <div key={i} className="h-6 w-16 bg-muted rounded-full"></div>
             ))}
           </div>
-
-          {/* Trama skeleton */}
           <div className="space-y-2">
             {Array(3).fill(0).map((_, i) => (
               <div key={i} className="h-4 w-full bg-muted rounded"></div>
             ))}
           </div>
-
-          {/* Chapters / Volumes skeleton */}
           <div className="space-y-2">
             {Array(2).fill(0).map((_, volIndex) => (
               <div key={volIndex} className="border rounded-lg p-4 space-y-2">
@@ -151,14 +142,9 @@ export default function MangaMetadataPage() {
     )
   }
 
-  // ✅ Pick the true oldest chapter across all volumes
-  let oldestChapter: Chapter | null = null
-  mangaData.volumes.forEach(volume => {
-    if (volume.chapters.length > 0) {
-      const candidate = volume.chapters[volume.chapters.length - 1]
-      if (!oldestChapter) oldestChapter = candidate
-    }
-  })
+  // ✅ Pick the oldest chapter (last chapter of last volume)
+  const lastVolume = mangaData.volumes[mangaData.volumes.length - 1]
+  const oldestChapter = lastVolume.chapters[lastVolume.chapters.length - 1]
 
   return (
     <main className="min-h-screen bg-background">
@@ -235,7 +221,7 @@ export default function MangaMetadataPage() {
                 type="manga"
               />
             </div>
-            {oldestChapter && (
+            {mangaData.volumes.length > 0 && lastVolume.chapters.length > 0 && (
               <Link
                 href={`/manga/${params.id}/read?u=${obfuscateUrl(
                   oldestChapter.url
