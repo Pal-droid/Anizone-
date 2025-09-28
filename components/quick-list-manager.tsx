@@ -9,6 +9,7 @@ import { Plus, Play, Check, Pause, X, RotateCcw, BookOpen } from "lucide-react"
 import { authManager } from "@/lib/auth"
 import { LoginDialog } from "./login-dialog"
 
+// Configuration for anime lists
 const ANIME_LIST_CONFIG = {
   da_guardare: { label: "Da guardare", icon: Plus, color: "bg-blue-500 hover:bg-blue-600" },
   in_corso: { label: "In corso", icon: Play, color: "bg-green-500 hover:bg-green-600" },
@@ -18,6 +19,7 @@ const ANIME_LIST_CONFIG = {
   in_revisione: { label: "In revisione", icon: RotateCcw, color: "bg-indigo-500 hover:bg-indigo-600" },
 }
 
+// Configuration for manga lists
 const MANGA_LIST_CONFIG = {
   da_leggere: { label: "Da leggere", icon: Plus, color: "bg-blue-500 hover:bg-blue-600" },
   in_corso: { label: "In corso", icon: Play, color: "bg-green-500 hover:bg-green-600" },
@@ -27,6 +29,7 @@ const MANGA_LIST_CONFIG = {
   in_revisione: { label: "In revisione", icon: RotateCcw, color: "bg-indigo-500 hover:bg-indigo-600" },
 }
 
+// Normalize URL path for consistent ID handling
 function normalizeId(path: string): string {
   try {
     const url = new URL(path, "https://dummy.local")
@@ -36,21 +39,18 @@ function normalizeId(path: string): string {
   }
 }
 
-export function QuickListManager({
-  itemId,
-  itemTitle,
-  itemImage,
-  itemPath,
-}: {
+interface QuickListManagerProps {
   itemId: string
   itemTitle: string
   itemImage?: string
   itemPath?: string
-}) {
+}
+
+export function QuickListManager({ itemId, itemTitle, itemImage, itemPath }: QuickListManagerProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
-  // ✅ auto-detect type + normalize ID
+  // Auto-detect type and normalize ID
   let type: "anime" | "manga"
   let normalizedId: string
 
@@ -62,7 +62,7 @@ export function QuickListManager({
     const queryPath = searchParams.get("path")
     normalizedId = queryPath ? normalizeId(queryPath) : normalizeId(itemId)
   } else {
-    type = "anime" // fallback
+    type = "anime" // Fallback
     normalizedId = normalizeId(itemId)
   }
 
@@ -78,12 +78,14 @@ export function QuickListManager({
   const [showChapterInput, setShowChapterInput] = useState(false)
   const [chapterProgress, setChapterProgress] = useState("")
 
+  // Subscribe to auth changes
   useEffect(() => {
     const unsubscribe = authManager.subscribe(setUser)
     setUser(authManager.getUser())
-    return unsubscribe
+    return () => unsubscribe()
   }, [])
 
+  // Load lists when user or type changes
   useEffect(() => {
     if (user) loadLists()
     else {
@@ -92,6 +94,7 @@ export function QuickListManager({
     }
   }, [user, type])
 
+  // Update current list based on loaded lists
   useEffect(() => {
     if (lists) {
       for (const [listKey, items] of Object.entries(lists)) {
@@ -111,7 +114,7 @@ export function QuickListManager({
         type === "anime" ? await authManager.getAnimeLists() : await authManager.getMangaLists()
       setLists(userLists)
     } catch (e) {
-      console.error(e)
+      console.error("Failed to load lists:", e)
     } finally {
       setLoading(false)
     }
@@ -155,10 +158,20 @@ export function QuickListManager({
           ? await authManager.updateAnimeLists(newLists)
           : await authManager.updateMangaLists(newLists)
 
-      if (success) setLists(newLists)
-      else setCurrentList(currentList)
+      if (success) {
+        setLists(newLists)
+        if (type === "anime" && targetList === "in_corso" && episode) {
+          await fetch("/user/continue-watching", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ [normalizedId]: episode }),
+          })
+        }
+      } else {
+        setCurrentList(currentList)
+      }
     } catch (e) {
-      console.error(e)
+      console.error("Failed to update list:", e)
       setCurrentList(currentList)
     } finally {
       setLoading(false)
@@ -189,7 +202,7 @@ export function QuickListManager({
     setChapterProgress("")
   }
 
-  // LOGIN BUTTON
+  // Render: Login prompt if not authenticated
   if (!user) {
     return (
       <>
@@ -209,7 +222,7 @@ export function QuickListManager({
     )
   }
 
-  // LOADING STATE
+  // Render: Loading state
   if (loading) {
     return (
       <div className="flex gap-2">
@@ -219,7 +232,7 @@ export function QuickListManager({
     )
   }
 
-  // EPISODE INPUT
+  // Render: Episode input for anime
   if (showEpisodeInput) {
     return (
       <div className="flex flex-col gap-2 p-3 border rounded-lg bg-background">
@@ -244,7 +257,7 @@ export function QuickListManager({
     )
   }
 
-  // CHAPTER INPUT
+  // Render: Chapter input for manga
   if (showChapterInput) {
     return (
       <div className="flex flex-col gap-2 p-3 border rounded-lg bg-background">
@@ -269,7 +282,7 @@ export function QuickListManager({
     )
   }
 
-  // LIST BUTTONS
+  // Render: List management buttons
   return (
     <div className="flex flex-wrap gap-2">
       {Object.entries(LIST_CONFIG).map(([listKey, config]) => {
