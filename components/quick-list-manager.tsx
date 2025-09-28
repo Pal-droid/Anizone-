@@ -1,20 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { usePathname, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Plus, Play, Check, Pause, X, RotateCcw, BookOpen } from "lucide-react"
 import { authManager } from "@/lib/auth"
 import { LoginDialog } from "./login-dialog"
-
-interface QuickListManagerProps {
-  itemId: string
-  itemTitle: string
-  itemImage?: string
-  type: "anime" | "manga"
-  itemPath?: string
-}
 
 const ANIME_LIST_CONFIG = {
   da_guardare: { label: "Da guardare", icon: Plus, color: "bg-blue-500 hover:bg-blue-600" },
@@ -34,10 +27,50 @@ const MANGA_LIST_CONFIG = {
   in_revisione: { label: "In revisione", icon: RotateCcw, color: "bg-indigo-500 hover:bg-indigo-600" },
 }
 
-export function QuickListManager({ itemId, itemTitle, itemImage, type, itemPath }: QuickListManagerProps) {
-  const [user, setUser] = useState(null)
-  const [lists, setLists] = useState(null)
-  const [currentList, setCurrentList] = useState(null)
+function normalizeId(path: string): string {
+  try {
+    const url = new URL(path, "https://dummy.local")
+    return url.pathname
+  } catch {
+    return path.startsWith("/") ? path : `/${path}`
+  }
+}
+
+export function QuickListManager({
+  itemId,
+  itemTitle,
+  itemImage,
+  itemPath,
+}: {
+  itemId: string
+  itemTitle: string
+  itemImage?: string
+  itemPath?: string
+}) {
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
+  // ✅ auto-detect type + normalize ID
+  let type: "anime" | "manga"
+  let normalizedId: string
+
+  if (pathname.startsWith("/manga/")) {
+    type = "manga"
+    normalizedId = normalizeId(itemId)
+  } else if (pathname.startsWith("/watch")) {
+    type = "anime"
+    const queryPath = searchParams.get("path")
+    normalizedId = queryPath ? normalizeId(queryPath) : normalizeId(itemId)
+  } else {
+    type = "anime" // fallback
+    normalizedId = normalizeId(itemId)
+  }
+
+  const LIST_CONFIG = type === "anime" ? ANIME_LIST_CONFIG : MANGA_LIST_CONFIG
+
+  const [user, setUser] = useState<any>(null)
+  const [lists, setLists] = useState<any>(null)
+  const [currentList, setCurrentList] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
   const [showEpisodeInput, setShowEpisodeInput] = useState(false)
@@ -45,19 +78,15 @@ export function QuickListManager({ itemId, itemTitle, itemImage, type, itemPath 
   const [showChapterInput, setShowChapterInput] = useState(false)
   const [chapterProgress, setChapterProgress] = useState("")
 
-  const LIST_CONFIG = type === "anime" ? ANIME_LIST_CONFIG : MANGA_LIST_CONFIG
-
   useEffect(() => {
     const unsubscribe = authManager.subscribe(setUser)
-    const currentUser = authManager.getUser()
-    setUser(currentUser)
+    setUser(authManager.getUser())
     return unsubscribe
   }, [])
 
   useEffect(() => {
-    if (user) {
-      loadLists()
-    } else {
+    if (user) loadLists()
+    else {
       setLists(null)
       setCurrentList(null)
     }
@@ -66,28 +95,29 @@ export function QuickListManager({ itemId, itemTitle, itemImage, type, itemPath 
   useEffect(() => {
     if (lists) {
       for (const [listKey, items] of Object.entries(lists)) {
-        if (Array.isArray(items) && items.includes(itemId)) {
+        if (Array.isArray(items) && items.includes(normalizedId)) {
           setCurrentList(listKey)
           return
         }
       }
       setCurrentList(null)
     }
-  }, [lists, itemId])
+  }, [lists, normalizedId])
 
   const loadLists = async () => {
     setLoading(true)
     try {
-      const userLists = type === "anime" ? await authManager.getAnimeLists() : await authManager.getMangaLists()
+      const userLists =
+        type === "anime" ? await authManager.getAnimeLists() : await authManager.getMangaLists()
       setLists(userLists)
-    } catch (error) {
-      console.error(error)
+    } catch (e) {
+      console.error(e)
     } finally {
       setLoading(false)
     }
   }
 
-  const updateList = async (targetList) => {
+  const updateList = async (targetList: string) => {
     if (!lists || !user) return
     if (type === "anime" && targetList === "in_corso" && currentList !== "in_corso") {
       setShowEpisodeInput(true)
@@ -100,28 +130,35 @@ export function QuickListManager({ itemId, itemTitle, itemImage, type, itemPath 
     await performListUpdate(targetList)
   }
 
-  const performListUpdate = async (targetList, episode = null, chapter = null) => {
+  const performListUpdate = async (
+    targetList: string,
+    episode: string | null = null,
+    chapter: string | null = null
+  ) => {
     setLoading(true)
     try {
       const newLists = { ...lists }
       if (currentList && newLists[currentList]) {
-        newLists[currentList] = newLists[currentList].filter((id) => id !== itemId)
+        newLists[currentList] = newLists[currentList].filter((id: string) => id !== normalizedId)
       }
 
       if (targetList !== currentList) {
         if (!newLists[targetList]) newLists[targetList] = []
-        newLists[targetList].push(itemId)
+        newLists[targetList].push(normalizedId)
         setCurrentList(targetList)
       } else {
         setCurrentList(null)
       }
 
       const success =
-        type === "anime" ? await authManager.updateAnimeLists(newLists) : await authManager.updateMangaLists(newLists)
+        type === "anime"
+          ? await authManager.updateAnimeLists(newLists)
+          : await authManager.updateMangaLists(newLists)
+
       if (success) setLists(newLists)
       else setCurrentList(currentList)
-    } catch (error) {
-      console.error(error)
+    } catch (e) {
+      console.error(e)
       setCurrentList(currentList)
     } finally {
       setLoading(false)
@@ -152,7 +189,7 @@ export function QuickListManager({ itemId, itemTitle, itemImage, type, itemPath 
     setChapterProgress("")
   }
 
-  // LOGIN BUTTON (centered, single line)
+  // LOGIN BUTTON
   if (!user) {
     return (
       <>
@@ -172,7 +209,7 @@ export function QuickListManager({ itemId, itemTitle, itemImage, type, itemPath 
     )
   }
 
-  // LOADING PLACEHOLDER
+  // LOADING STATE
   if (loading) {
     return (
       <div className="flex gap-2">
@@ -232,7 +269,7 @@ export function QuickListManager({ itemId, itemTitle, itemImage, type, itemPath 
     )
   }
 
-  // RENDER USER'S LIST BUTTONS
+  // LIST BUTTONS
   return (
     <div className="flex flex-wrap gap-2">
       {Object.entries(LIST_CONFIG).map(([listKey, config]) => {
