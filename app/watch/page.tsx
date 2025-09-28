@@ -53,43 +53,42 @@ export default function WatchPage() {
     // --- Determine source of navigation ---
     const animeSource = sessionStorage.getItem("anime_source")
 
-    if (animeSource === "upcoming_fall_2025") {
-      // Fetch sources from AW/AUS API
-      const fetchUpcomingSources = async () => {
-        try {
+    const fetchSources = async () => {
+      try {
+        let mappedSources: Source[] = []
+
+        // First, try legacy sessionStorage
+        const stored = sessionStorage.getItem(`anizone:sources:${path}`)
+        if (stored) {
+          mappedSources = JSON.parse(stored)
+        } else {
+          // If not stored, fetch from AW/AUS API
           const response = await fetch(
             `https://aw-au-as-api.vercel.app/api/episodes?AW=${encodeURIComponent(path)}`
           )
-          if (!response.ok) return
-          const data = await response.json()
-
-          const mappedSources: Source[] = []
-
-          data.forEach((ep: any) => {
-            Object.entries(ep.sources).forEach(([name, info]: any) => {
-              if (info.available) {
-                mappedSources.push({
-                  name,
-                  url: info.url,
-                  id: info.id,
-                })
-              }
+          if (response.ok) {
+            const data = await response.json()
+            data.forEach((ep: any) => {
+              Object.entries(ep.sources).forEach(([name, info]: any) => {
+                if (info.available) {
+                  mappedSources.push({
+                    name,
+                    url: info.url,
+                    id: info.id
+                  })
+                }
+              })
             })
-          })
-
-          setSources(mappedSources)
-        } catch (err) {
-          console.log("[WatchPage] Error fetching upcoming sources:", err)
+          }
         }
+
+        setSources(mappedSources)
+      } catch (err) {
+        console.log("[WatchPage] Error fetching sources:", err)
       }
-      fetchUpcomingSources()
-    } else {
-      // Legacy logic: load from sessionStorage
-      try {
-        const stored = sessionStorage.getItem(`anizone:sources:${path}`)
-        if (stored) setSources(JSON.parse(stored) as Source[])
-      } catch {}
     }
+
+    fetchSources()
 
     // --- Fetch metadata (title + next episode) ---
     const fetchMeta = async () => {
@@ -110,6 +109,7 @@ export default function WatchPage() {
         setLoadingMeta(false)
       }
     }
+
     fetchMeta()
   }, [path]) // Re-run whenever path changes
 
