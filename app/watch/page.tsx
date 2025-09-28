@@ -17,8 +17,8 @@ export default function WatchPage() {
   const legacyPath = sp.get("path")
 
   const path = useMemo(() => {
-    if (obfuscatedPath) return deobfuscateUrl(obfuscatedPath)
-    return legacyPath
+    if (obfuscatedPath) return deobfuscateUrl(obfuscatedPath).trim()
+    return legacyPath?.trim()
   }, [obfuscatedPath, legacyPath])
 
   const [title, setTitle] = useState<string>("Anime")
@@ -26,19 +26,21 @@ export default function WatchPage() {
   const [nextEpisodeDate, setNextEpisodeDate] = useState<string>()
   const [nextEpisodeTime, setNextEpisodeTime] = useState<string>()
   const [loadingMeta, setLoadingMeta] = useState(true)
+  const [loadingSources, setLoadingSources] = useState(true)
 
   useEffect(() => {
     if (!path) return
 
-    // --- Reset state ---
+    // Reset state for new anime
     setTitle("Anime")
     setSources([])
     setNextEpisodeDate(undefined)
     setNextEpisodeTime(undefined)
     setLoadingMeta(true)
+    setLoadingSources(true)
     window.scrollTo({ top: 0, behavior: "smooth" })
 
-    // --- Fallback title from slug ---
+    // Fallback title from slug
     const slug = path.split("/").pop() || ""
     const namePart = path.split("/").at(2) || slug
     const name = namePart.replace(/\.([A-Za-z0-9_-]+)$/, "").replace(/-/g, " ")
@@ -48,18 +50,17 @@ export default function WatchPage() {
       .join(" ")
     setTitle(capitalizedName || "Anime")
 
-    const animeSource = sessionStorage.getItem("anime_source")
-
+    // Fetch sources
     const fetchSources = async () => {
       try {
         let mappedSources: Source[] = []
 
-        // Try legacy sessionStorage
+        // Legacy sessionStorage
         const stored = sessionStorage.getItem(`anizone:sources:${path}`)
         if (stored) {
           mappedSources = JSON.parse(stored)
         } else {
-          // Fetch from AW/AUS API if missing
+          // Fetch from AW/AUS API
           const response = await fetch(
             `https://aw-au-as-api.vercel.app/api/episodes?AW=${encodeURIComponent(path)}`
           )
@@ -82,12 +83,14 @@ export default function WatchPage() {
         setSources(mappedSources)
       } catch (err) {
         console.log("[WatchPage] Error fetching sources:", err)
+      } finally {
+        setLoadingSources(false)
       }
     }
 
     fetchSources()
 
-    // --- Fetch metadata ---
+    // Fetch metadata
     const fetchMeta = async () => {
       try {
         const response = await fetch(`/api/anime-meta?path=${encodeURIComponent(path)}`)
@@ -136,17 +139,18 @@ export default function WatchPage() {
         </div>
       </header>
       <section className="px-4 py-4 space-y-6 overflow-x-hidden">
-        {loadingMeta ? (
+        {loadingMeta || loadingSources ? (
           <div className="space-y-4 animate-pulse">
             <div className="h-48 bg-gray-300 rounded-md w-full" />
             <div className="h-10 bg-gray-300 rounded-md w-1/2 mx-auto" />
             <div className="h-20 bg-gray-300 rounded-md w-full" />
           </div>
+        ) : sources.length === 0 ? (
+          <div className="text-center text-red-600">Nessuna fonte disponibile per questo anime.</div>
         ) : (
           <>
-            {/* Reset EpisodePlayer when path changes */}
             <EpisodePlayer
-              key={path} // ← forces remount on new anime
+              key={path} // forces remount on new anime
               path={path}
               seriesTitle={title}
               sources={sources}
