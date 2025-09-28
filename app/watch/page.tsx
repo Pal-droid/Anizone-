@@ -40,11 +40,45 @@ export default function WatchPage() {
       .join(" ")
     setTitle(capitalizedName || "Anime")
 
-    // --- Load sources from sessionStorage ---
-    try {
-      const stored = sessionStorage.getItem(`anizone:sources:${path}`)
-      if (stored) setSources(JSON.parse(stored) as Source[])
-    } catch {}
+    // --- Determine source of navigation ---
+    const animeSource = sessionStorage.getItem("anime_source")
+
+    if (animeSource === "upcoming_fall_2025") {
+      // --- Fetch sources from your AW/AUS API for Uscite Autunno 2025 ---
+      const fetchUpcomingSources = async () => {
+        try {
+          const response = await fetch(`https://aw-au-as-api.vercel.app/api/episodes?AW=${encodeURIComponent(path)}`)
+          if (!response.ok) return
+          const data = await response.json()
+
+          const mappedSources: Source[] = []
+
+          data.forEach((ep: any) => {
+            Object.entries(ep.sources).forEach(([name, info]: any) => {
+              if (info.available) {
+                mappedSources.push({
+                  name,
+                  url: info.url,
+                  id: info.id,
+                })
+              }
+            })
+          })
+
+          setSources(mappedSources)
+        } catch (err) {
+          console.log("[WatchPage] Error fetching upcoming sources:", err)
+        }
+      }
+
+      fetchUpcomingSources()
+    } else {
+      // --- Load sources from sessionStorage (current logic) ---
+      try {
+        const stored = sessionStorage.getItem(`anizone:sources:${path}`)
+        if (stored) setSources(JSON.parse(stored) as Source[])
+      } catch {}
+    }
 
     // --- Fetch meta data (title + next episode) ---
     const fetchMeta = async () => {
