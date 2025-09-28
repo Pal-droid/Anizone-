@@ -418,7 +418,7 @@ export default function ListsPage() {
                   <CardHeader className="py-3">
                     <CardTitle className="text-base">{sec.title}</CardTitle>
                   </CardHeader>
-                  <CardContent>{renderList(" Grig", sec.key)}</CardContent>
+                  <CardContent>{renderList("anime", sec.key)}</CardContent>
                 </Card>
               ))}
             </TabsContent>
