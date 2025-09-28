@@ -151,6 +151,10 @@ export default function MangaMetadataPage() {
     )
   }
 
+  // ✅ Pick the oldest chapter
+  const firstVolume = mangaData.volumes[0]
+  const oldestChapter = firstVolume.chapters[firstVolume.chapters.length - 1]
+
   return (
     <main className="min-h-screen bg-background">
       <SlideOutMenu currentPath={`/manga/${params.id}`} />
@@ -226,12 +230,12 @@ export default function MangaMetadataPage() {
                 type="manga"
               />
             </div>
-            {mangaData.volumes.length > 0 && mangaData.volumes[0].chapters.length > 0 && (
+            {mangaData.volumes.length > 0 && firstVolume.chapters.length > 0 && (
               <Link
                 href={`/manga/${params.id}/read?u=${obfuscateUrl(
-                  mangaData.volumes[0].chapters[0].url
+                  oldestChapter.url
                 )}&title=${encodeURIComponent(mangaData.title)}&chapter=${encodeURIComponent(
-                  mangaData.volumes[0].chapters[0].title
+                  oldestChapter.title
                 )}`}
                 className="w-full flex justify-center"
               >
