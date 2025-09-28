@@ -1,10 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Calendar, Loader2 } from "lucide-react"
-import Link from "next/link"
 
 interface UpcomingAnime {
   id: string
@@ -33,13 +33,13 @@ export default function UpcomingFall() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [widgetTitle, setWidgetTitle] = useState<string>("")
+  const router = useRouter()
 
   useEffect(() => {
     const fetchUpcomingAnime = async () => {
       try {
         const response = await fetch("/api/upcoming-fall-2025")
         const data: ApiResponse = await response.json()
-
         console.log("Items found in API:", data.debug?.foundItems)
 
         if (data.success) {
@@ -62,6 +62,7 @@ export default function UpcomingFall() {
   const handleAnimeClick = (animeItem: UpcomingAnime) => {
     sessionStorage.setItem("anime_source", "upcoming_fall_2025")
     sessionStorage.setItem("anime_section", widgetTitle || "Uscite Autunno 2025")
+    router.push(animeItem.url) // Navigate after saving sessionStorage
   }
 
   const displayTitle = widgetTitle || "Uscite Autunno 2025"
@@ -131,13 +132,10 @@ export default function UpcomingFall() {
       <CardContent>
         <div className="space-y-3 max-h-96 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted">
           {anime.map((animeItem) => (
-            <Link
+            <div
               key={animeItem.id}
-              href={animeItem.url}
-              target="_blank"
-              rel="noopener noreferrer"
               onClick={() => handleAnimeClick(animeItem)}
-              className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors group"
+              className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors group cursor-pointer"
             >
               <div className="relative flex-shrink-0">
                 <img
@@ -181,7 +179,7 @@ export default function UpcomingFall() {
                   </Badge>
                 </div>
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       </CardContent>
