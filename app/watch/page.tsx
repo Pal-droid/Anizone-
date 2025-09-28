@@ -25,6 +25,7 @@ export default function WatchPage() {
   const [sources, setSources] = useState<Source[]>([])
   const [nextEpisodeDate, setNextEpisodeDate] = useState<string>()
   const [nextEpisodeTime, setNextEpisodeTime] = useState<string>()
+  const [loadingMeta, setLoadingMeta] = useState(true)
 
   useEffect(() => {
     if (!path) return
@@ -47,15 +48,13 @@ export default function WatchPage() {
 
     // --- Fetch meta data (title + next episode) ---
     const fetchMeta = async () => {
+      setLoadingMeta(true)
       try {
         const response = await fetch(`/api/anime-meta?path=${encodeURIComponent(path)}`)
         if (!response.ok) return
         const data = await response.json()
         if (data.ok && data.meta) {
-          // Use API title if available
           if (data.meta.title) setTitle(data.meta.title)
-
-          // Set countdown data
           if (data.meta.nextEpisodeDate && data.meta.nextEpisodeTime) {
             setNextEpisodeDate(data.meta.nextEpisodeDate)
             setNextEpisodeTime(data.meta.nextEpisodeTime)
@@ -63,6 +62,8 @@ export default function WatchPage() {
         }
       } catch (err) {
         console.log("[WatchPage] Error fetching meta:", err)
+      } finally {
+        setLoadingMeta(false)
       }
     }
 
@@ -95,17 +96,27 @@ export default function WatchPage() {
         </div>
       </header>
       <section className="px-4 py-4 space-y-6 overflow-x-hidden">
-        <EpisodePlayer
-          path={path}
-          seriesTitle={title}
-          sources={sources}
-          nextEpisodeDate={nextEpisodeDate}
-          nextEpisodeTime={nextEpisodeTime}
-        />
-        <div className="flex justify-center">
-          <QuickListManager itemId={seriesKey} itemTitle={title} itemPath={path} />
-        </div>
-        <WatchInfo seriesPath={path} />
+        {loadingMeta ? (
+          <div className="space-y-4 animate-pulse">
+            <div className="h-48 bg-gray-300 rounded-md w-full" />
+            <div className="h-10 bg-gray-300 rounded-md w-1/2 mx-auto" />
+            <div className="h-20 bg-gray-300 rounded-md w-full" />
+          </div>
+        ) : (
+          <>
+            <EpisodePlayer
+              path={path}
+              seriesTitle={title}
+              sources={sources}
+              nextEpisodeDate={nextEpisodeDate}
+              nextEpisodeTime={nextEpisodeTime}
+            />
+            <div className="flex justify-center">
+              <QuickListManager itemId={seriesKey} itemTitle={title} itemPath={path} />
+            </div>
+            <WatchInfo seriesPath={path} />
+          </>
+        )}
       </section>
     </main>
   )
