@@ -1,6 +1,6 @@
 "use client"
 
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import { useEffect, useMemo, useState } from "react"
 import { EpisodePlayer } from "@/components/episode-player"
 import Link from "next/link"
@@ -13,9 +13,11 @@ type Source = { name: string; url: string; id: string }
 
 export default function WatchPage() {
   const sp = useSearchParams()
+  const router = useRouter()
   const obfuscatedPath = sp.get("p")
   const legacyPath = sp.get("path")
 
+  // Decode path whenever query params change
   const path = useMemo(() => {
     if (obfuscatedPath) return deobfuscateUrl(obfuscatedPath)
     return legacyPath
@@ -29,6 +31,14 @@ export default function WatchPage() {
 
   useEffect(() => {
     if (!path) return
+
+    // --- Reset state for new anime ---
+    setTitle("Anime")
+    setSources([])
+    setNextEpisodeDate(undefined)
+    setNextEpisodeTime(undefined)
+    setLoadingMeta(true)
+    window.scrollTo({ top: 0, behavior: "smooth" }) // optional extra: scroll to top
 
     // --- Fallback title from slug ---
     const slug = path.split("/").pop() || ""
@@ -44,10 +54,12 @@ export default function WatchPage() {
     const animeSource = sessionStorage.getItem("anime_source")
 
     if (animeSource === "upcoming_fall_2025") {
-      // --- Fetch sources from your AW/AUS API for Uscite Autunno 2025 ---
+      // Fetch sources from AW/AUS API
       const fetchUpcomingSources = async () => {
         try {
-          const response = await fetch(`https://aw-au-as-api.vercel.app/api/episodes?AW=${encodeURIComponent(path)}`)
+          const response = await fetch(
+            `https://aw-au-as-api.vercel.app/api/episodes?AW=${encodeURIComponent(path)}`
+          )
           if (!response.ok) return
           const data = await response.json()
 
@@ -70,19 +82,17 @@ export default function WatchPage() {
           console.log("[WatchPage] Error fetching upcoming sources:", err)
         }
       }
-
       fetchUpcomingSources()
     } else {
-      // --- Load sources from sessionStorage (current logic) ---
+      // Legacy logic: load from sessionStorage
       try {
         const stored = sessionStorage.getItem(`anizone:sources:${path}`)
         if (stored) setSources(JSON.parse(stored) as Source[])
       } catch {}
     }
 
-    // --- Fetch meta data (title + next episode) ---
+    // --- Fetch metadata (title + next episode) ---
     const fetchMeta = async () => {
-      setLoadingMeta(true)
       try {
         const response = await fetch(`/api/anime-meta?path=${encodeURIComponent(path)}`)
         if (!response.ok) return
@@ -100,9 +110,8 @@ export default function WatchPage() {
         setLoadingMeta(false)
       }
     }
-
     fetchMeta()
-  }, [path])
+  }, [path]) // Re-run whenever path changes
 
   const seriesKey = useMemo(() => (path ? path : ""), [path])
 
