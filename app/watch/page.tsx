@@ -50,7 +50,7 @@ export default function WatchPage() {
       .join(" ")
     setTitle(capitalizedName || "Anime")
 
-    // Fetch sources
+    // Fetch sources (first episode) from AW/AUS API
     const fetchSources = async () => {
       try {
         let mappedSources: Source[] = []
@@ -60,15 +60,16 @@ export default function WatchPage() {
         if (stored) {
           mappedSources = JSON.parse(stored)
         } else {
-          // Fetch from AW/AUS API
+          // Fetch first episode
           const response = await fetch(
             `https://aw-au-as-api.vercel.app/api/episodes?AW=${encodeURIComponent(path)}`
           )
           if (response.ok) {
             const data = await response.json()
-            data.forEach((ep: any) => {
-              Object.entries(ep.sources).forEach(([name, info]: any) => {
-                if (info.available) {
+            if (Array.isArray(data) && data.length > 0) {
+              const firstEpisode = data[0]
+              Object.entries(firstEpisode.sources).forEach(([name, info]: any) => {
+                if (info.available && info.url && info.id) {
                   mappedSources.push({
                     name,
                     url: info.url,
@@ -76,7 +77,7 @@ export default function WatchPage() {
                   })
                 }
               })
-            })
+            }
           }
         }
 
