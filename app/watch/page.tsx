@@ -1,6 +1,6 @@
 "use client"
 
-import { useSearchParams, useRouter } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { useEffect, useMemo, useState } from "react"
 import { EpisodePlayer } from "@/components/episode-player"
 import Link from "next/link"
@@ -13,11 +13,9 @@ type Source = { name: string; url: string; id: string }
 
 export default function WatchPage() {
   const sp = useSearchParams()
-  const router = useRouter()
   const obfuscatedPath = sp.get("p")
   const legacyPath = sp.get("path")
 
-  // Decode path whenever query params change
   const path = useMemo(() => {
     if (obfuscatedPath) return deobfuscateUrl(obfuscatedPath)
     return legacyPath
@@ -32,13 +30,13 @@ export default function WatchPage() {
   useEffect(() => {
     if (!path) return
 
-    // --- Reset state for new anime ---
+    // --- Reset state ---
     setTitle("Anime")
     setSources([])
     setNextEpisodeDate(undefined)
     setNextEpisodeTime(undefined)
     setLoadingMeta(true)
-    window.scrollTo({ top: 0, behavior: "smooth" }) // optional extra: scroll to top
+    window.scrollTo({ top: 0, behavior: "smooth" })
 
     // --- Fallback title from slug ---
     const slug = path.split("/").pop() || ""
@@ -50,19 +48,18 @@ export default function WatchPage() {
       .join(" ")
     setTitle(capitalizedName || "Anime")
 
-    // --- Determine source of navigation ---
     const animeSource = sessionStorage.getItem("anime_source")
 
     const fetchSources = async () => {
       try {
         let mappedSources: Source[] = []
 
-        // First, try legacy sessionStorage
+        // Try legacy sessionStorage
         const stored = sessionStorage.getItem(`anizone:sources:${path}`)
         if (stored) {
           mappedSources = JSON.parse(stored)
         } else {
-          // If not stored, fetch from AW/AUS API
+          // Fetch from AW/AUS API if missing
           const response = await fetch(
             `https://aw-au-as-api.vercel.app/api/episodes?AW=${encodeURIComponent(path)}`
           )
@@ -90,7 +87,7 @@ export default function WatchPage() {
 
     fetchSources()
 
-    // --- Fetch metadata (title + next episode) ---
+    // --- Fetch metadata ---
     const fetchMeta = async () => {
       try {
         const response = await fetch(`/api/anime-meta?path=${encodeURIComponent(path)}`)
@@ -111,7 +108,7 @@ export default function WatchPage() {
     }
 
     fetchMeta()
-  }, [path]) // Re-run whenever path changes
+  }, [path])
 
   const seriesKey = useMemo(() => (path ? path : ""), [path])
 
@@ -147,7 +144,9 @@ export default function WatchPage() {
           </div>
         ) : (
           <>
+            {/* Reset EpisodePlayer when path changes */}
             <EpisodePlayer
+              key={path} // ← forces remount on new anime
               path={path}
               seriesTitle={title}
               sources={sources}
