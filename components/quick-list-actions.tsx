@@ -1,5 +1,6 @@
 "use client"
 
+import { usePathname } from "next/navigation"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Play, Check, Pause, X, RotateCcw, Plus } from "lucide-react"
@@ -16,48 +17,13 @@ type Props = {
 type ListKey = "planning" | "completed" | "current" | "dropped" | "repeating" | "paused"
 
 const LIST_ACTIONS = [
-  {
-    key: "planning" as ListKey,
-    icon: Plus,
-    label: "Da guardare",
-    color: "text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950",
-  },
-  {
-    key: "current" as ListKey,
-    icon: Play,
-    label: "In corso",
-    color: "text-green-500 hover:bg-green-50 dark:hover:bg-green-950",
-  },
-  {
-    key: "completed" as ListKey,
-    icon: Check,
-    label: "Completato",
-    color: "text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950",
-  },
-  {
-    key: "paused" as ListKey,
-    icon: Pause,
-    label: "In pausa",
-    color: "text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-950",
-  },
-  {
-    key: "dropped" as ListKey,
-    icon: X,
-    label: "Abbandonato",
-    color: "text-red-500 hover:bg-red-50 dark:hover:bg-red-950",
-  },
-  {
-    key: "repeating" as ListKey,
-    icon: RotateCcw,
-    label: "In revisione",
-    color: "text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-950",
-  },
+  { key: "planning" as ListKey, icon: Plus, label: "Da guardare", color: "text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950" },
+  { key: "current" as ListKey, icon: Play, label: "In corso", color: "text-green-500 hover:bg-green-50 dark:hover:bg-green-950" },
+  { key: "completed" as ListKey, icon: Check, label: "Completato", color: "text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950" },
+  { key: "paused" as ListKey, icon: Pause, label: "In pausa", color: "text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-950" },
+  { key: "dropped" as ListKey, icon: X, label: "Abbandonato", color: "text-red-500 hover:bg-red-50 dark:hover:bg-red-950" },
+  { key: "repeating" as ListKey, icon: RotateCcw, label: "In revisione", color: "text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-950" },
 ]
-
-// Detect if path belongs to manga or anime
-function detectType(path: string): "manga" | "anime" {
-  return path.startsWith("/manga/") ? "manga" : "anime"
-}
 
 function normalizeSeriesKey(path: string): string {
   try {
@@ -77,13 +43,16 @@ function normalizeSeriesKey(path: string): string {
 }
 
 export function QuickListActions({ seriesKey, seriesPath, title, image, className }: Props) {
+  const pathname = usePathname()
   const [currentList, setCurrentList] = useState<ListKey | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isHydrated, setIsHydrated] = useState(false)
 
   const normalizedSeriesKey = normalizeSeriesKey(seriesKey)
   const normalizedSeriesPath = normalizeSeriesKey(seriesPath)
-  const type = detectType(normalizedSeriesPath)
+
+  // ✅ detect type from current URL
+  const type: "manga" | "anime" = pathname.startsWith("/manga/") ? "manga" : "anime"
 
   useEffect(() => {
     setIsHydrated(true)
@@ -100,7 +69,7 @@ export function QuickListActions({ seriesKey, seriesPath, title, image, classNam
               if (
                 listItems &&
                 typeof listItems === "object" &&
-                listItems[type] && // ✅ check under correct type
+                listItems[type] &&
                 normalizedSeriesKey in listItems[type]
               ) {
                 setCurrentList(listKey as ListKey)
@@ -125,7 +94,7 @@ export function QuickListActions({ seriesKey, seriesPath, title, image, classNam
 
     try {
       if (currentList === listKey) {
-        // Remove from current list
+        // Remove
         const response = await fetch("/api/user-state", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -136,10 +105,9 @@ export function QuickListActions({ seriesKey, seriesPath, title, image, classNam
             type,
           }),
         })
-
         if (response.ok) setCurrentList(null)
       } else {
-        // Remove from current list if exists
+        // Remove old if exists
         if (currentList) {
           await fetch("/api/user-state", {
             method: "POST",
@@ -153,7 +121,7 @@ export function QuickListActions({ seriesKey, seriesPath, title, image, classNam
           })
         }
 
-        // Add to new list
+        // Add new
         const response = await fetch("/api/user-state", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -167,7 +135,6 @@ export function QuickListActions({ seriesKey, seriesPath, title, image, classNam
             type,
           }),
         })
-
         if (response.ok) setCurrentList(listKey)
       }
     } catch (error) {
