@@ -9,7 +9,7 @@ import { AuthPanel } from "@/components/auth-panel"
 import { SlideOutMenu } from "@/components/slide-out-menu"
 import { Film, BookOpen, Book } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
-import { obfuscateUrl } from "@/lib/utils"
+import { obfuscateUrl, obfuscateId } from "@/lib/utils"
 
 type ContentType = "anime" | "manga" | "light-novel" | "series-movies"
 
@@ -77,7 +77,7 @@ const ListItemCard = ({ itemId, contentType, listName, onRemove, fetchMetadata }
       const animePath = `/play/${itemId}/episode-1`
       return `/watch?p=${obfuscateUrl(animePath)}`
     } else if (contentType === "manga" || contentType === "light-novel") {
-      return `/manga/${itemId}`
+      return `/manga/${obfuscateId(itemId)}`
     }
     return "#"
   }
@@ -205,60 +205,35 @@ export default function ListsPage() {
 
   async function loadLists() {
     if (!user?.token) return
-
     setLoading(true)
     try {
       console.log("[v0] Loading lists for user:", user.username)
 
+      // Anime
       const animeResponse = await fetch("https://stale-nananne-anizonee-3fa1a732.koyeb.app/user/anime-lists", {
-        headers: {
-          Authorization: `Bearer ${user.token}`,
-        },
+        headers: { Authorization: `Bearer ${user.token}` },
       })
-      if (animeResponse.ok) {
-        const animeData = await animeResponse.json()
-        console.log("[v0] Anime lists loaded:", animeData)
-        setAnimeLists(animeData)
-      }
+      if (animeResponse.ok) setAnimeLists(await animeResponse.json())
 
+      // Manga
       const mangaResponse = await fetch("https://stale-nananne-anizonee-3fa1a732.koyeb.app/user/manga-lists", {
-        headers: {
-          Authorization: `Bearer ${user.token}`,
-        },
+        headers: { Authorization: `Bearer ${user.token}` },
       })
-      if (mangaResponse.ok) {
-        const mangaData = await mangaResponse.json()
-        console.log("[v0] Manga lists loaded:", mangaData)
-        setMangaLists(mangaData)
-      }
+      if (mangaResponse.ok) setMangaLists(await mangaResponse.json())
 
+      // Light novels
       const lightNovelResponse = await fetch(
         "https://stale-nananne-anizonee-3fa1a732.koyeb.app/user/lightnovel-lists",
-        {
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-          },
-        },
+        { headers: { Authorization: `Bearer ${user.token}` } },
       )
-      if (lightNovelResponse.ok) {
-        const lightNovelData = await lightNovelResponse.json()
-        console.log("[v0] Light novel lists loaded:", lightNovelData)
-        setLightNovelLists(lightNovelData)
-      }
+      if (lightNovelResponse.ok) setLightNovelLists(await lightNovelResponse.json())
 
+      // Series & movies
       const seriesMoviesResponse = await fetch(
         "https://stale-nananne-anizonee-3fa1a732.koyeb.app/user/series-movies-lists",
-        {
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-          },
-        },
+        { headers: { Authorization: `Bearer ${user.token}` } },
       )
-      if (seriesMoviesResponse.ok) {
-        const seriesMoviesData = await seriesMoviesResponse.json()
-        console.log("[v0] Series & movies lists loaded:", seriesMoviesData)
-        setSeriesMoviesLists(seriesMoviesData)
-      }
+      if (seriesMoviesResponse.ok) setSeriesMoviesLists(await seriesMoviesResponse.json())
     } catch (error) {
       console.error("[v0] Error loading lists:", error)
     } finally {
@@ -267,14 +242,11 @@ export default function ListsPage() {
   }
 
   useEffect(() => {
-    if (user?.token) {
-      loadLists()
-    }
+    if (user?.token) loadLists()
   }, [user?.token])
 
   async function removeFromList(contentType: ContentType, listName: string, title: string) {
     if (!user?.token) return
-
     try {
       let endpoint = ""
       let currentLists: any = {}
@@ -298,16 +270,11 @@ export default function ListsPage() {
           break
       }
 
-      if (currentLists[listName]) {
-        currentLists[listName] = currentLists[listName].filter((item: string) => item !== title)
-      }
+      if (currentLists[listName]) currentLists[listName] = currentLists[listName].filter((item: string) => item !== title)
 
       const response = await fetch(endpoint, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${user.token}`,
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: `Bearer ${user.token}`, "Content-Type": "application/json" },
         body: JSON.stringify(currentLists),
       })
 
@@ -348,56 +315,27 @@ export default function ListsPage() {
                   const itemPath = item.href.replace(/^\/anime\//, "").replace(/\/$/, "")
                   return itemPath === itemId || item.href.includes(itemId)
                 })
-                if (matchingAnime && matchingAnime.sources) {
-                  sources = matchingAnime.sources
-                  console.log("[v0] Found sources for anime:", itemId, sources)
-                }
+                if (matchingAnime && matchingAnime.sources) sources = matchingAnime.sources
               }
             }
-          } catch (sourcesError) {
-            console.log("[v0] Could not fetch sources for:", itemId, sourcesError)
-          }
-
-          return {
-            title: data.meta?.title || itemId,
-            image: data.meta?.image,
-            path: data.meta?.path || `/anime/${itemId}`,
-            sources: sources,
-          }
+          } catch {}
+          return { title: data.meta?.title || itemId, image: data.meta?.image, path: data.meta?.path || `/anime/${itemId}`, sources }
         }
       } else if (contentType === "manga" || contentType === "light-novel") {
         const response = await fetch(`/api/manga-info?id=${encodeURIComponent(itemId)}`)
         if (response.ok) {
           const data = await response.json()
-          return {
-            title: data.title || itemId,
-            image: data.image,
-            path: `/manga/${itemId}`,
-          }
+          return { title: data.title || itemId, image: data.image, path: `/manga/${itemId}` }
         } else {
-          console.log("[v0] Manga info API failed, using fallback data")
-          return {
-            title: itemId.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
-            image: null,
-            path: `/manga/${itemId}`,
-          }
+          return { title: itemId.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()), image: null, path: `/manga/${itemId}` }
         }
       }
-    } catch (error) {
-      console.error("[v0] Error fetching metadata for:", itemId, error)
-    }
-
-    return {
-      title: itemId.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
-      image: null,
-      path: contentType === "anime" || contentType === "series-movies" ? `/anime/${itemId}` : `/manga/${itemId}`,
-      sources: [],
-    }
+    } catch {}
+    return { title: itemId.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()), image: null, path: contentType === "anime" || contentType === "series-movies" ? `/anime/${itemId}` : `/manga/${itemId}`, sources: [] }
   }
 
   const renderList = (contentType: ContentType, listName: string) => {
     let items: string[] = []
-
     switch (contentType) {
       case "anime":
         items = animeLists[listName as AnimeListName] || []
@@ -412,22 +350,11 @@ export default function ListsPage() {
         items = seriesMoviesLists[listName as AnimeListName] || []
         break
     }
-
-    if (items.length === 0) {
-      return <div className="text-sm text-muted-foreground">Nessun elemento.</div>
-    }
-
+    if (items.length === 0) return <div className="text-sm text-muted-foreground">Nessun elemento.</div>
     return (
       <div className="grid grid-cols-1 gap-3">
         {items.map((itemId, index) => (
-          <ListItemCard
-            key={`${listName}-${itemId}-${index}`}
-            itemId={itemId}
-            contentType={contentType}
-            listName={listName}
-            onRemove={() => removeFromList(contentType, listName, itemId)}
-            fetchMetadata={() => fetchItemMetadata(contentType, itemId)}
-          />
+          <ListItemCard key={`${listName}-${itemId}-${index}`} itemId={itemId} contentType={contentType} listName={listName} onRemove={() => removeFromList(contentType, listName, itemId)} fetchMetadata={() => fetchItemMetadata(contentType, itemId)} />
         ))}
       </div>
     )
@@ -472,11 +399,7 @@ export default function ListsPage() {
             </CardContent>
           </Card>
         ) : (
-          <Tabs
-            value={activeContentType}
-            onValueChange={(value) => setActiveContentType(value as ContentType)}
-            className="w-full"
-          >
+          <Tabs value={activeContentType} onValueChange={(value) => setActiveContentType(value as ContentType)} className="w-full">
             <TabsList className="grid w-full grid-cols-4">
               {CONTENT_TYPES.map((type) => {
                 const Icon = type.icon
@@ -495,7 +418,7 @@ export default function ListsPage() {
                   <CardHeader className="py-3">
                     <CardTitle className="text-base">{sec.title}</CardTitle>
                   </CardHeader>
-                  <CardContent>{renderList("anime", sec.key)}</CardContent>
+                  <CardContent>{renderList(" Grig", sec.key)}</CardContent>
                 </Card>
               ))}
             </TabsContent>
