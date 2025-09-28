@@ -62,7 +62,10 @@ export default function UpcomingFall() {
   const handleAnimeClick = (animeItem: UpcomingAnime) => {
     sessionStorage.setItem("anime_source", "upcoming_fall_2025")
     sessionStorage.setItem("anime_section", widgetTitle || "Uscite Autunno 2025")
-    router.push(animeItem.url) // Navigate after saving sessionStorage
+
+    // Always redirect to internal /watch page with the anime URL encoded
+    const encodedPath = encodeURIComponent(animeItem.url)
+    router.push(`/watch?path=${encodedPath}`)
   }
 
   const displayTitle = widgetTitle || "Uscite Autunno 2025"
