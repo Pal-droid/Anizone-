@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -30,18 +30,18 @@ interface Manga {
 }
 
 function obfuscateUrl(url: string): string {
-  return Buffer.from(url).toString("base64")
+  return typeof window !== "undefined" ? btoa(url) : ""
 }
 
 export default function MangaPage() {
   const params = useParams<{ id: string }>()
-  const router = useRouter()
   const [mangaData, setMangaData] = useState<Manga | null>(null)
 
   useEffect(() => {
     async function fetchManga() {
       try {
         const res = await fetch(`/api/manga/${params.id}`)
+        if (!res.ok) throw new Error("Failed to fetch manga")
         const data: Manga = await res.json()
         setMangaData(data)
       } catch (err) {
@@ -52,13 +52,13 @@ export default function MangaPage() {
   }, [params.id])
 
   if (!mangaData) {
-    return <div className="p-4">Loading…</div>
+    return <div className="p-4">Loading...</div>
   }
 
   // Flatten all chapters from all volumes
   const allChapters = mangaData.volumes.flatMap((v) => v.chapters)
 
-  // Oldest = last chapter (because API returns newest → oldest)
+  // Oldest = last chapter (because API usually returns newest → oldest)
   const oldestChapter =
     allChapters.length > 0
       ? allChapters[allChapters.length - 1]
