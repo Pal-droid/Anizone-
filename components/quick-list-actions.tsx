@@ -1,6 +1,6 @@
 "use client"
 
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Play, Check, Pause, X, RotateCcw, Plus } from "lucide-react"
@@ -14,45 +14,96 @@ type Props = {
   className?: string
 }
 
-type ListKey = "planning" | "completed" | "current" | "dropped" | "repeating" | "paused"
+type ListKey =
+  | "planning"
+  | "completed"
+  | "current"
+  | "dropped"
+  | "repeating"
+  | "paused"
 
 const LIST_ACTIONS = [
-  { key: "planning" as ListKey, icon: Plus, label: "Da guardare", color: "text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950" },
-  { key: "current" as ListKey, icon: Play, label: "In corso", color: "text-green-500 hover:bg-green-50 dark:hover:bg-green-950" },
-  { key: "completed" as ListKey, icon: Check, label: "Completato", color: "text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950" },
-  { key: "paused" as ListKey, icon: Pause, label: "In pausa", color: "text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-950" },
-  { key: "dropped" as ListKey, icon: X, label: "Abbandonato", color: "text-red-500 hover:bg-red-50 dark:hover:bg-red-950" },
-  { key: "repeating" as ListKey, icon: RotateCcw, label: "In revisione", color: "text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-950" },
+  {
+    key: "planning" as ListKey,
+    icon: Plus,
+    label: "Da guardare",
+    color: "text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950",
+  },
+  {
+    key: "current" as ListKey,
+    icon: Play,
+    label: "In corso",
+    color: "text-green-500 hover:bg-green-50 dark:hover:bg-green-950",
+  },
+  {
+    key: "completed" as ListKey,
+    icon: Check,
+    label: "Completato",
+    color: "text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950",
+  },
+  {
+    key: "paused" as ListKey,
+    icon: Pause,
+    label: "In pausa",
+    color: "text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-950",
+  },
+  {
+    key: "dropped" as ListKey,
+    icon: X,
+    label: "Abbandonato",
+    color: "text-red-500 hover:bg-red-50 dark:hover:bg-red-950",
+  },
+  {
+    key: "repeating" as ListKey,
+    icon: RotateCcw,
+    label: "In revisione",
+    color: "text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-950",
+  },
 ]
 
 function normalizeSeriesKey(path: string): string {
   try {
     const url = new URL(path, "https://dummy.local")
-    const parts = url.pathname.split("/").filter(Boolean)
-    if (parts.length >= 2) {
-      return `/${parts[0]}/${parts[1]}`
-    }
     return url.pathname
   } catch {
-    const parts = path.split("/").filter(Boolean)
-    if (parts.length >= 2) {
-      return `/${parts[0]}/${parts[1]}`
-    }
     return path.startsWith("/") ? path : `/${path}`
   }
 }
 
-export function QuickListActions({ seriesKey, seriesPath, title, image, className }: Props) {
+export function QuickListActions({
+  seriesKey,
+  seriesPath,
+  title,
+  image,
+  className,
+}: Props) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+
   const [currentList, setCurrentList] = useState<ListKey | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isHydrated, setIsHydrated] = useState(false)
 
-  const normalizedSeriesKey = normalizeSeriesKey(seriesKey)
-  const normalizedSeriesPath = normalizeSeriesKey(seriesPath)
+  // ✅ determine type + key
+  let type: "manga" | "anime"
+  let keyToUse: string
 
-  // ✅ detect type from current URL
-  const type: "manga" | "anime" = pathname.startsWith("/manga/") ? "manga" : "anime"
+  if (pathname.startsWith("/manga/")) {
+    type = "manga"
+    keyToUse = normalizeSeriesKey(seriesKey)
+  } else if (pathname.startsWith("/watch")) {
+    type = "anime"
+    const queryPath = searchParams.get("path")
+    keyToUse = queryPath
+      ? normalizeSeriesKey(decodeURIComponent(queryPath))
+      : normalizeSeriesKey(seriesKey)
+  } else {
+    type = "anime" // fallback
+    keyToUse = normalizeSeriesKey(seriesKey)
+  }
+
+  const normalizedSeriesKey = keyToUse
+  const normalizedSeriesPath = normalizeSeriesKey(seriesPath)
 
   useEffect(() => {
     setIsHydrated(true)
@@ -79,7 +130,10 @@ export function QuickListActions({ seriesKey, seriesPath, title, image, classNam
           }
         }
       } catch (error) {
-        console.error("[QuickListActions] Failed to check list status:", error)
+        console.error(
+          "[QuickListActions] Failed to check list status:",
+          error
+        )
       }
     }
 
@@ -94,7 +148,7 @@ export function QuickListActions({ seriesKey, seriesPath, title, image, classNam
 
     try {
       if (currentList === listKey) {
-        // Remove
+        // Remove from current list
         const response = await fetch("/api/user-state", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -105,9 +159,10 @@ export function QuickListActions({ seriesKey, seriesPath, title, image, classNam
             type,
           }),
         })
+
         if (response.ok) setCurrentList(null)
       } else {
-        // Remove old if exists
+        // Remove from current list if exists
         if (currentList) {
           await fetch("/api/user-state", {
             method: "POST",
@@ -121,7 +176,7 @@ export function QuickListActions({ seriesKey, seriesPath, title, image, classNam
           })
         }
 
-        // Add new
+        // Add to new list
         const response = await fetch("/api/user-state", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -135,6 +190,7 @@ export function QuickListActions({ seriesKey, seriesPath, title, image, classNam
             type,
           }),
         })
+
         if (response.ok) setCurrentList(listKey)
       }
     } catch (error) {
@@ -150,7 +206,13 @@ export function QuickListActions({ seriesKey, seriesPath, title, image, classNam
         {LIST_ACTIONS.slice(0, 3).map((action) => {
           const Icon = action.icon
           return (
-            <Button key={action.key} variant="ghost" size="sm" disabled className="h-8 w-8 p-0">
+            <Button
+              key={action.key}
+              variant="ghost"
+              size="sm"
+              disabled
+              className="h-8 w-8 p-0"
+            >
               <Icon className="h-4 w-4" />
             </Button>
           )
@@ -179,7 +241,7 @@ export function QuickListActions({ seriesKey, seriesPath, title, image, classNam
             className={cn(
               "h-8 w-8 p-0 transition-all duration-200",
               action.color,
-              isActive && "bg-current/10 text-current",
+              isActive && "bg-current/10 text-current"
             )}
             title={action.label}
           >
