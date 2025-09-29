@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -206,7 +206,7 @@ export default function ListsPage() {
         headers: { Authorization: `Bearer ${user.token}` },
       })
       if (animeResponse.ok) setAnimeLists(await animeResponse.json())
-      // Manga RueManga
+      // Manga
       const mangaResponse = await fetch("https://stale-nananne-anizonee-3fa1a732.koyeb.app/user/manga-lists", {
         headers: { Authorization: `Bearer ${user.token}` },
       })
@@ -283,14 +283,12 @@ export default function ListsPage() {
     }
   }
 
-  // Optimized useEffect for loadLists
   useEffect(() => {
     if (user?.token) {
       loadLists()
     }
   }, [user?.token])
 
-  // useEffect for loadContinueWatching
   useEffect(() => {
     if (user?.token) {
       loadContinueWatching()
@@ -450,7 +448,7 @@ export default function ListsPage() {
           </CardContent>
         </Card>
       ) : (
-        <>
+        <div>
           {ongoingList.length > 0 && (
             <Card className="mb-8 glass-card">
               <CardHeader>
@@ -490,7 +488,11 @@ export default function ListsPage() {
               </CardContent>
             </Card>
           )}
-          <Tabs value={activeContentType} onValueChange={(value) => setActiveContentType(value as ContentType)} className="w-full">
+          <Tabs
+            value={activeContentType}
+            onValueChange={(value) => setActiveContentType(value as ContentType)}
+            className="w-full"
+          >
             <TabsList className="grid w-full grid-cols-4">
               {CONTENT_TYPES.map((type) => {
                 const Icon = type.icon
@@ -515,7 +517,8 @@ export default function ListsPage() {
               </TabsContent>
             ))}
           </Tabs>
-        </>
+        </div>
       )}
     </div>
-  
+  )
+}
