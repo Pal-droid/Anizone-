@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -191,14 +191,21 @@ export default function ListsPage() {
     in_revisione: [],
   })
   const [activeContentType, setActiveContentType] = useState<ContentType>("anime")
-  const [loading, setLoading] = useState(false)
+  const [listsLoading, setListsLoading] = useState(false)
+  const [continueWatchingLoading, setContinueWatchingLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [ongoingList, setOngoingList] = useState<ContinueWatchingItem[]>([])
   const [episodes, setEpisodes] = useState<Record<string, any[]>>({})
   const [sources, setSources] = useState<Record<string, any[]>>({})
 
+  // Memoize in_corso lists to prevent unnecessary useEffect triggers
+  const memoizedAnimeInCorso = useMemo(() => animeLists.in_corso, [animeLists.in_corso])
+  const memoizedSeriesInCorso = useMemo(() => seriesMoviesLists.in_corso, [seriesMoviesLists.in_corso])
+
   async function loadLists() {
     if (!user?.token) return
-    setLoading(true)
+    setListsLoading(true)
+    setError(null)
     try {
       console.log("[v0] Loading lists for user:", user.username)
       // Anime
@@ -225,16 +232,19 @@ export default function ListsPage() {
       if (seriesMoviesResponse.ok) setSeriesMoviesLists(await seriesMoviesResponse.json())
     } catch (error) {
       console.error("[v0] Error loading lists:", error)
+      setError("Errore durante il caricamento delle liste. Riprova più tardi.")
     } finally {
-      setLoading(false)
+      setListsLoading(false)
     }
   }
 
   async function loadContinueWatching() {
     if (!user?.token) return
+    setContinueWatchingLoading(true)
+    setError(null)
     try {
-      const ongoingAnime = animeLists.in_corso || []
-      const ongoingSeriesMovies = seriesMoviesLists.in_corso || []
+      const ongoingAnime = memoizedAnimeInCorso || []
+      const ongoingSeriesMovies = memoizedSeriesInCorso || []
       const ongoingItems: ContinueWatchingItem[] = []
       for (const itemId of [...ongoingAnime, ...ongoingSeriesMovies]) {
         const response = await fetch(`/api/anime-meta?path=${encodeURIComponent(itemId)}`)
@@ -251,7 +261,7 @@ export default function ListsPage() {
           try {
             const sourcesResponse = await fetch(`/api/unified-search?keyword=${encodeURIComponent(itemId)}`)
             if (sourcesResponse.ok) {
-              const sourcesData = await sourcesResponse.json()
+              const sourcesburgo sourcesData = await sourcesResponse.json()
               if (sourcesData.ok && sourcesData.items && sourcesData.items.length > 0) {
                 const matchingItem = sourcesData.items.find((item) => {
                   const itemPath = item.href.replace(/^\/anime\//, "").replace(/\/$/, "")
@@ -280,6 +290,9 @@ export default function ListsPage() {
       setOngoingList(ongoingItems)
     } catch (error) {
       console.error("[ContinueWatching] Error loading continue watching:", error)
+      setError("Errore durante il caricamento di Continua a guardare. Riprova più tardi.")
+    } finally {
+      setContinueWatchingLoading(false)
     }
   }
 
@@ -293,7 +306,7 @@ export default function ListsPage() {
     if (user?.token) {
       loadContinueWatching()
     }
-  }, [user?.token, animeLists.in_corso, seriesMoviesLists.in_corso])
+  }, [user?.token, memoizedAnimeInCorso, memoizedSeriesInCorso])
 
   async function removeFromList(contentType: ContentType, listName: string, title: string) {
     if (!user?.token) return
@@ -342,6 +355,7 @@ export default function ListsPage() {
       }
     } catch (error) {
       console.error("[v0] Error removing from list:", error)
+      setError("Errore durante la rimozione dalla lista. Riprova più tardi.")
     }
   }
 
@@ -441,10 +455,19 @@ export default function ListsPage() {
         <h1 className="text-3xl font-bold">Le mie liste</h1>
         <SlideOutMenu />
       </div>
-      {loading ? (
+      {(listsLoading || continueWatchingLoading) ? (
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-muted-foreground">Caricamento liste...</p>
+          </CardContent>
+        </Card>
+      ) : error ? (
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-center text-red-500">{error}</p>
+            <div className="mt-4 flex justify-center">
+              <Button onClick={() => { loadLists(); loadContinueWatching(); }}>Riprova</Button>
+            </div>
           </CardContent>
         </Card>
       ) : (
