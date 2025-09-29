@@ -261,7 +261,7 @@ export default function ListsPage() {
           try {
             const sourcesResponse = await fetch(`/api/unified-search?keyword=${encodeURIComponent(itemId)}`)
             if (sourcesResponse.ok) {
-              const sourcesburgo sourcesData = await sourcesResponse.json()
+              const sourcesData = await sourcesResponse.json()
               if (sourcesData.ok && sourcesData.items && sourcesData.items.length > 0) {
                 const matchingItem = sourcesData.items.find((item) => {
                   const itemPath = item.href.replace(/^\/anime\//, "").replace(/\/$/, "")
