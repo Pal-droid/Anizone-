@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
@@ -21,6 +22,13 @@ type ListItem = {
   image?: string
   path?: string
   sources?: any[]
+}
+
+type ContinueWatchingItem = {
+  id: string
+  title: string
+  image: string
+  episodeId: string
 }
 
 const ANIME_ORDER: { key: AnimeListName; title: string }[] = [
@@ -74,8 +82,7 @@ const ListItemCard = ({ itemId, contentType, listName, onRemove, fetchMetadata }
 
   const getNavigationUrl = () => {
     if (contentType === "anime" || contentType === "series-movies") {
-      const animePath = `/play/${itemId}/episode-1`
-      return `/watch?p=${obfuscateUrl(animePath)}`
+      return `/watch?p=${obfuscateUrl(itemId)}`
     } else if (contentType === "manga" || contentType === "light-novel") {
       return `/manga/${obfuscateId(itemId)}`
     }
@@ -85,9 +92,8 @@ const ListItemCard = ({ itemId, contentType, listName, onRemove, fetchMetadata }
   const handleClick = () => {
     if ((contentType === "anime" || contentType === "series-movies") && sources && sources.length > 0) {
       try {
-        const animePath = `/play/${itemId}/episode-1`
-        sessionStorage.setItem(`anizone:sources:${animePath}`, JSON.stringify(sources))
-        console.log("[v0] Stored sources in sessionStorage for:", animePath, sources)
+        sessionStorage.setItem(`anizone:sources:${itemId}`, JSON.stringify(sources))
+        console.log("[v0] Stored sources in sessionStorage for:", itemId, sources)
       } catch (error) {
         console.error("[v0] Failed to store sources in sessionStorage:", error)
       }
@@ -202,6 +208,9 @@ export default function ListsPage() {
   })
   const [activeContentType, setActiveContentType] = useState<ContentType>("anime")
   const [loading, setLoading] = useState(false)
+  const [ongoingList, setOngoingList] = useState<ContinueWatchingItem[]>([])
+  const [episodes, setEpisodes] = useState<Record<string, any[]>>({})
+  const [sources, setSources] = useState<Record<string, any[]>>({})
 
   async function loadLists() {
     if (!user?.token) return
@@ -241,9 +250,68 @@ export default function ListsPage() {
     }
   }
 
+  async function loadContinueWatching() {
+    if (!user?.token) return
+    try {
+      const ongoingAnime = animeLists.in_corso || []
+      const ongoingSeriesMovies = seriesMoviesLists.in_corso || []
+      const ongoingItems: ContinueWatchingItem[] = []
+
+      for (const itemId of [...ongoingAnime, ...ongoingSeriesMovies]) {
+        const response = await fetch(`/api/anime-meta?path=${encodeURIComponent(itemId)}`)
+        if (response.ok) {
+          const data = await response.json()
+          const episodeId = "1" // Placeholder: Adjust based on actual episode tracking logic
+          ongoingItems.push({
+            id: itemId,
+            title: data.meta?.title || itemId,
+            image: data.meta?.image || "/placeholder.png",
+            episodeId,
+          })
+
+          // Fetch sources
+          try {
+            const sourcesResponse = await fetch(`/api/unified-search?keyword=${encodeURIComponent(itemId)}`)
+            if (sourcesResponse.ok) {
+              const sourcesData = await sourcesResponse.json()
+              if (sourcesData.ok && sourcesData.items && sourcesData.items.length > 0) {
+                const matchingItem = sourcesData.items.find((item) => {
+                  const itemPath = item.href.replace(/^\/anime\//, "").replace(/\/$/, "")
+                  return itemPath === itemId || item.href.includes(itemId)
+                })
+                if (matchingItem && matchingItem.sources) {
+                  setSources((prev) => ({ ...prev, [itemId]: matchingItem.sources }))
+                }
+              }
+            }
+          } catch (error) {
+            console.error("[ContinueWatching] Failed to fetch sources:", error)
+          }
+
+          // Fetch episodes
+          try {
+            const episodesResponse = await fetch(`/api/anime-episodes?path=${encodeURIComponent(itemId)}`)
+            if (episodesResponse.ok) {
+              const data = await episodesResponse.json()
+              setEpisodes((prev) => ({ ...prev, [itemId]: data.episodes || [] }))
+            }
+          } catch (error) {
+            console.error("[ContinueWatching] Failed to fetch episodes:", error)
+          }
+        }
+      }
+      setOngoingList(ongoingItems)
+    } catch (error) {
+      console.error("[ContinueWatching] Error loading continue watching:", error)
+    }
+  }
+
   useEffect(() => {
-    if (user?.token) loadLists()
-  }, [user?.token])
+    if (user?.token) {
+      loadLists()
+      loadContinueWatching()
+    }
+  }, [user?.token, animeLists.in_corso, seriesMoviesLists.in_corso])
 
   async function removeFromList(contentType: ContentType, listName: string, title: string) {
     if (!user?.token) return
@@ -354,7 +422,14 @@ export default function ListsPage() {
     return (
       <div className="grid grid-cols-1 gap-3">
         {items.map((itemId, index) => (
-          <ListItemCard key={`${listName}-${itemId}-${index}`} itemId={itemId} contentType={contentType} listName={listName} onRemove={() => removeFromList(contentType, listName, itemId)} fetchMetadata={() => fetchItemMetadata(contentType, itemId)} />
+          <ListItemCard
+            key={`${listName}-${itemId}-${index}`}
+            itemId={itemId}
+            contentType={contentType}
+            listName={listName}
+            onRemove={() => removeFromList(contentType, listName, itemId)}
+            fetchMetadata={() => fetchItemMetadata(contentType, itemId)}
+          />
         ))}
       </div>
     )
@@ -399,63 +474,77 @@ export default function ListsPage() {
             </CardContent>
           </Card>
         ) : (
-          <Tabs value={activeContentType} onValueChange={(value) => setActiveContentType(value as ContentType)} className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              {CONTENT_TYPES.map((type) => {
-                const Icon = type.icon
-                return (
-                  <TabsTrigger key={type.key} value={type.key} className="flex items-center gap-2">
-                    <Icon size={16} />
-                    <span className="hidden sm:inline">{type.title}</span>
-                  </TabsTrigger>
-                )
-              })}
-            </TabsList>
+          <>
+            {ongoingList.length > 0 && (
+              <Card className="glass-card hover:glow transition-all duration-300">
+                <CardHeader>
+                  <CardTitle>Continua a guardare</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                  {ongoingList.map((item) => {
+                    const episodeData = episodes[item.id] || []
+                    const currentEpisode = episodeData.find((ep: any) => ep.id === item.episodeId)
 
-            <TabsContent value="anime" className="space-y-6">
-              {ANIME_ORDER.map((sec) => (
-                <Card key={sec.key}>
-                  <CardHeader className="py-3">
-                    <CardTitle className="text-base">{sec.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent>{renderList("anime", sec.key)}</CardContent>
-                </Card>
-              ))}
-            </TabsContent>
+                    return (
+                      <Link
+                        key={item.id}
+                        href={`/watch?p=${obfuscateUrl(item.id)}&e=${item.episodeId}`}
+                        onClick={() => {
+                          if (sources[item.id]) {
+                            try {
+                              sessionStorage.setItem(`anizone:sources:${item.id}`, JSON.stringify(sources[item.id]))
+                            } catch (error) {
+                              console.error("[ContinueWatching] Failed to store sources:", error)
+                            }
+                          }
+                        }}
+                        className="block"
+                      >
+                        <div className="relative aspect-[3/4] rounded-xl overflow-hidden shadow-md">
+                          <Image
+                            src={item.image}
+                            alt={item.title}
+                            fill
+                            className="object-cover"
+                          />
+                          <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-2">
+                            <p className="truncate">{item.title}</p>
+                            {currentEpisode && <p className="text-gray-300">Ep {currentEpisode.number}</p>}
+                          </div>
+                        </div>
+                      </Link>
+                    )
+                  })}
+                </CardContent>
+              </Card>
+            )}
 
-            <TabsContent value="manga" className="space-y-6">
-              {MANGA_ORDER.map((sec) => (
-                <Card key={sec.key}>
-                  <CardHeader className="py-3">
-                    <CardTitle className="text-base">{sec.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent>{renderList("manga", sec.key)}</CardContent>
-                </Card>
+            <Tabs value={activeContentType} onValueChange={(value) => setActiveContentType(value as ContentType)} className="w-full">
+              <TabsList className="grid w-full grid-cols-4">
+                {CONTENT_TYPES.map((type) => {
+                  const Icon = type.icon
+                  return (
+                    <TabsTrigger key={type.key} value={type.key} className="flex items-center gap-2">
+                      <Icon size={16} />
+                      <span className="hidden sm:inline">{type.title}</span>
+                    </TabsTrigger>
+                  )
+                })}
+              </TabsList>
+              {CONTENT_TYPES.map((type) => (
+                <TabsContent key={type.key} value={type.key} className="mt-6">
+                  {(type.key === "anime" || type.key === "series-movies" ? ANIME_ORDER : MANGA_ORDER).map((list) => (
+                    <Card key={list.key} className="mt-4 glass-card hover:glow transition-all duration-300">
+                      <CardHeader>
+                        <CardTitle>{list.title}</CardTitle>
+                      </CardHeader>
+                      <CardContent>{renderList(type.key, list.key)}</CardContent>
+                    </Card>
+                  ))}
+                </TabsContent>
               ))}
-            </TabsContent>
-
-            <TabsContent value="light-novel" className="space-y-6">
-              {MANGA_ORDER.map((sec) => (
-                <Card key={sec.key}>
-                  <CardHeader className="py-3">
-                    <CardTitle className="text-base">{sec.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent>{renderList("light-novel", sec.key)}</CardContent>
-                </Card>
-              ))}
-            </TabsContent>
-
-            <TabsContent value="series-movies" className="space-y-6">
-              {ANIME_ORDER.map((sec) => (
-                <Card key={sec.key}>
-                  <CardHeader className="py-3">
-                    <CardTitle className="text-base">{sec.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent>{renderList("series-movies", sec.key)}</CardContent>
-                </Card>
-              ))}
-            </TabsContent>
-          </Tabs>
+            </Tabs>
+          </>
         )}
       </section>
     </main>
