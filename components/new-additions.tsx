@@ -48,11 +48,11 @@ export function NewAdditions() {
       <CardContent>
         {/* Loading skeleton */}
         {loading && (
-          <div className="flex gap-4 overflow-x-auto no-scrollbar">
+          <div className="flex gap-3 overflow-x-auto no-scrollbar">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="shrink-0 w-[140px] space-y-2 animate-pulse">
-                <div className="aspect-[3/4] bg-neutral-200 rounded-xl shadow-sm" />
-                <div className="h-3 w-3/4 bg-neutral-200 rounded" />
+              <div key={i} className="shrink-0 w-[128px] space-y-2 animate-pulse">
+                <div className="aspect-[2/3] bg-neutral-200 rounded-lg" />
+                <div className="h-4 w-3/4 bg-neutral-200 rounded" />
               </div>
             ))}
           </div>
@@ -73,23 +73,22 @@ export function NewAdditions() {
 
         {/* Items */}
         {!loading && !error && items.length > 0 && (
-          <div className="flex gap-4 overflow-x-auto no-scrollbar snap-x pb-2">
+          <div className="flex gap-3 overflow-x-auto no-scrollbar snap-x pb-2">
             {items.map((item, index) => (
               <div
                 key={`${item.href}-${index}`}
-                className="shrink-0 w-[140px] sm:w-[160px] snap-start relative group"
+                className="shrink-0 w-[128px] sm:w-[140px] snap-start relative group"
               >
-                {/* Enhanced AnimeCard with Netflix-like aspect ratio and zoom */}
+                {/* Enhanced AnimeCard to match AnimeContentSections */}
                 <AnimeCard
                   title={item.title}
                   href={item.href}
                   image={item.image}
-                  className="rounded-xl shadow-md hover:shadow-xl transition-all duration-300 group-hover:scale-105 aspect-[3/4]"
+                  className="rounded-lg overflow-hidden bg-neutral-900 transition-transform duration-200 group-hover:scale-105 aspect-[2/3]"
                 />
-
                 {/* Status badge */}
                 {item.status && (
-                  <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full backdrop-blur-md bg-green-500/80 text-white text-xs shadow z-10">
+                  <div className="absolute top-2 right-2 px-1 py-0 rounded text-xs bg-secondary text-secondary-foreground shadow z-10">
                     {item.status}
                   </div>
                 )}
