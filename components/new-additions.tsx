@@ -48,13 +48,11 @@ export function NewAdditions() {
         </CardTitle>
       </CardHeader>
       <CardContent>
+        {/* Loading skeleton */}
         {loading && (
           <div className="flex gap-4 overflow-x-auto no-scrollbar">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="shrink-0 w-[140px] space-y-2 animate-pulse"
-              >
+              <div key={i} className="shrink-0 w-[140px] space-y-2 animate-pulse">
                 <div className="aspect-[2/3] bg-neutral-200 rounded-xl shadow-sm" />
                 <div className="h-3 w-3/4 bg-neutral-200 rounded" />
               </div>
@@ -62,10 +60,12 @@ export function NewAdditions() {
           </div>
         )}
 
+        {/* Error */}
         {!loading && error && (
           <div className="text-sm text-red-600 py-6 text-center">{error}</div>
         )}
 
+        {/* Empty state */}
         {!loading && !error && items.length === 0 && (
           <div className="flex flex-col items-center py-8 text-muted-foreground">
             <Plus size={42} className="opacity-40 mb-2" />
@@ -73,26 +73,21 @@ export function NewAdditions() {
           </div>
         )}
 
+        {/* Items */}
         {!loading && !error && items.length > 0 && (
           <div className="flex gap-4 overflow-x-auto no-scrollbar snap-x pb-2">
             {items.map((item, index) => (
               <div
                 key={`${item.href}-${index}`}
-                className="relative shrink-0 w-[140px] sm:w-[160px] snap-start transition-transform hover:scale-[1.04] hover:shadow-lg"
+                className="shrink-0 w-[140px] sm:w-[160px] snap-start"
               >
+                {/* AnimeCard handles image + rounded corners + title below */}
                 <AnimeCard
-                  title={item.title} // will display inside the card, below the image
+                  title={item.title}
                   href={item.href}
                   image={item.image}
                   isDub={item.isDub}
-                  className="rounded-xl overflow-hidden shadow-md hover:shadow-xl"
-                  sources={[
-                    {
-                      name: "AnimeWorld",
-                      url: item.href,
-                      id: item.href.split("/").pop() || "",
-                    },
-                  ]}
+                  className="rounded-xl shadow-md hover:shadow-xl transition-shadow"
                 />
 
                 {/* Status badge */}
