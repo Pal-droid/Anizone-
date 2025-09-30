@@ -1,16 +1,15 @@
 "use client"
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { Plus } from "lucide-react"
-import Link from "next/link"
+import { AnimeCard } from "./anime-card"
 import { useEffect, useState } from "react"
-import { Badge } from "@/components/ui/badge"
+import { Plus } from "lucide-react"
 
 type NewAdditionItem = {
   title: string
   href: string
   image: string
-  isDub?: boolean
+  status?: string
 }
 
 export function NewAdditions() {
@@ -39,7 +38,7 @@ export function NewAdditions() {
   }, [])
 
   return (
-    <Card>
+    <Card className="shadow-md border-0">
       <CardHeader className="py-3 border-b">
         <CardTitle className="text-base font-semibold flex items-center gap-2">
           <Plus size={16} className="text-primary" />
@@ -47,21 +46,24 @@ export function NewAdditions() {
         </CardTitle>
       </CardHeader>
       <CardContent>
+        {/* Loading skeleton */}
         {loading && (
-          <div className="flex gap-3 overflow-x-auto no-scrollbar">
+          <div className="flex gap-4 overflow-x-auto no-scrollbar">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="flex-shrink-0 w-32 space-y-2 animate-pulse">
-                <div className="aspect-[2/3] bg-neutral-200 rounded-lg"></div>
-                <div className="h-4 bg-neutral-200 rounded mt-2"></div>
+              <div key={i} className="shrink-0 w-[140px] space-y-2 animate-pulse">
+                <div className="aspect-[2/3] bg-neutral-200 rounded-xl shadow-sm" />
+                <div className="h-3 w-3/4 bg-neutral-200 rounded" />
               </div>
             ))}
           </div>
         )}
 
+        {/* Error */}
         {!loading && error && (
           <div className="text-sm text-red-600 py-6 text-center">{error}</div>
         )}
 
+        {/* Empty state */}
         {!loading && !error && items.length === 0 && (
           <div className="flex flex-col items-center py-8 text-muted-foreground">
             <Plus size={42} className="opacity-40 mb-2" />
@@ -69,36 +71,30 @@ export function NewAdditions() {
           </div>
         )}
 
+        {/* Items */}
         {!loading && !error && items.length > 0 && (
-          <div className="overflow-x-auto no-scrollbar">
-            <div className="flex gap-3 pb-2" style={{ width: `${Math.max(items.length * 140, 700)}px` }}>
-              {items.map((item, index) => (
-                <Link
-                  key={index}
+          <div className="flex gap-4 overflow-x-auto no-scrollbar snap-x pb-2">
+            {items.map((item, index) => (
+              <div
+                key={`${item.href}-${index}`}
+                className="shrink-0 w-[140px] sm:w-[160px] snap-start relative"
+              >
+                {/* AnimeCard handles image + rounded corners + title below */}
+                <AnimeCard
+                  title={item.title}
                   href={item.href}
-                  className="group flex-shrink-0 w-32"
-                >
-                  <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-neutral-900 w-full">
-                    <img
-                      src={item.image || "/placeholder.svg"}
-                      alt={item.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                      loading="lazy"
-                    />
-                    {item.isDub && (
-                      <div className="absolute top-2 right-2">
-                        <Badge variant="secondary" className="text-xs px-1 py-0">
-                          DUB
-                        </Badge>
-                      </div>
-                    )}
+                  image={item.image}
+                  className="rounded-xl shadow-md hover:shadow-xl transition-shadow group"
+                />
+
+                {/* Status badge */}
+                {item.status && (
+                  <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full backdrop-blur-md bg-green-500/80 text-white text-xs shadow z-10">
+                    {item.status}
                   </div>
-                  <h3 className="text-sm font-medium mt-2 group-hover:text-primary transition-colors overflow-hidden">
-                    <span className="line-clamp-2 break-words leading-tight">{item.title}</span>
-                  </h3>
-                </Link>
-              ))}
-            </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </CardContent>
