@@ -1,8 +1,7 @@
 "use client"
 
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { AnimeCard } from "./anime-card"
 import { useEffect, useState } from "react"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Plus } from "lucide-react"
 
 type NewAdditionItem = {
@@ -20,15 +19,15 @@ export function NewAdditions() {
   useEffect(() => {
     ;(async () => {
       try {
-        const r = await fetch("/api/new-additions")
-        const ct = r.headers.get("content-type") || ""
-        if (!ct.includes("application/json")) {
-          const txt = await r.text()
-          throw new Error(txt.slice(0, 200))
+        const res = await fetch("/api/new-additions")
+        const contentType = res.headers.get("content-type") || ""
+        if (!contentType.includes("application/json")) {
+          const text = await res.text()
+          throw new Error(text.slice(0, 200))
         }
-        const j = await r.json()
-        if (j.ok) setItems(j.items)
-        else setError(j.error || "Errore nel caricamento")
+        const data = await res.json()
+        if (data.ok) setItems(data.items)
+        else setError(data.error || "Errore nel caricamento")
       } catch (e: any) {
         setError(e?.message || "Errore nel caricamento")
       } finally {
@@ -48,11 +47,11 @@ export function NewAdditions() {
       <CardContent>
         {/* Loading skeleton */}
         {loading && (
-          <div className="flex gap-3 overflow-x-auto no-scrollbar">
+          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="shrink-0 w-[128px] space-y-2 animate-pulse">
+              <div key={i} className="shrink-0 w-32 animate-pulse">
                 <div className="aspect-[2/3] bg-neutral-200 rounded-lg" />
-                <div className="h-4 w-3/4 bg-neutral-200 rounded" />
+                <div className="h-4 bg-neutral-200 rounded mt-2" />
               </div>
             ))}
           </div>
@@ -73,26 +72,30 @@ export function NewAdditions() {
 
         {/* Items */}
         {!loading && !error && items.length > 0 && (
-          <div className="flex gap-3 overflow-x-auto no-scrollbar snap-x pb-2">
+          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
             {items.map((item, index) => (
-              <div
+              <a
                 key={`${item.href}-${index}`}
-                className="shrink-0 w-[128px] sm:w-[140px] snap-start relative group"
+                href={item.href}
+                className="group shrink-0 w-32"
               >
-                {/* Enhanced AnimeCard to match AnimeContentSections */}
-                <AnimeCard
-                  title={item.title}
-                  href={item.href}
-                  image={item.image}
-                  className="rounded-lg overflow-hidden bg-neutral-900 transition-transform duration-200 group-hover:scale-105 aspect-[2/3]"
-                />
-                {/* Status badge */}
-                {item.status && (
-                  <div className="absolute top-2 right-2 px-1 py-0 rounded text-xs bg-secondary text-secondary-foreground shadow z-10">
-                    {item.status}
-                  </div>
-                )}
-              </div>
+                <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-neutral-900 w-full">
+                  <img
+                    src={item.image || "/placeholder.svg"}
+                    alt={item.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                    loading="lazy"
+                  />
+                  {item.status && (
+                    <div className="absolute top-2 right-2 px-1 py-0 rounded text-xs bg-secondary text-secondary-foreground shadow z-10">
+                      {item.status}
+                    </div>
+                  )}
+                </div>
+                <h3 className="text-sm font-medium mt-2 group-hover:text-primary transition-colors overflow-hidden">
+                  <span className="line-clamp-2 break-words leading-tight">{item.title}</span>
+                </h3>
+              </a>
             ))}
           </div>
         )}
