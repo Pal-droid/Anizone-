@@ -50,13 +50,12 @@ export function OngoingAnime() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+        <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
           {loading
             ? Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="shrink-0 w-36 space-y-2">
-                  <div className="aspect-[3/4] bg-neutral-200 rounded-lg animate-pulse" />
-                  <div className="h-4 bg-neutral-200 rounded animate-pulse" />
-                  <div className="h-3 bg-neutral-200 rounded animate-pulse" />
+                <div key={i} className="flex-shrink-0 w-32 animate-pulse">
+                  <div className="aspect-[2/3] bg-neutral-200 rounded-lg"></div>
+                  <div className="h-4 bg-neutral-200 rounded mt-2"></div>
                 </div>
               ))
             : error
@@ -67,27 +66,35 @@ export function OngoingAnime() {
                 <p>Nessun anime in corso disponibile</p>
               </div>
             : items.map((item, index) => (
-                <div key={`${item.href}-${index}`} className="relative shrink-0 w-36">
-                  <AnimeCard
-                    title={item.title}
-                    href={item.href}
-                    image={item.image}
-                    isDub={item.isDub}
-                    sources={item.sources || [{ name: "AnimeWorld", url: item.href, id: item.href.split("/").pop() || "" }]}
-                    className="rounded-lg overflow-hidden aspect-[3/4] object-cover"
-                  />
+                <div key={`${item.href}-${index}`} className="relative flex-shrink-0 w-32">
+                  <div className="relative aspect-[2/3] rounded-lg overflow-hidden w-full">
+                    <img
+                      src={item.image}
+                      alt={item.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                      loading="lazy"
+                    />
 
-                  {/* Episode badge */}
-                  <div className="absolute top-2 left-2 py-0.5 px-1.5 rounded bg-blue-600/90 text-white text-xs font-medium">
-                    {item.currentEpisode}/{item.totalEpisodes}
-                  </div>
-
-                  {/* ONA badge */}
-                  {item.isONA && (
-                    <div className="absolute top-2 right-2 py-0.5 px-1.5 rounded bg-purple-600/90 text-white text-xs font-medium">
-                      ONA
+                    {/* Episode badge */}
+                    <div className="absolute top-2 left-2 py-0.5 px-1.5 rounded bg-blue-600/90 text-white text-xs font-medium">
+                      {item.currentEpisode}/{item.totalEpisodes}
                     </div>
-                  )}
+
+                    {/* ONA badge */}
+                    {item.isONA && (
+                      <div className="absolute top-2 right-2 py-0.5 px-1.5 rounded bg-purple-600/90 text-white text-xs font-medium">
+                        ONA
+                      </div>
+                    )}
+
+                    {/* Dub badge */}
+                    {item.isDub && (
+                      <div className="absolute bottom-2 right-2">
+                        <span className="bg-gray-800 text-white text-[10px] px-1 py-[1px] rounded">DUB</span>
+                      </div>
+                    )}
+                  </div>
+                  <h3 className="text-sm font-medium mt-2 line-clamp-2 break-words">{item.title}</h3>
                 </div>
               ))}
         </div>
