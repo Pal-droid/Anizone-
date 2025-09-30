@@ -151,7 +151,6 @@ export default function HomePage() {
 
         <div className="space-y-8">
           <div className="glass rounded-xl p-6 transition-smooth hover:glow">
-            <ContinueWatching />
           </div>
 
           <LazySection className="glass rounded-xl p-6 transition-smooth hover:glow">
