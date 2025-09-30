@@ -1,16 +1,15 @@
 "use client"
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { AnimeCard } from "./anime-card"
+import { Plus } from "lucide-react"
+import Link from "next/link"
 import { useEffect, useState } from "react"
-import { Plus, Clock } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 
 type NewAdditionItem = {
   title: string
   href: string
   image: string
-  releaseDate?: string
-  status?: string
   isDub?: boolean
 }
 
@@ -40,7 +39,7 @@ export function NewAdditions() {
   }, [])
 
   return (
-    <Card className="shadow-md border-0">
+    <Card>
       <CardHeader className="py-3 border-b">
         <CardTitle className="text-base font-semibold flex items-center gap-2">
           <Plus size={16} className="text-primary" />
@@ -48,24 +47,21 @@ export function NewAdditions() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {/* Loading skeleton */}
         {loading && (
-          <div className="flex gap-4 overflow-x-auto no-scrollbar">
+          <div className="flex gap-3 overflow-x-auto no-scrollbar">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="shrink-0 w-[140px] space-y-2 animate-pulse">
-                <div className="aspect-[2/3] bg-neutral-200 rounded-xl shadow-sm" />
-                <div className="h-3 w-3/4 bg-neutral-200 rounded" />
+              <div key={i} className="flex-shrink-0 w-32 space-y-2 animate-pulse">
+                <div className="aspect-[2/3] bg-neutral-200 rounded-lg"></div>
+                <div className="h-4 bg-neutral-200 rounded mt-2"></div>
               </div>
             ))}
           </div>
         )}
 
-        {/* Error */}
         {!loading && error && (
           <div className="text-sm text-red-600 py-6 text-center">{error}</div>
         )}
 
-        {/* Empty state */}
         {!loading && !error && items.length === 0 && (
           <div className="flex flex-col items-center py-8 text-muted-foreground">
             <Plus size={42} className="opacity-40 mb-2" />
@@ -73,41 +69,36 @@ export function NewAdditions() {
           </div>
         )}
 
-        {/* Items */}
         {!loading && !error && items.length > 0 && (
-          <div className="flex gap-4 overflow-x-auto no-scrollbar snap-x pb-2">
-            {items.map((item, index) => (
-              <div
-                key={`${item.href}-${index}`}
-                className="relative shrink-0 w-[140px] sm:w-[160px] snap-start"
-              >
-                {/* AnimeCard handles thumbnail, title, hover zoom */}
-                <AnimeCard
-                  title={item.title}
+          <div className="overflow-x-auto no-scrollbar">
+            <div className="flex gap-3 pb-2" style={{ width: `${Math.max(items.length * 140, 700)}px` }}>
+              {items.map((item, index) => (
+                <Link
+                  key={index}
                   href={item.href}
-                  image={item.image}
-                  isDub={item.isDub}
-                  className="rounded-xl shadow-md hover:shadow-xl transition-shadow"
-                />
-
-                {/* Status badge */}
-                {item.status && (
-                  <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full backdrop-blur-md bg-green-500/80 text-white text-xs shadow">
-                    {item.status}
+                  className="group flex-shrink-0 w-32"
+                >
+                  <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-neutral-900 w-full">
+                    <img
+                      src={item.image || "/placeholder.svg"}
+                      alt={item.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                      loading="lazy"
+                    />
+                    {item.isDub && (
+                      <div className="absolute top-2 right-2">
+                        <Badge variant="secondary" className="text-xs px-1 py-0">
+                          DUB
+                        </Badge>
+                      </div>
+                    )}
                   </div>
-                )}
-
-                {/* Release date badge */}
-                {item.releaseDate && (
-                  <div className="absolute bottom-2 left-2 right-2">
-                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-full backdrop-blur-md bg-black/60 text-white text-xs">
-                      <Clock size={10} />
-                      <span className="truncate">{item.releaseDate}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                  <h3 className="text-sm font-medium mt-2 group-hover:text-primary transition-colors overflow-hidden">
+                    <span className="line-clamp-2 break-words leading-tight">{item.title}</span>
+                  </h3>
+                </Link>
+              ))}
+            </div>
           </div>
         )}
       </CardContent>
