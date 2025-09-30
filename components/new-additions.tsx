@@ -39,100 +39,69 @@ export function NewAdditions() {
     })()
   }, [])
 
-  if (loading) {
-    return (
-      <Card>
-        <CardHeader className="py-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Plus size={16} />
-            Nuove Aggiunte
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-3 overflow-x-auto no-scrollbar">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="shrink-0 w-[120px] space-y-2">
-                <div className="aspect-[2/3] bg-neutral-200 rounded animate-pulse" />
-                <div className="h-3 w-3/4 bg-neutral-200 rounded animate-pulse" />
-                <div className="h-2 w-1/2 bg-neutral-200 rounded animate-pulse" />
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    )
-  }
-
-  if (error) {
-    return (
-      <Card>
-        <CardHeader className="py-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Plus size={16} />
-            Nuove Aggiunte
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-sm text-red-600">{error}</div>
-        </CardContent>
-      </Card>
-    )
-  }
-
-  if (items.length === 0) {
-    return (
-      <Card>
-        <CardHeader className="py-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Plus size={16} />
-            Nuove Aggiunte
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8 text-muted-foreground">
-            <Plus size={48} className="mx-auto mb-2 opacity-50" />
-            <p>Nessuna nuova aggiunta disponibile</p>
-          </div>
-        </CardContent>
-      </Card>
-    )
-  }
-
   return (
-    <Card>
-      <CardHeader className="py-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Plus size={16} />
+    <Card className="shadow-sm">
+      <CardHeader className="py-3 border-b">
+        <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <Plus size={16} className="text-primary" />
           Nuove Aggiunte
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
-          {items.map((item, index) => (
-            <div key={`${item.href}-${index}`} className="relative shrink-0 w-[120px]">
-              <AnimeCard
-                title={item.title}
-                href={item.href}
-                image={item.image}
-                isDub={item.isDub}
-                sources={[{ name: "AnimeWorld", url: item.href, id: item.href.split("/").pop() || "" }]}
-              />
-              {item.status && (
-                <div className="absolute top-2 right-2 py-0.5 px-1.5 rounded bg-green-600/90 text-white text-xs">
-                  {item.status}
-                </div>
-              )}
-              {item.releaseDate && (
-                <div className="absolute bottom-2 left-2 right-2">
-                  <div className="flex items-center gap-1 py-0.5 px-1.5 rounded bg-black/70 text-white text-xs">
-                    <Clock size={10} />
-                    <span className="truncate text-ellipsis overflow-hidden">{item.releaseDate}</span>
+        {loading && (
+          <div className="flex gap-3 overflow-x-auto no-scrollbar">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="shrink-0 w-[120px] space-y-2 animate-pulse">
+                <div className="aspect-[2/3] bg-neutral-200 rounded-xl shadow-sm" />
+                <div className="h-3 w-3/4 bg-neutral-200 rounded" />
+                <div className="h-2 w-1/2 bg-neutral-200 rounded" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!loading && error && (
+          <div className="text-sm text-red-600 py-6 text-center">{error}</div>
+        )}
+
+        {!loading && !error && items.length === 0 && (
+          <div className="flex flex-col items-center py-8 text-muted-foreground">
+            <Plus size={42} className="opacity-40 mb-2" />
+            <p className="text-sm">Nessuna nuova aggiunta disponibile</p>
+          </div>
+        )}
+
+        {!loading && !error && items.length > 0 && (
+          <div className="flex gap-3 overflow-x-auto no-scrollbar snap-x pb-1">
+            {items.map((item, index) => (
+              <div
+                key={`${item.href}-${index}`}
+                className="relative shrink-0 w-[120px] snap-start transition-transform hover:scale-105 hover:shadow-md"
+              >
+                <AnimeCard
+                  title={item.title}
+                  href={item.href}
+                  image={item.image}
+                  isDub={item.isDub}
+                  sources={[{ name: "AnimeWorld", url: item.href, id: item.href.split("/").pop() || "" }]}
+                />
+                {item.status && (
+                  <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-green-600 text-white text-xs shadow">
+                    {item.status}
                   </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+                )}
+                {item.releaseDate && (
+                  <div className="absolute bottom-2 left-2">
+                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/70 text-white text-xs">
+                      <Clock size={10} />
+                      <span className="truncate">{item.releaseDate}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   )
