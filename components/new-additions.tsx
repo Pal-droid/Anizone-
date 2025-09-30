@@ -40,7 +40,7 @@ export function NewAdditions() {
   }, [])
 
   return (
-    <Card className="shadow-sm">
+    <Card className="shadow-md border-0">
       <CardHeader className="py-3 border-b">
         <CardTitle className="text-base font-semibold flex items-center gap-2">
           <Plus size={16} className="text-primary" />
@@ -49,9 +49,12 @@ export function NewAdditions() {
       </CardHeader>
       <CardContent>
         {loading && (
-          <div className="flex gap-3 overflow-x-auto no-scrollbar">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="shrink-0 w-[120px] space-y-2 animate-pulse">
+          <div className="flex gap-4 overflow-x-auto no-scrollbar">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="shrink-0 w-[140px] space-y-2 animate-pulse"
+              >
                 <div className="aspect-[2/3] bg-neutral-200 rounded-xl shadow-sm" />
                 <div className="h-3 w-3/4 bg-neutral-200 rounded" />
                 <div className="h-2 w-1/2 bg-neutral-200 rounded" />
@@ -72,32 +75,45 @@ export function NewAdditions() {
         )}
 
         {!loading && !error && items.length > 0 && (
-          <div className="flex gap-3 overflow-x-auto no-scrollbar snap-x pb-1">
+          <div className="flex gap-4 overflow-x-auto no-scrollbar snap-x pb-2">
             {items.map((item, index) => (
               <div
                 key={`${item.href}-${index}`}
-                className="relative shrink-0 w-[120px] snap-start transition-transform hover:scale-105 hover:shadow-md"
+                className="relative shrink-0 w-[140px] sm:w-[160px] snap-start transition-transform hover:scale-[1.04] hover:shadow-lg"
               >
                 <AnimeCard
                   title={item.title}
                   href={item.href}
                   image={item.image}
                   isDub={item.isDub}
-                  sources={[{ name: "AnimeWorld", url: item.href, id: item.href.split("/").pop() || "" }]}
+                  sources={[
+                    {
+                      name: "AnimeWorld",
+                      url: item.href,
+                      id: item.href.split("/").pop() || "",
+                    },
+                  ]}
+                  className="rounded-xl overflow-hidden shadow-md hover:shadow-xl"
                 />
+                {/* Status badge */}
                 {item.status && (
-                  <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-green-600 text-white text-xs shadow">
+                  <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full backdrop-blur-md bg-green-500/80 text-white text-xs shadow">
                     {item.status}
                   </div>
                 )}
+                {/* Release date badge */}
                 {item.releaseDate && (
-                  <div className="absolute bottom-2 left-2">
-                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/70 text-white text-xs">
+                  <div className="absolute bottom-2 left-2 right-2">
+                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-full backdrop-blur-md bg-black/60 text-white text-xs">
                       <Clock size={10} />
                       <span className="truncate">{item.releaseDate}</span>
                     </div>
                   </div>
                 )}
+                {/* Caption */}
+                <p className="mt-2 text-xs font-medium text-center line-clamp-2">
+                  {item.title}
+                </p>
               </div>
             ))}
           </div>
