@@ -24,18 +24,13 @@ export function TrendingChapters() {
   useEffect(() => {
     const fetchTrendingChapters = async () => {
       try {
-        console.log("[v0] Fetching trending chapters...")
         const response = await fetch("/api/trending-chapters")
         const data = await response.json()
-
         if (data.ok && data.chapters) {
-          console.log("[v0] Loaded", data.chapters.length, "trending chapters")
           setTrendingData(data.chapters)
-        } else {
-          console.error("[v0] Failed to load trending chapters:", data.error)
         }
       } catch (error) {
-        console.error("[v0] Error fetching trending chapters:", error)
+        console.error("[TrendingChapters] Error fetching trending chapters:", error)
       } finally {
         setLoading(false)
       }
@@ -62,7 +57,7 @@ export function TrendingChapters() {
           <h2 className="text-lg font-semibold">Capitoli di tendenza</h2>
         </div>
         <div className="animate-pulse">
-          <Card className="w-[280px] h-24 bg-neutral-200"></Card>
+          <Card className="w-[280px] h-[380px] bg-neutral-200"></Card>
         </div>
       </div>
     )
@@ -96,25 +91,21 @@ export function TrendingChapters() {
         >
           {trendingData.map((item) => (
             <Card key={item.id} className="flex-shrink-0 w-[280px] p-3">
-              <Link href={`/manga/${obfuscateId(item.id)}`} className="block">
-                <div className="flex gap-3">
-                  <div className="relative">
-                    <img
-                      src={item.image || "/placeholder.svg"}
-                      alt={item.title}
-                      className="w-16 h-20 object-cover rounded"
-                      loading="lazy"
-                    />
-                    <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs px-1 py-0.5 rounded-b">
-                      {item.chapter}
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-sm line-clamp-2 hover:text-primary transition-colors">
-                      {item.title}
-                    </h3>
+              <Link href={`/manga/${obfuscateId(item.id)}`} className="block group">
+                <div className="relative aspect-[3/4] w-full overflow-hidden rounded-lg shadow-md transition-transform duration-300 transform group-hover:scale-105">
+                  <img
+                    src={item.image || "/placeholder.svg"}
+                    alt={item.title}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs px-1 py-0.5 rounded-b">
+                    {item.chapter}
                   </div>
                 </div>
+                <h3 className="mt-2 font-medium text-sm line-clamp-2 text-center group-hover:text-primary transition-colors">
+                  {item.title}
+                </h3>
               </Link>
             </Card>
           ))}
