@@ -91,14 +91,15 @@ export function AnimeContentSections() {
                     loading="lazy"
                   />
 
-                  {/* Status & Episode badges */}
+                  {/* Status + Episode badges like your HTML */}
                   {(item.status || item.episode) && (
-                    <div className="absolute top-2 left-2 flex flex-col gap-1">
+                    <div className="absolute top-2 left-2 status flex flex-col items-start">
                       {item.status && (
-                        <div className="bg-primary text-white text-[10px] px-1 py-[1px] rounded">{item.status}</div>
+                        <div className="ona bg-primary text-white text-[10px] px-1 py-[1px] rounded">{item.status}</div>
                       )}
+                      <span className="bar w-full h-[1px] bg-white my-0.5 block"></span>
                       {item.episode && (
-                        <div className="bg-neutral-800 text-white text-[10px] px-1 py-[1px] rounded">
+                        <div className="ep bg-neutral-800 text-white text-[10px] px-1 py-[1px] rounded">
                           Ep {item.episode}
                         </div>
                       )}
