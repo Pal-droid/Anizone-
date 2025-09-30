@@ -79,9 +79,9 @@ export function NewAdditions() {
             {items.map((item, index) => (
               <div
                 key={`${item.href}-${index}`}
-                className="shrink-0 w-[140px] sm:w-[160px] snap-start"
+                className="relative shrink-0 w-[140px] sm:w-[160px] snap-start"
               >
-                {/* AnimeCard handles image + rounded corners + title below */}
+                {/* AnimeCard handles thumbnail, title, hover zoom */}
                 <AnimeCard
                   title={item.title}
                   href={item.href}
