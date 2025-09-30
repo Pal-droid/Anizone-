@@ -11,6 +11,8 @@ type AnimeItem = {
   href: string
   image: string
   isDub?: boolean
+  status?: string   // e.g., "ONA"
+  episode?: string  // e.g., "53"
 }
 
 export function AnimeContentSections() {
@@ -88,6 +90,22 @@ export function AnimeContentSections() {
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                     loading="lazy"
                   />
+
+                  {/* Status & Episode badges */}
+                  {(item.status || item.episode) && (
+                    <div className="absolute top-2 left-2 flex flex-col gap-1">
+                      {item.status && (
+                        <div className="bg-primary text-white text-[10px] px-1 py-[1px] rounded">{item.status}</div>
+                      )}
+                      {item.episode && (
+                        <div className="bg-neutral-800 text-white text-[10px] px-1 py-[1px] rounded">
+                          Ep {item.episode}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Dub badge */}
                   {item.isDub && (
                     <div className="absolute top-2 right-2">
                       <Badge variant="secondary" className="text-xs px-1 py-0">
