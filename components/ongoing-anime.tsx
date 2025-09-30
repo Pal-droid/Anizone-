@@ -1,7 +1,6 @@
 "use client"
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { AnimeCard } from "./anime-card"
 import { useEffect, useState } from "react"
 import { Play } from "lucide-react"
 
@@ -66,12 +65,15 @@ export function OngoingAnime() {
                 <p>Nessun anime in corso disponibile</p>
               </div>
             : items.map((item, index) => (
-                <div key={`${item.href}-${index}`} className="relative flex-shrink-0 w-32">
-                  <div className="relative aspect-[2/3] rounded-lg overflow-hidden w-full">
+                <div
+                  key={`${item.href}-${index}`}
+                  className="relative flex-shrink-0 w-32 group cursor-pointer"
+                >
+                  <div className="relative aspect-[2/3] rounded-lg overflow-hidden w-full shadow-md transition-transform duration-300 transform hover:scale-105">
                     <img
                       src={item.image}
                       alt={item.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                      className="w-full h-full object-cover"
                       loading="lazy"
                     />
 
@@ -90,11 +92,15 @@ export function OngoingAnime() {
                     {/* Dub badge */}
                     {item.isDub && (
                       <div className="absolute bottom-2 right-2">
-                        <span className="bg-gray-800 text-white text-[10px] px-1 py-[1px] rounded">DUB</span>
+                        <span className="bg-gray-800 text-white text-[10px] px-1 py-[1px] rounded">
+                          DUB
+                        </span>
                       </div>
                     )}
                   </div>
-                  <h3 className="text-sm font-medium mt-2 line-clamp-2 break-words">{item.title}</h3>
+                  <h3 className="text-sm font-medium mt-2 line-clamp-2 break-words group-hover:text-primary transition-colors duration-200">
+                    {item.title}
+                  </h3>
                 </div>
               ))}
         </div>
