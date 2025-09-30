@@ -53,8 +53,8 @@ export function OngoingAnime() {
         <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
           {loading
             ? Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="shrink-0 w-32 space-y-2">
-                  <div className="aspect-[2/3] bg-neutral-200 rounded-lg animate-pulse" />
+                <div key={i} className="shrink-0 w-36 space-y-2">
+                  <div className="aspect-[3/4] bg-neutral-200 rounded-lg animate-pulse" />
                   <div className="h-4 bg-neutral-200 rounded animate-pulse" />
                   <div className="h-3 bg-neutral-200 rounded animate-pulse" />
                 </div>
@@ -67,13 +67,14 @@ export function OngoingAnime() {
                 <p>Nessun anime in corso disponibile</p>
               </div>
             : items.map((item, index) => (
-                <div key={`${item.href}-${index}`} className="relative shrink-0 w-32">
+                <div key={`${item.href}-${index}`} className="relative shrink-0 w-36">
                   <AnimeCard
                     title={item.title}
                     href={item.href}
                     image={item.image}
                     isDub={item.isDub}
                     sources={item.sources || [{ name: "AnimeWorld", url: item.href, id: item.href.split("/").pop() || "" }]}
+                    className="rounded-lg overflow-hidden aspect-[3/4] object-cover"
                   />
 
                   {/* Episode badge */}
