@@ -57,7 +57,6 @@ export function NewAdditions() {
               >
                 <div className="aspect-[2/3] bg-neutral-200 rounded-xl shadow-sm" />
                 <div className="h-3 w-3/4 bg-neutral-200 rounded" />
-                <div className="h-2 w-1/2 bg-neutral-200 rounded" />
               </div>
             ))}
           </div>
@@ -82,10 +81,11 @@ export function NewAdditions() {
                 className="relative shrink-0 w-[140px] sm:w-[160px] snap-start transition-transform hover:scale-[1.04] hover:shadow-lg"
               >
                 <AnimeCard
-                  title={item.title}
+                  title={item.title} // will display inside the card, below the image
                   href={item.href}
                   image={item.image}
                   isDub={item.isDub}
+                  className="rounded-xl overflow-hidden shadow-md hover:shadow-xl"
                   sources={[
                     {
                       name: "AnimeWorld",
@@ -93,14 +93,15 @@ export function NewAdditions() {
                       id: item.href.split("/").pop() || "",
                     },
                   ]}
-                  className="rounded-xl overflow-hidden shadow-md hover:shadow-xl"
                 />
+
                 {/* Status badge */}
                 {item.status && (
                   <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full backdrop-blur-md bg-green-500/80 text-white text-xs shadow">
                     {item.status}
                   </div>
                 )}
+
                 {/* Release date badge */}
                 {item.releaseDate && (
                   <div className="absolute bottom-2 left-2 right-2">
@@ -110,10 +111,6 @@ export function NewAdditions() {
                     </div>
                   </div>
                 )}
-                {/* Caption */}
-                <p className="mt-2 text-xs font-medium text-center line-clamp-2">
-                  {item.title}
-                </p>
               </div>
             ))}
           </div>
