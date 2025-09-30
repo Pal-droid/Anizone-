@@ -77,14 +77,14 @@ export function NewAdditions() {
             {items.map((item, index) => (
               <div
                 key={`${item.href}-${index}`}
-                className="shrink-0 w-[140px] sm:w-[160px] snap-start relative"
+                className="shrink-0 w-[140px] sm:w-[160px] snap-start relative group"
               >
-                {/* AnimeCard handles image + rounded corners + title below */}
+                {/* Enhanced AnimeCard with zoom-on-hover */}
                 <AnimeCard
                   title={item.title}
                   href={item.href}
                   image={item.image}
-                  className="rounded-xl shadow-md hover:shadow-xl transition-shadow group"
+                  className="rounded-xl shadow-md hover:shadow-xl transition-all duration-300 group-hover:scale-105"
                 />
 
                 {/* Status badge */}
