@@ -4,7 +4,6 @@ import Link from "next/link"
 import { Search, List, BookOpen, Calendar, Sparkles, Bug } from "lucide-react"
 import HeroSearch from "@/components/hero-search"
 import { TopAnime } from "@/components/top-anime"
-import { ContinueWatching } from "@/components/continue-watching"
 import { DiscoverSections } from "@/components/discover"
 import { AnimeContentSections } from "@/components/anime-content-sections"
 import { AnimatedLogo } from "@/components/animated-logo"
@@ -75,7 +74,9 @@ export default function HomePage() {
             <div className="relative z-10 max-w-4xl">
               <div className="flex items-center gap-4 mb-6">
                 <Sparkles className="text-accent animate-pulse" size={32} />
-                <h1 className="text-5xl font-bold text-white font-[var(--font-playfair)]">Guarda anime in italiano</h1>
+                <h1 className="text-5xl font-bold text-white font-[var(--font-playfair)]">
+                  Guarda anime in italiano
+                </h1>
               </div>
               <div className="relative max-w-2xl">
                 <HeroSearch />
@@ -85,10 +86,6 @@ export default function HomePage() {
 
           <div className="grid grid-cols-12 gap-8">
             <div className="col-span-8 space-y-8">
-              <div className="glass rounded-xl p-8 transition-smooth hover:glow">
-                <ContinueWatching />
-              </div>
-
               <LazySection className="glass rounded-xl p-8 transition-smooth hover:glow">
                 <AnimeContentSections />
               </LazySection>
@@ -141,7 +138,9 @@ export default function HomePage() {
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-4">
               <Sparkles className="text-accent animate-pulse" size={24} />
-              <h1 className="text-3xl font-bold text-white font-[var(--font-playfair)]">Guarda anime in italiano</h1>
+              <h1 className="text-3xl font-bold text-white font-[var(--font-playfair)]">
+                Guarda anime in italiano
+              </h1>
             </div>
             <div className="relative">
               <HeroSearch />
@@ -150,9 +149,6 @@ export default function HomePage() {
         </div>
 
         <div className="space-y-8">
-          <div className="glass rounded-xl p-6 transition-smooth hover:glow">
-          </div>
-
           <LazySection className="glass rounded-xl p-6 transition-smooth hover:glow">
             <AnimeContentSections />
           </LazySection>
