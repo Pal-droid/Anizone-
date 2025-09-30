@@ -51,7 +51,7 @@ export function NewAdditions() {
           <div className="flex gap-4 overflow-x-auto no-scrollbar">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="shrink-0 w-[140px] space-y-2 animate-pulse">
-                <div className="aspect-[2/3] bg-neutral-200 rounded-xl shadow-sm" />
+                <div className="aspect-[3/4] bg-neutral-200 rounded-xl shadow-sm" />
                 <div className="h-3 w-3/4 bg-neutral-200 rounded" />
               </div>
             ))}
@@ -79,12 +79,12 @@ export function NewAdditions() {
                 key={`${item.href}-${index}`}
                 className="shrink-0 w-[140px] sm:w-[160px] snap-start relative group"
               >
-                {/* Enhanced AnimeCard with zoom-on-hover */}
+                {/* Enhanced AnimeCard with Netflix-like aspect ratio and zoom */}
                 <AnimeCard
                   title={item.title}
                   href={item.href}
                   image={item.image}
-                  className="rounded-xl shadow-md hover:shadow-xl transition-all duration-300 group-hover:scale-105"
+                  className="rounded-xl shadow-md hover:shadow-xl transition-all duration-300 group-hover:scale-105 aspect-[3/4]"
                 />
 
                 {/* Status badge */}
