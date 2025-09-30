@@ -430,6 +430,9 @@ export function parseLatestEpisodes(html: string): { [key: string]: SearchItem[]
       if (!href || !title) return;
 
       const isDub = $inner.find(".status .dub").length > 0;
+      const status = $inner.find(".status .ona").text().trim() || undefined;
+      const episode = $inner.find(".status .ep").text().trim().replace("Ep", "").trim() || undefined;
+
       const fullHref = absolutize(href);
 
       items.push({
@@ -439,6 +442,9 @@ export function parseLatestEpisodes(html: string): { [key: string]: SearchItem[]
         isDub,
         sources: createSources(fullHref),
         has_multi_servers: false,
+        // NEW FIELDS FOR BADGES
+        status,
+        episode,
       });
     });
 
