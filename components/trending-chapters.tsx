@@ -51,12 +51,12 @@ export function TrendingChapters() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
+      <div className="space-y-4 text-center">
+        <div className="flex items-center justify-center gap-2">
           <Flame size={20} className="text-orange-500" />
           <h2 className="text-lg font-semibold">Capitoli di tendenza</h2>
         </div>
-        <div className="animate-pulse">
+        <div className="animate-pulse flex justify-center">
           <Card className="w-[280px] h-[380px] bg-neutral-200"></Card>
         </div>
       </div>
@@ -65,8 +65,8 @@ export function TrendingChapters() {
 
   if (trendingData.length === 0) {
     return (
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
+      <div className="space-y-4 text-center">
+        <div className="flex items-center justify-center gap-2">
           <Flame size={20} className="text-orange-500" />
           <h2 className="text-lg font-semibold">Capitoli di tendenza</h2>
         </div>
@@ -79,12 +79,12 @@ export function TrendingChapters() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-center gap-2">
         <Flame size={20} className="text-orange-500" />
         <h2 className="text-lg font-semibold">Capitoli di tendenza</h2>
       </div>
 
-      <div className="relative overflow-hidden">
+      <div className="relative flex justify-center">
         <div
           className="flex gap-4 transition-transform duration-300 ease-in-out"
           style={{ transform: `translateX(-${currentIndex * (280 + 16)}px)` }}
@@ -116,21 +116,21 @@ export function TrendingChapters() {
             <Button
               variant="outline"
               size="icon"
-              className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 bg-background/80 backdrop-blur-sm"
+              className="absolute left-4 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full bg-background/90 backdrop-blur-sm shadow-lg"
               onClick={prevSlide}
               disabled={currentIndex === 0}
             >
-              <ChevronLeft size={16} />
+              <ChevronLeft size={24} />
             </Button>
 
             <Button
               variant="outline"
               size="icon"
-              className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 bg-background/80 backdrop-blur-sm"
+              className="absolute right-4 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full bg-background/90 backdrop-blur-sm shadow-lg"
               onClick={nextSlide}
               disabled={currentIndex + itemsPerPage >= trendingData.length}
             >
-              <ChevronRight size={16} />
+              <ChevronRight size={24} />
             </Button>
           </>
         )}
