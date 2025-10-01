@@ -13,16 +13,11 @@ async function fetchWithRedirects(url: string, maxRedirects = 5): Promise<Respon
       redirect: "manual",
     })
 
-    if (response.ok) {
-      return response
-    }
+    if (response.ok) return response
 
     if ([301, 302, 303, 307, 308].includes(response.status)) {
       const location = response.headers.get("location")
-      if (!location) {
-        throw new Error(`Redirect (${response.status}) without Location header`)
-      }
-
+      if (!location) throw new Error(`Redirect (${response.status}) without Location header`)
       currentUrl = location.startsWith("http") ? location : new URL(location, currentUrl).toString()
       console.log(`[v0] Following redirect to: ${currentUrl}`)
       continue
@@ -37,39 +32,43 @@ async function fetchWithRedirects(url: string, maxRedirects = 5): Promise<Respon
 export async function GET() {
   try {
     console.log("[v0] Scraping latest manga additions from mangaworld...")
-
     const response = await fetchWithRedirects("https://www.mangaworld.cx/")
     const html = await response.text()
     const $ = cheerio.load(html)
 
     const latestAdditions: any[] = []
 
-    // Scraping from the "Ultime aggiunte" section
+    // Scraping "Ultime aggiunte" section, limit to 5 items
     $(".latest-manga .entry").each((index, element) => {
-      if (index >= 5) return false // Limit to 5 items
+      if (index >= 5) return false
 
       const $entry = $(element)
       const link = $entry.find("a.thumb")
       const href = link.attr("href")
       const title = link.attr("title") || $entry.find(".manga-title").text().trim()
       const image = $entry.find("img").attr("src")
-      const rawType = $entry.find(".font-weight-bold").next("a").text().trim()
-      const type = rawType.replace(/Mangaln/g, "Manga ln")
-      const status = $entry.find(".font-weight-bold").eq(1).next("a").text().trim()
-      const date = $entry.find(".font-weight-bold").eq(2).next().text().trim()
+
+      // Proper extraction with normalization
+      let type = $entry.find(".font-weight-bold:contains('Tipo')").next("a").text().trim() || "Manga"
+      let status = $entry.find(".font-weight-bold:contains('Stato')").next("a").text().trim() || "In corso"
+      let date = $entry.find(".font-weight-bold:contains('Data')").next().text().trim() || new Date().toLocaleDateString("it-IT")
+
+      // Collapse multiple spaces
+      type = type.replace(/\s+/g, " ")
+      status = status.replace(/\s+/g, " ")
+      date = date.replace(/\s+/g, " ")
 
       if (href && title && image) {
         const urlMatch = href.match(/\/manga\/(\d+)\/([^/]+)/)
         if (urlMatch) {
-          const [, id, slug] = urlMatch
-
+          const [, id] = urlMatch
           latestAdditions.push({
             id,
             title,
             image,
-            type: type || "Manga",
-            status: status || "In corso",
-            date: date || new Date().toLocaleDateString("it-IT"),
+            type,
+            status,
+            date,
             url: `/manga/${id}`,
           })
         }
