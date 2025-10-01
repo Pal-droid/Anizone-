@@ -7,33 +7,28 @@ export async function GET() {
     const html = await res.text()
     const $ = cheerio.load(html)
 
-    const mangas = [] as any[]
+    const mangas: any[] = []
 
     $(".row .top-wrapper .entry").each((_, el) => {
-      const rank = parseInt($(el).find(".short .indi").text().trim())
+      const rankText = $(el).find(".short .indi").text().trim()
       const title = $(el).find(".short .name").text().trim()
-      const url = $(el).find(".short a.chap").attr("href")?.trim() || ""
-      const image = $(el).find(".thumb img").attr("src")?.trim() || ""
-      const type = $(el)
-        .find(".content a[href*='type']")
-        .first()
-        .text()
-        .trim()
-      const status = $(el)
-        .find(".content a[href*='status']")
-        .first()
-        .text()
-        .trim()
-      const views = $(el)
-        .find(".content")
-        .text()
-        .match(/Letto:\s*(\d+)/)?.[1] || "0"
+      const url = $(el).find(".short a.chap").attr("href")?.trim()
+      const image = $(el).find(".thumb img").attr("src")?.trim()
+      const type = $(el).find(".content a[href*='type']").first().text().trim()
+      const status = $(el).find(".content a[href*='status']").first().text().trim()
+      const viewsMatch = $(el).find(".content").text().match(/Letto:\s*(\d+)/)
+      const views = viewsMatch ? viewsMatch[1] : "0"
+
+      // skip entries that don’t have a rank or title
+      if (!rankText || !title || !url) return
+
+      const rank = parseInt(rankText)
 
       mangas.push({
         rank,
-        id: url.split("/")[4] || "", // extract the manga id from URL
+        id: url.split("/")[4] || "", // extract manga id
         title,
-        image,
+        image: image || "/placeholder.svg",
         type,
         status,
         views,
