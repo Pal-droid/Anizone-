@@ -97,62 +97,74 @@ const ListItemCard = ({ itemId, contentType, listName, onRemove, fetchMetadata }
   }
 
   return (
-    <Card className="glass-card hover:glow transition-all duration-300">
-      <CardContent className="flex items-center gap-4 p-4">
-        {loading ? (
-          <div className="animate-pulse bg-gray-200 h-24 w-16 rounded-md"></div>
-        ) : metadata.image ? (
+    <div className="glass-card rounded-xl p-4 flex items-center gap-4 hover:glow transition-all duration-300">
+      <div className="shrink-0">
+        <div className="w-16 h-20 rounded-lg overflow-hidden bg-muted flex items-center justify-center text-muted-foreground">
+          {loading ? (
+            <div className="animate-pulse bg-muted-foreground/20 w-full h-full rounded" />
+          ) : metadata.image ? (
+            <Image
+              src={
+                contentType === "manga" || contentType === "light-novel"
+                  ? `/api/manga-image-proxy?url=${encodeURIComponent(metadata.image)}`
+                  : metadata.image
+              }
+              alt={metadata.title}
+              width={64}
+              height={80}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement
+                target.style.display = "none"
+                target.parentElement!.innerHTML =
+                  contentType === "anime" || contentType === "series-movies"
+                    ? '<svg class="w-6 h-6"><use href="#film-icon"></use></svg>'
+                    : contentType === "manga"
+                    ? '<svg class="w-6 h-6"><use href="#book-open-icon"></use></svg>'
+                    : '<svg class="w-6 h-6"><use href="#book-icon"></use></svg>'
+              }}
+            />
+          ) : (
+            <>
+              {contentType === "anime" || contentType === "series-movies" ? (
+                <Film size={20} />
+              ) : contentType === "manga" ? (
+                <BookOpen size={20} />
+              ) : (
+                <Book size={20} />
+              )}
+            </>
+          )}
+        </div>
+      </div>
+      <div className="flex-1 min-w-0">
+        <h3 className="font-medium text-sm line-clamp-2 mb-1">{loading ? "Caricamento..." : metadata.title}</h3>
+        <p className="text-xs text-muted-foreground">
+          {contentType === "anime"
+            ? "Anime"
+            : contentType === "manga"
+            ? "Manga"
+            : contentType === "light-novel"
+            ? "Romanzo"
+            : "Serie/Film"}
+        </p>
+      </div>
+      <div className="flex gap-2 shrink-0">
+        <Button size="sm" variant="outline" asChild>
           <Link href={getNavigationUrl()} onClick={handleClick}>
-            <div className="relative aspect-[2/3] w-16 rounded-md overflow-hidden">
-              <Image
-                src={metadata.image}
-                alt={metadata.title}
-                fill
-                className="object-cover"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement
-                  target.style.display = "none"
-                  target.parentElement!.innerHTML =
-                    contentType === "anime" || contentType === "series-movies"
-                      ? `<div class="bg-blue-200 h-full w-full flex items-center justify-center text-xs text-center">Anime</div>`
-                      : contentType === "manga"
-                      ? `<div class="bg-green-200 h-full w-full flex items-center justify-center text-xs text-center">Manga</div>`
-                      : `<div class="bg-purple-200 h-full w-full flex items-center justify-center text-xs text-center">Romanzo</div>`
-                }}
-              />
-            </div>
+            Apri
           </Link>
-        ) : contentType === "manga" ? (
-          <div className="bg-green-200 h-24 w-16 rounded-md flex items-center justify-center text-xs text-center">Manga</div>
-        ) : (
-          <div className="bg-blue-200 h-24 w-16 rounded-md flex items-center justify-center text-xs text-center">
-            {contentType === "anime" ? "Anime" : "Serie/Film"}
-          </div>
-        )}
-        <div className="flex-1">
-          <p className="font-medium truncate">{loading ? "Caricamento..." : metadata.title}</p>
-          <p className="text-sm text-muted-foreground">
-            {contentType === "anime"
-              ? "Anime"
-              : contentType === "manga"
-              ? "Manga"
-              : contentType === "light-novel"
-              ? "Romanzo"
-              : "Serie/Film"}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button asChild variant="outline" size="sm">
-            <Link href={getNavigationUrl()} onClick={handleClick}>
-              Apri
-            </Link>
-          </Button>
-          <Button variant="destructive" size="sm" onClick={() => onRemove()}>
-            Rimuovi
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => onRemove()}
+          className="border-destructive/30 text-destructive hover:bg-destructive/10 bg-transparent"
+        >
+          Rimuovi
+        </Button>
+      </div>
+    </div>
   )
 }
 
@@ -395,7 +407,7 @@ export default function ListsPage() {
       title: itemId.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
       image: null,
       path: contentType === "anime" || contentType === "series-movies" ? `/anime/${itemId}` : `/manga/${itemId}`,
-      sources: []
+      sources: [],
     }
   }
 
@@ -415,10 +427,10 @@ export default function ListsPage() {
         items = seriesMoviesLists[listName as AnimeListName] || []
         break
     }
-    if (items.length === 0) return <p className="text-muted-foreground">Nessun elemento.</p>
+    if (items.length === 0) return <div className="text-sm text-muted-foreground">Nessun elemento.</div>
 
     return (
-      <div className="grid gap-4">
+      <div className="grid grid-cols-1 gap-3">
         {items.map((itemId, index) => (
           <ListItemCard
             key={`${itemId}-${index}`}
@@ -435,113 +447,123 @@ export default function ListsPage() {
 
   if (!user) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-6">Le mie liste</h1>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground">Effettua il login per vedere le tue liste.</p>
-            <div className="mt-4 flex justify-center">
-              <AuthPanel />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <main className="min-h-screen">
+        <SlideOutMenu currentPath="/lists" />
+        <header className="border-b sticky top-0 bg-background/80 backdrop-blur z-10">
+          <div className="px-4 py-3">
+            <h1 className="text-lg font-bold">Le mie liste</h1>
+          </div>
+        </header>
+        <section className="px-4 py-4 space-y-6">
+          <AuthPanel onAuthChange={loadLists} />
+          <Card>
+            <CardContent className="text-center py-8">
+              <p className="text-muted-foreground">Effettua il login per vedere le tue liste.</p>
+            </CardContent>
+          </Card>
+        </section>
+      </main>
     )
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Le mie liste</h1>
-        <SlideOutMenu />
-      </div>
-      {(listsLoading || continueWatchingLoading) ? (
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground">Caricamento liste...</p>
-          </CardContent>
-        </Card>
-      ) : error ? (
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-center text-red-500">{error}</p>
-            <div className="mt-4 flex justify-center">
-              <Button onClick={() => { loadLists(); loadContinueWatching(); }}>Riprova</Button>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <div>
-          {ongoingList.length > 0 && (
-            <Card className="mb-8 glass-card">
-              <CardHeader>
-                <CardTitle>Continua a guardare</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                  {ongoingList.map((item) => {
-                    const episodeData = episodes[item.id] || []
-                    const currentEpisode = episodeData.find((ep: any) => ep.id === item.episodeId)
-                    return (
-                      <Link
-                        key={item.id}
-                        href={`/watch?p=${obfuscateUrl(item.id)}&e=${item.episodeId}`}
-                        onClick={() => {
-                          if (sources[item.id]) {
-                            try {
-                              sessionStorage.setItem(`anizone:sources:${item.id}`, JSON.stringify(sources[item.id]))
-                            } catch (error) {
-                              console.error("[ContinueWatching] Failed to store sources:", error)
-                            }
-                          }
-                        }}
-                        className="block"
-                      >
-                        <div className="relative aspect-[3/4] rounded-xl overflow-hidden shadow-md">
-                          <Image src={item.image} alt={item.title} fill className="object-cover" />
-                          <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-2">
-                            <p className="truncate">{item.title}</p>
-                            {currentEpisode && <p className="text-gray-300">Ep {currentEpisode.number}</p>}
-                          </div>
-                        </div>
-                      </Link>
-                    )
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-          <Tabs
-            value={activeContentType}
-            onValueChange={(value) => setActiveContentType(value as ContentType)}
-            className="w-full"
-          >
-            <TabsList className="grid w-full grid-cols-4">
-              {CONTENT_TYPES.map((type) => {
-                const Icon = type.icon
-                return (
-                  <TabsTrigger key={type.key} value={type.key} className="flex items-center gap-2">
-                    <Icon size={16} />
-                    <span className="hidden sm:inline">{type.title}</span>
-                  </TabsTrigger>
-                )
-              })}
-            </TabsList>
-            {CONTENT_TYPES.map((type) => (
-              <TabsContent key={type.key} value={type.key} className="mt-6">
-                {(type.key === "anime" || type.key === "series-movies" ? ANIME_ORDER : MANGA_ORDER).map((list) => (
-                  <Card key={list.key} className="mt-4 glass-card hover:glow transition-all duration-300">
-                    <CardHeader>
-                      <CardTitle>{list.title}</CardTitle>
-                    </CardHeader>
-                    <CardContent>{renderList(type.key, list.key)}</CardContent>
-                  </Card>
-                ))}
-              </TabsContent>
-            ))}
-          </Tabs>
+    <main className="min-h-screen">
+      <SlideOutMenu currentPath="/lists" />
+      <header className="border-b sticky top-0 bg-background/80 backdrop-blur z-10">
+        <div className="px-4 py-3">
+          <h1 className="text-lg font-bold">Le mie liste</h1>
         </div>
-      )}
-    </div>
+      </header>
+      <section className="px-4 py-4 space-y-6">
+        <AuthPanel onAuthChange={loadLists} />
+        {(listsLoading || continueWatchingLoading) ? (
+          <Card>
+            <CardContent className="text-center py-8">
+              <p className="text-muted-foreground">Caricamento liste...</p>
+            </CardContent>
+          </Card>
+        ) : error ? (
+          <Card>
+            <CardContent className="text-center py-8">
+              <p className="text-red-500">{error}</p>
+              <div className="mt-4 flex justify-center">
+                <Button onClick={() => { loadLists(); loadContinueWatching(); }}>Riprova</Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            {ongoingList.length > 0 && (
+              <Card className="glass-card">
+                <CardHeader className="py-3">
+                  <CardTitle className="text-base">Continua a guardare</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    {ongoingList.map((item) => {
+                      const episodeData = episodes[item.id] || []
+                      const currentEpisode = episodeData.find((ep: any) => ep.id === item.episodeId)
+                      return (
+                        <Link
+                          key={item.id}
+                          href={`/watch?p=${obfuscateUrl(item.id)}&e=${item.episodeId}`}
+                          onClick={() => {
+                            if (sources[item.id]) {
+                              try {
+                                sessionStorage.setItem(`anizone:sources:${item.id}`, JSON.stringify(sources[item.id]))
+                              } catch (error) {
+                                console.error("[ContinueWatching] Failed to store sources:", error)
+                              }
+                            }
+                          }}
+                          className="block"
+                        >
+                          <div className="relative aspect-[3/4] rounded-xl overflow-hidden shadow-md hover:glow transition-all duration-300">
+                            <Image src={item.image} alt={item.title} fill className="object-cover" />
+                            <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-2">
+                              <p className="truncate">{item.title}</p>
+                              {currentEpisode && <p className="text-gray-300">Ep {currentEpisode.number}</p>}
+                            </div>
+                          </div>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            <Tabs
+              value={activeContentType}
+              onValueChange={(value) => setActiveContentType(value as ContentType)}
+              className="w-full"
+            >
+              <TabsList className="grid w-full grid-cols-4">
+                {CONTENT_TYPES.map((type) => {
+                  const Icon = type.icon
+                  return (
+                    <TabsTrigger key={type.key} value={type.key} className="flex items-center gap-2">
+                      <Icon size={16} />
+                      <span className="hidden sm:inline">{type.title}</span>
+                    </TabsTrigger>
+                  )
+                })}
+              </TabsList>
+              {CONTENT_TYPES.map((type) => (
+                <TabsContent key={type.key} value={type.key} className="space-y-6">
+                  {(type.key === "anime" || type.key === "series-movies" ? ANIME_ORDER : MANGA_ORDER).map((list) => (
+                    <Card key={list.key} className="glass-card">
+                      <CardHeader className="py-3">
+                        <CardTitle className="text-base">{list.title}</CardTitle>
+                      </CardHeader>
+                      <CardContent>{renderList(type.key, list.key)}</CardContent>
+                    </Card>
+                  ))}
+                </TabsContent>
+              ))}
+            </Tabs>
+          </>
+        )}
+      </section>
+    </main>
   )
 }
