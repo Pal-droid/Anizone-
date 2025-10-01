@@ -19,7 +19,6 @@ export function TrendingChapters() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [trendingData, setTrendingData] = useState<TrendingChapter[]>([])
   const [loading, setLoading] = useState(true)
-  const itemsPerPage = 1
 
   useEffect(() => {
     const fetchTrendingChapters = async () => {
@@ -40,13 +39,11 @@ export function TrendingChapters() {
   }, [])
 
   const nextSlide = () => {
-    setCurrentIndex((prev) => (prev + itemsPerPage >= trendingData.length ? 0 : prev + itemsPerPage))
+    setCurrentIndex((prev) => (prev + 1) % trendingData.length) // loops forward
   }
 
   const prevSlide = () => {
-    setCurrentIndex((prev) =>
-      prev === 0 ? Math.max(0, trendingData.length - itemsPerPage) : Math.max(0, prev - itemsPerPage),
-    )
+    setCurrentIndex((prev) => (prev - 1 + trendingData.length) % trendingData.length) // loops backward
   }
 
   if (loading) {
@@ -84,43 +81,49 @@ export function TrendingChapters() {
         <h2 className="text-lg font-semibold">Capitoli di tendenza</h2>
       </div>
 
-      <div className="relative flex justify-center">
-        <div
-          className="flex gap-4 transition-transform duration-300 ease-in-out"
-          style={{ transform: `translateX(-${currentIndex * (280 + 16)}px)` }}
-        >
-          {trendingData.map((item) => (
-            <Card key={item.id} className="flex-shrink-0 w-[280px] p-3">
-              <Link href={`/manga/${obfuscateId(item.id)}`} className="block group">
-                <div className="relative aspect-[3/4] w-full overflow-hidden rounded-lg shadow-md transition-transform duration-300 transform group-hover:scale-105">
-                  <img
-                    src={item.image || "/placeholder.svg"}
-                    alt={item.title}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                  <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs px-1 py-0.5 rounded-b">
-                    {item.chapter}
-                  </div>
-                </div>
-                <h3 className="mt-2 font-medium text-sm line-clamp-2 text-center group-hover:text-primary transition-colors">
-                  {item.title}
-                </h3>
-              </Link>
-            </Card>
-          ))}
+      <div className="relative flex items-center justify-center">
+        <div className="w-[280px] overflow-hidden">
+          <div
+            className="flex transition-transform duration-500 ease-in-out"
+            style={{
+              transform: `translateX(-${currentIndex * 100}%)`,
+              width: `${trendingData.length * 100}%`,
+            }}
+          >
+            {trendingData.map((item) => (
+              <div key={item.id} className="w-[280px] flex-shrink-0 px-2">
+                <Card className="p-3">
+                  <Link href={`/manga/${obfuscateId(item.id)}`} className="block group">
+                    <div className="relative aspect-[3/4] w-full overflow-hidden rounded-lg shadow-md transition-transform duration-300 transform group-hover:scale-105">
+                      <img
+                        src={item.image || "/placeholder.svg"}
+                        alt={item.title}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                      <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs px-1 py-0.5 rounded-b">
+                        {item.chapter}
+                      </div>
+                    </div>
+                    <h3 className="mt-2 font-medium text-sm line-clamp-2 text-center group-hover:text-primary transition-colors">
+                      {item.title}
+                    </h3>
+                  </Link>
+                </Card>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {trendingData.length > itemsPerPage && (
+        {trendingData.length > 1 && (
           <>
             <Button
               variant="outline"
               size="icon"
               className="absolute left-4 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full bg-background/90 backdrop-blur-sm shadow-lg"
               onClick={prevSlide}
-              disabled={currentIndex === 0}
             >
-              <ChevronLeft size={24} />
+              <ChevronLeft size={28} />
             </Button>
 
             <Button
@@ -128,9 +131,8 @@ export function TrendingChapters() {
               size="icon"
               className="absolute right-4 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full bg-background/90 backdrop-blur-sm shadow-lg"
               onClick={nextSlide}
-              disabled={currentIndex + itemsPerPage >= trendingData.length}
             >
-              <ChevronRight size={24} />
+              <ChevronRight size={28} />
             </Button>
           </>
         )}
