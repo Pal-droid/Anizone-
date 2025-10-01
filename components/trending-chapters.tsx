@@ -20,6 +20,8 @@ export function TrendingChapters() {
   const [trendingData, setTrendingData] = useState<TrendingChapter[]>([])
   const [loading, setLoading] = useState(true)
 
+  const CARD_WIDTH = 280 // width of each card in px (must match w-[280px])
+
   useEffect(() => {
     const fetchTrendingChapters = async () => {
       try {
@@ -82,12 +84,13 @@ export function TrendingChapters() {
       </div>
 
       <div className="relative flex items-center justify-center">
+        {/* Carousel wrapper */}
         <div className="w-[280px] overflow-hidden">
           <div
             className="flex transition-transform duration-500 ease-in-out"
             style={{
-              transform: `translateX(-${currentIndex * 100}%)`,
-              width: `${trendingData.length * 100}%`,
+              transform: `translateX(-${currentIndex * CARD_WIDTH}px)`,
+              width: `${trendingData.length * CARD_WIDTH}px`,
             }}
           >
             {trendingData.map((item) => (
@@ -115,6 +118,7 @@ export function TrendingChapters() {
           </div>
         </div>
 
+        {/* Arrows */}
         {trendingData.length > 1 && (
           <>
             <Button
