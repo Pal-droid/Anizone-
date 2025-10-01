@@ -46,10 +46,12 @@ export function MangaOfMonth() {
               key={manga.id}
               className="flex items-center gap-3 p-2 rounded hover:bg-muted/50 transition-colors"
             >
+              {/* Rank */}
               <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold">
                 {manga.rank}
               </div>
 
+              {/* Thumbnail */}
               <div className="flex-shrink-0">
                 <img
                   src={manga.image || "/placeholder.svg"}
@@ -59,6 +61,7 @@ export function MangaOfMonth() {
                 />
               </div>
 
+              {/* Info */}
               <div className="flex-1 min-w-0">
                 <h3 className="font-medium text-sm line-clamp-1">
                   <Link
@@ -68,17 +71,27 @@ export function MangaOfMonth() {
                     {manga.title}
                   </Link>
                 </h3>
+
+                {/* Badges with clear labels */}
                 <div className="flex gap-2 mt-1 flex-wrap">
-                  <Badge variant="secondary" className="text-xs">
-                    Tipo: {manga.type}
-                  </Badge>
-                  <Badge variant="outline" className="text-xs">
-                    Stato: {manga.status}
-                  </Badge>
+                  {manga.type && (
+                    <Badge variant="secondary" className="text-xs">
+                      Tipo: {manga.type.trim()}
+                    </Badge>
+                  )}
+                  {manga.status && (
+                    <Badge variant="outline" className="text-xs">
+                      Stato: {manga.status.trim()}
+                    </Badge>
+                  )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Letto: {manga.views}
-                </p>
+
+                {/* Views always separated */}
+                {manga.views && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Letto: {manga.views.trim()}
+                  </p>
+                )}
               </div>
             </div>
           ))}
