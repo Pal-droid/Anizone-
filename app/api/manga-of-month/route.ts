@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server"
 import * as cheerio from "cheerio"
 
 export async function GET() {
@@ -6,32 +7,31 @@ export async function GET() {
     const html = await res.text()
     const $ = cheerio.load(html)
 
-    const mangas: {
-      rank: number
-      id: string
-      title: string
-      image: string
-      type: string
-      status: string
-      views: string
-      url: string
-    }[] = []
+    const mangas = [] as any[]
 
-    $(".top-wrapper .entry").each((i, el) => {
-      const rank = parseInt($(el).find(".indi").first().text().trim()) || i + 1
-      const title = $(el).find(".long .name").first().text().trim()
-      const url = $(el).find(".long a").first().attr("href") || ""
-      const idMatch = url.match(/\/manga\/(\d+)\//)
-      const id = idMatch ? idMatch[1] : `${i}`
-
-      const image = $(el).find(".thumb img").attr("src") || ""
-      const type = $(el).find(".content").text().match(/Tipo:\s*(\w+)/)?.[1] || "N/A"
-      const status = $(el).find(".content").text().match(/Stato:\s*(\w+)/)?.[1] || "N/A"
-      const views = $(el).find(".content").text().match(/Letto:\s*([\d.]+ volte)/)?.[1] || "0 volte"
+    $(".row .top-wrapper .entry").each((_, el) => {
+      const rank = parseInt($(el).find(".short .indi").text().trim())
+      const title = $(el).find(".short .name").text().trim()
+      const url = $(el).find(".short a.chap").attr("href")?.trim() || ""
+      const image = $(el).find(".thumb img").attr("src")?.trim() || ""
+      const type = $(el)
+        .find(".content a[href*='type']")
+        .first()
+        .text()
+        .trim()
+      const status = $(el)
+        .find(".content a[href*='status']")
+        .first()
+        .text()
+        .trim()
+      const views = $(el)
+        .find(".content")
+        .text()
+        .match(/Letto:\s*(\d+)/)?.[1] || "0"
 
       mangas.push({
         rank,
-        id,
+        id: url.split("/")[4] || "", // extract the manga id from URL
         title,
         image,
         type,
@@ -41,12 +41,9 @@ export async function GET() {
       })
     })
 
-    return new Response(JSON.stringify({ ok: true, mangas }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    })
+    return NextResponse.json({ ok: true, mangas })
   } catch (error) {
-    console.error("Scraping error:", error)
-    return new Response(JSON.stringify({ ok: false, error: "Scraping failed" }), { status: 500 })
+    console.error("Error fetching manga of month:", error)
+    return NextResponse.json({ ok: false, error: (error as any).message })
   }
 }
