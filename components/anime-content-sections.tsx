@@ -11,8 +11,8 @@ type AnimeItem = {
   href: string
   image: string
   isDub?: boolean
-  status?: string   // e.g., "ONA"
-  episode?: string  // e.g., "53"
+  status?: string
+  episode?: string
 }
 
 export function AnimeContentSections() {
@@ -30,10 +30,7 @@ export function AnimeContentSections() {
       try {
         const response = await fetch("/api/latest-episodes")
         const data = await response.json()
-
-        if (data.ok) {
-          setEpisodes(data.episodes)
-        }
+        if (data.ok) setEpisodes(data.episodes)
       } catch (error) {
         console.error("[v0] Error fetching latest episodes:", error)
       } finally {
@@ -45,40 +42,40 @@ export function AnimeContentSections() {
   }, [])
 
   function AnimeGrid({ items }: { items: AnimeItem[] }) {
-    if (loading) {
-      return (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-          {Array.from({ length: 10 }).map((_, i) => (
-            <div key={i} className="animate-pulse">
-              <div className="aspect-[2/3] bg-neutral-200 rounded-lg"></div>
-              <div className="h-4 bg-neutral-200 rounded mt-2"></div>
-            </div>
-          ))}
-        </div>
-      )
-    }
+    // Use same layout for loading and actual items
+    const displayItems = loading
+      ? Array.from({ length: 10 }).map((_, i) => ({ key: `loading-${i}` }))
+      : items
 
     return (
       <div className="overflow-x-auto">
-        <div className="flex gap-3 pb-2" style={{ width: `${Math.max(items.length * 140, 700)}px` }}>
-          {items.map((item, index) => {
-            const animePath = (() => {
-              try {
-                const u = new URL(item.href)
-                return u.pathname
-              } catch {
-                return item.href
-              }
-            })()
-
-            return (
+        <div className="flex gap-3 pb-2" style={{ width: "max-content" }}>
+          {displayItems.map((item: any, index: number) =>
+            loading ? (
+              <div key={item.key} className="flex-shrink-0 w-32 animate-pulse">
+                <div className="aspect-[2/3] bg-neutral-200 rounded-lg"></div>
+                <div className="h-4 bg-neutral-200 rounded mt-2"></div>
+              </div>
+            ) : (
               <Link
                 key={index}
-                href={`/watch?path=${encodeURIComponent(animePath)}`}
+                href={`/watch?path=${encodeURIComponent(
+                  (() => {
+                    try {
+                      const u = new URL(item.href)
+                      return u.pathname
+                    } catch {
+                      return item.href
+                    }
+                  })()
+                )}`}
                 className="group flex-shrink-0 w-32"
                 onClick={() => {
                   try {
-                    const sources = [{ name: "AnimeWorld", url: item.href, id: item.href.split("/").pop() || "" }]
+                    const animePath = new URL(item.href).pathname
+                    const sources = [
+                      { name: "AnimeWorld", url: item.href, id: item.href.split("/").pop() || "" },
+                    ]
                     sessionStorage.setItem(`anizone:sources:${animePath}`, JSON.stringify(sources))
                   } catch {}
                 }}
@@ -91,22 +88,20 @@ export function AnimeContentSections() {
                     loading="lazy"
                   />
 
-                  {/* Status + Episode badges like your HTML */}
                   {(item.status || item.episode) && (
-                    <div className="absolute top-2 left-2 status flex flex-col items-start">
+                    <div className="absolute top-2 left-2 flex flex-col items-start">
                       {item.status && (
-                        <div className="ona bg-primary text-white text-[10px] px-1 py-[1px] rounded">{item.status}</div>
+                        <div className="bg-primary text-white text-[10px] px-1 py-[1px] rounded">{item.status}</div>
                       )}
-                      <span className="bar w-full h-[1px] bg-white my-0.5 block"></span>
+                      {item.status && item.episode && <span className="w-full h-[1px] bg-white my-0.5 block"></span>}
                       {item.episode && (
-                        <div className="ep bg-neutral-800 text-white text-[10px] px-1 py-[1px] rounded">
+                        <div className="bg-neutral-800 text-white text-[10px] px-1 py-[1px] rounded">
                           Ep {item.episode}
                         </div>
                       )}
                     </div>
                   )}
 
-                  {/* Dub badge */}
                   {item.isDub && (
                     <div className="absolute top-2 right-2">
                       <Badge variant="secondary" className="text-xs px-1 py-0">
@@ -120,7 +115,7 @@ export function AnimeContentSections() {
                 </h3>
               </Link>
             )
-          })}
+          )}
         </div>
       </div>
     )
@@ -148,7 +143,6 @@ export function AnimeContentSections() {
                 Trending
               </TabsTrigger>
             </TabsList>
-            {/* Sliding indicator */}
             <div
               className="absolute bottom-0 h-0.5 bg-primary transition-transform duration-300 ease-in-out"
               style={{

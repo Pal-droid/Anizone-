@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import * as cheerio from "cheerio"
+import { withCors } from "@/lib/cors"
 
 async function fetchWithRedirects(url: string, maxRedirects = 5): Promise<Response> {
   let currentUrl = url
@@ -29,7 +30,7 @@ async function fetchWithRedirects(url: string, maxRedirects = 5): Promise<Respon
   throw new Error("Too many redirects")
 }
 
-export async function GET(request: NextRequest) {
+export const GET = withCors(async (request: NextRequest) => {
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get("id")
@@ -38,7 +39,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Missing manga ID" }, { status: 400 })
     }
 
-    const decodedId = decodeURIComponent(id).replace(/[^\w\s-]/g, "").trim()
+    const decodedId = decodeURIComponent(id)
+      .replace(/[^\w\s-]/g, "")
+      .trim()
     if (!decodedId) {
       return NextResponse.json({ error: "Invalid manga ID after decoding" }, { status: 400 })
     }
@@ -82,7 +85,11 @@ export async function GET(request: NextRequest) {
                   const titleLower = resultTitle.toLowerCase()
                   const slugLower = extractedSlug.toLowerCase().replace(/[-_]/g, " ")
 
-                  if (extractedSlug === decodedId || slugLower.includes(searchTerm) || titleLower.includes(searchTerm)) {
+                  if (
+                    extractedSlug === decodedId ||
+                    slugLower.includes(searchTerm) ||
+                    titleLower.includes(searchTerm)
+                  ) {
                     foundUrl = `https://www.mangaworld.cx/manga/${extractedId}/${extractedSlug}`
                     console.log("[v0] Found matching manga URL with ID:", foundUrl)
                     return false
@@ -135,7 +142,11 @@ export async function GET(request: NextRequest) {
     function extractGenres(): string[] {
       const el = $(`.meta-data span.font-weight-bold:contains("Generi")`).first()
       if (!el.length) return []
-      return el.parent().find("a").map((_, g) => $(g).text().trim()).get()
+      return el
+        .parent()
+        .find("a")
+        .map((_, g) => $(g).text().trim())
+        .get()
     }
 
     const type = extractMeta("Tipo")
@@ -146,7 +157,7 @@ export async function GET(request: NextRequest) {
     const genres = extractGenres()
 
     // trama
-    let trama =
+    const trama =
       $('.heading:contains("TRAMA")').next("#noidungm").text().trim() ||
       $("#noidungm").text().trim() ||
       $(".manga-summary").text().trim() ||
@@ -190,7 +201,9 @@ export async function GET(request: NextRequest) {
         if (!chapterLink.length) return
 
         const chapterTitle = chapterLink.find("span.d-inline-block").first().text().trim() || chapterLink.text().trim()
-        const chapterDate = chapterLink.find("i.chap-date").first().text().trim() || $chapter.find(".chap-date, .date, .chapter-date").text().trim()
+        const chapterDate =
+          chapterLink.find("i.chap-date").first().text().trim() ||
+          $chapter.find(".chap-date, .date, .chapter-date").text().trim()
         const chapterUrl = chapterLink.attr("href")
         const isNew = $chapter.find('img[alt="Nuovo"]').length > 0
 
@@ -207,4 +220,4 @@ export async function GET(request: NextRequest) {
     console.error("[v0] Error fetching manga metadata:", error)
     return NextResponse.json({ error: "Failed to fetch manga metadata", details: String(error) }, { status: 500 })
   }
-}
+})

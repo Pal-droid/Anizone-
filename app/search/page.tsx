@@ -243,7 +243,7 @@ export default function SearchPage() {
         </div>
       </header>
 
-      <section className="px-4 py-4 space-y-4">
+      <section className="px-4 py-4 space-y-4 max-w-7xl mx-auto">
         <Tabs
           value={searchType}
           onValueChange={(value) => setSearchType(value as "anime" | "manga")}
@@ -275,7 +275,7 @@ export default function SearchPage() {
             <SearchForm />
             {error && <div className="text-red-600 text-sm">{error}</div>}
             {loading ? (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
                 {Array.from({ length: 10 }).map((_, i) => (
                   <div key={i} className="animate-pulse space-y-2">
                     <div className="aspect-[2/3] bg-neutral-200 rounded" />
@@ -289,7 +289,7 @@ export default function SearchPage() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
                   {animeItems.map((it) => (
                     <AnimeCard
                       key={it.href}
@@ -368,7 +368,7 @@ export default function SearchPage() {
             ) : mangaItems.length > 0 ? (
               <div className="space-y-4">
                 <h2 className="text-lg font-semibold">Risultati manga ({mangaItems.length})</h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                   {mangaItems.map((manga, index) => (
                     <MangaCard key={index} manga={manga} />
                   ))}

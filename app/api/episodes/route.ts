@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { ANIMEWORLD_BASE, parseEpisodes } from "@/lib/animeworld"
 import { fetchHtml } from "@/lib/fetch-html"
+import { withCors } from "@/lib/cors"
 
 function absolutize(href?: string) {
   if (!href) return ""
@@ -9,7 +10,7 @@ function absolutize(href?: string) {
   return `${ANIMEWORLD_BASE}${href}`
 }
 
-export async function GET(req: NextRequest) {
+export const GET = withCors(async (req: NextRequest) => {
   try {
     const { searchParams } = new URL(req.url)
     const path = searchParams.get("path")
@@ -167,4 +168,4 @@ export async function GET(req: NextRequest) {
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "Errore durante il recupero episodi" }, { status: 500 })
   }
-}
+})

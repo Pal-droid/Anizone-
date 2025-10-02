@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { buildFilterUrl, parseSearch } from "@/lib/animeworld"
+import { withCors } from "@/lib/cors"
 
 function enhanceWithSources(items: any[]) {
   return items.map((item) => ({
@@ -15,7 +16,7 @@ function enhanceWithSources(items: any[]) {
   }))
 }
 
-export async function GET(req: NextRequest) {
+export const GET = withCors(async (req: NextRequest) => {
   try {
     const { searchParams } = new URL(req.url)
 
@@ -124,4 +125,4 @@ export async function GET(req: NextRequest) {
     console.error("[v0] Search API error:", e)
     return NextResponse.json({ ok: false, error: e?.message || "Errore durante la ricerca" }, { status: 500 })
   }
-}
+})

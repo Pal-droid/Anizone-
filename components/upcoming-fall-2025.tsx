@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Calendar, Loader2 } from "lucide-react"
@@ -33,7 +32,6 @@ export default function UpcomingFall() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [widgetTitle, setWidgetTitle] = useState<string>("")
-  const router = useRouter()
 
   useEffect(() => {
     const fetchUpcomingAnime = async () => {
@@ -58,15 +56,6 @@ export default function UpcomingFall() {
 
     fetchUpcomingAnime()
   }, [])
-
-  const handleAnimeClick = (animeItem: UpcomingAnime) => {
-    sessionStorage.setItem("anime_source", "upcoming_fall_2025")
-    sessionStorage.setItem("anime_section", widgetTitle || "Uscite Autunno 2025")
-
-    // Always redirect to internal /watch page with the anime URL encoded
-    const encodedPath = encodeURIComponent(animeItem.url)
-    router.push(`/watch?path=${encodedPath}`)
-  }
 
   const displayTitle = widgetTitle || "Uscite Autunno 2025"
 
@@ -137,8 +126,7 @@ export default function UpcomingFall() {
           {anime.map((animeItem) => (
             <div
               key={animeItem.id}
-              onClick={() => handleAnimeClick(animeItem)}
-              className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors group cursor-pointer"
+              className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors group"
             >
               <div className="relative flex-shrink-0">
                 <img
@@ -151,7 +139,7 @@ export default function UpcomingFall() {
               </div>
 
               <div className="flex-1 min-w-0">
-                <h3 className="font-medium text-sm text-foreground group-hover:text-primary transition-colors line-clamp-2">
+                <h3 className="font-medium text-sm text-foreground transition-colors line-clamp-2">
                   {animeItem.title}
                 </h3>
                 {animeItem.japaneseTitle && (

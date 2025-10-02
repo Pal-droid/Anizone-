@@ -61,9 +61,7 @@ export default function WatchPage() {
           mappedSources = JSON.parse(stored)
         } else {
           // Fetch first episode
-          const response = await fetch(
-            `https://aw-au-as-api.vercel.app/api/episodes?AW=${encodeURIComponent(path)}`
-          )
+          const response = await fetch(`https://aw-au-as-api.vercel.app/api/episodes?AW=${encodeURIComponent(path)}`)
           if (response.ok) {
             const data = await response.json()
             if (Array.isArray(data) && data.length > 0) {
@@ -73,7 +71,7 @@ export default function WatchPage() {
                   mappedSources.push({
                     name,
                     url: info.url,
-                    id: info.id
+                    id: info.id,
                   })
                 }
               })
@@ -121,7 +119,9 @@ export default function WatchPage() {
       <main className="px-4 py-8 overflow-x-hidden">
         <div className="text-sm text-red-600">Parametro "path" mancante.</div>
         <div className="mt-4">
-          <Link href="/" className="underline">Torna alla home</Link>
+          <Link href="/" className="underline">
+            Torna alla home
+          </Link>
         </div>
       </main>
     )
@@ -130,7 +130,7 @@ export default function WatchPage() {
   return (
     <main className="min-h-screen overflow-x-hidden">
       <header className="border-b sticky top-0 bg-background/80 backdrop-blur z-10">
-        <div className="px-4 py-3 flex items-center justify-between gap-3">
+        <div className="px-4 py-3 flex items-center justify-between gap-3 max-w-7xl mx-auto">
           <div className="flex items-center gap-3 min-w-0">
             <Link href="/search" className="p-1 -ml-1 shrink-0" aria-label="Indietro">
               <ArrowLeft className="h-5 w-5" />
@@ -139,10 +139,10 @@ export default function WatchPage() {
           </div>
         </div>
       </header>
-      <section className="px-4 py-4 space-y-6 overflow-x-hidden">
+      <section className="px-4 py-4 md:py-6 space-y-6 overflow-x-hidden max-w-7xl mx-auto">
         {loadingMeta || loadingSources ? (
           <div className="space-y-4 animate-pulse">
-            <div className="h-48 bg-gray-300 rounded-md w-full" />
+            <div className="h-48 md:h-96 bg-gray-300 rounded-md w-full" />
             <div className="h-10 bg-gray-300 rounded-md w-1/2 mx-auto" />
             <div className="h-20 bg-gray-300 rounded-md w-full" />
           </div>
@@ -150,14 +150,16 @@ export default function WatchPage() {
           <div className="text-center text-red-600">Nessuna fonte disponibile per questo anime.</div>
         ) : (
           <>
-            <EpisodePlayer
-              key={path} // forces remount on new anime
-              path={path}
-              seriesTitle={title}
-              sources={sources}
-              nextEpisodeDate={nextEpisodeDate}
-              nextEpisodeTime={nextEpisodeTime}
-            />
+            <div className="w-full max-w-5xl mx-auto">
+              <EpisodePlayer
+                key={path}
+                path={path}
+                seriesTitle={title}
+                sources={sources}
+                nextEpisodeDate={nextEpisodeDate}
+                nextEpisodeTime={nextEpisodeTime}
+              />
+            </div>
             <div className="flex justify-center">
               <QuickListManager itemId={seriesKey} itemTitle={title} itemPath={path} />
             </div>
