@@ -3,6 +3,7 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { useEffect, useState } from "react"
 import { Play } from "lucide-react"
+import Link from "next/link"
 
 type OngoingAnimeItem = {
   title: string
@@ -50,28 +51,48 @@ export function OngoingAnime() {
       </CardHeader>
       <CardContent>
         <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
-          {loading
-            ? Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="flex-shrink-0 w-32 animate-pulse">
-                  <div className="aspect-[2/3] bg-neutral-200 rounded-lg"></div>
-                  <div className="h-4 bg-neutral-200 rounded mt-2"></div>
-                </div>
-              ))
-            : error
-            ? <div className="text-sm text-red-600">{error}</div>
-            : items.length === 0
-            ? <div className="text-center py-8 text-muted-foreground">
-                <Play size={48} className="mx-auto mb-2 opacity-50" />
-                <p>Nessun anime in corso disponibile</p>
+          {loading ? (
+            Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="flex-shrink-0 w-32 animate-pulse">
+                <div className="aspect-[2/3] bg-neutral-200 rounded-lg"></div>
+                <div className="h-4 bg-neutral-200 rounded mt-2"></div>
               </div>
-            : items.map((item, index) => (
-                <div
+            ))
+          ) : error ? (
+            <div className="text-sm text-red-600">{error}</div>
+          ) : items.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Play size={48} className="mx-auto mb-2 opacity-50" />
+              <p>Nessun anime in corso disponibile</p>
+            </div>
+          ) : (
+            items.map((item, index) => {
+              const animePath = (() => {
+                try {
+                  const u = new URL(item.href)
+                  return u.pathname
+                } catch {
+                  return item.href
+                }
+              })()
+
+              return (
+                <Link
                   key={`${item.href}-${index}`}
+                  href={`/watch?path=${encodeURIComponent(animePath)}`}
                   className="relative flex-shrink-0 w-32 group cursor-pointer"
+                  onClick={() => {
+                    try {
+                      const sources = item.sources || [
+                        { name: "AnimeWorld", url: item.href, id: item.href.split("/").pop() || "" },
+                      ]
+                      sessionStorage.setItem(`anizone:sources:${animePath}`, JSON.stringify(sources))
+                    } catch {}
+                  }}
                 >
                   <div className="relative aspect-[2/3] rounded-lg overflow-hidden w-full shadow-md transition-transform duration-300 transform hover:scale-105">
                     <img
-                      src={item.image}
+                      src={item.image || "/placeholder.svg"}
                       alt={item.title}
                       className="w-full h-full object-cover"
                       loading="lazy"
@@ -92,17 +113,17 @@ export function OngoingAnime() {
                     {/* Dub badge */}
                     {item.isDub && (
                       <div className="absolute bottom-2 right-2">
-                        <span className="bg-gray-800 text-white text-[10px] px-1 py-[1px] rounded">
-                          DUB
-                        </span>
+                        <span className="bg-gray-800 text-white text-[10px] px-1 py-[1px] rounded">DUB</span>
                       </div>
                     )}
                   </div>
                   <h3 className="text-sm font-medium mt-2 line-clamp-2 break-words group-hover:text-primary transition-colors duration-200">
                     {item.title}
                   </h3>
-                </div>
-              ))}
+                </Link>
+              )
+            })
+          )}
         </div>
       </CardContent>
     </Card>
