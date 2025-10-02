@@ -6,7 +6,7 @@ async function fetchSourcesForAnime(href: string) {
   try {
     console.log("[v0] Fetching sources for similar anime:", href)
 
-    // Extract anime ID from href
+    // Extract anime ID from href (e.g., /play/horimiya.Mse3- from /play/horimiya.Mse3-/lRRhWd)
     const animeIdMatch = href.match(/\/play\/([^/?#]+)/)
     if (!animeIdMatch) {
       console.log("[v0] Could not extract anime ID from href:", href)
@@ -14,12 +14,16 @@ async function fetchSourcesForAnime(href: string) {
     }
 
     const animeId = animeIdMatch[1]
+    console.log("[v0] Extracted anime ID:", animeId, "from href:", href)
 
     // Create sources array with AnimeWorld source
+    // The URL should be the base anime path, not a specific episode
+    const baseAnimePath = `/play/${animeId}`
+
     const sources = [
       {
         name: "AnimeWorld",
-        url: href,
+        url: baseAnimePath,
         id: animeId,
       },
     ]

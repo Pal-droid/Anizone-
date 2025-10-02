@@ -22,6 +22,14 @@ type Meta = {
   description?: string
 }
 
+type AnimeItem = {
+  title: string
+  href: string
+  image?: string
+  sources?: Array<{ name: string; url: string; id: string }>
+  has_multi_servers?: boolean
+}
+
 export function WatchInfo({ seriesPath }: { seriesPath: string }) {
   const path = useMemo(() => {
     try {
@@ -35,8 +43,8 @@ export function WatchInfo({ seriesPath }: { seriesPath: string }) {
   }, [seriesPath])
 
   const [meta, setMeta] = useState<Meta | null>(null)
-  const [similar, setSimilar] = useState<Array<{ title: string; href: string; image?: string }>>([])
-  const [related, setRelated] = useState<Array<{ title: string; href: string; image?: string }>>([])
+  const [similar, setSimilar] = useState<AnimeItem[]>([])
+  const [related, setRelated] = useState<AnimeItem[]>([])
 
   useEffect(() => {
     let alive = true
@@ -72,6 +80,9 @@ export function WatchInfo({ seriesPath }: { seriesPath: string }) {
         ])
         if (!alive) return
         console.log("[v0] Metadata fetch result:", m)
+        console.log("[v0] Similar anime fetch result:", s)
+        console.log("[v0] Related anime fetch result:", r)
+
         if (m?.ok) setMeta(m.meta)
         if (s?.ok) setSimilar(s.items || [])
         if (r?.ok) setRelated(r.items || [])
@@ -182,7 +193,13 @@ export function WatchInfo({ seriesPath }: { seriesPath: string }) {
                 <div className="flex gap-3 min-w-0">
                   {similar.map((it) => (
                     <div key={it.href} className="shrink-0 w-[150px] min-w-[150px]">
-                      <AnimeCard title={it.title} href={it.href} image={it.image || ""} />
+                      <AnimeCard
+                        title={it.title}
+                        href={it.href}
+                        image={it.image || ""}
+                        sources={it.sources}
+                        has_multi_servers={it.has_multi_servers}
+                      />
                     </div>
                   ))}
                 </div>
@@ -203,7 +220,13 @@ export function WatchInfo({ seriesPath }: { seriesPath: string }) {
                 <div className="flex gap-3 min-w-0">
                   {related.map((it) => (
                     <div key={it.href} className="shrink-0 w-[150px] min-w-[150px]">
-                      <AnimeCard title={it.title} href={it.href} image={it.image || ""} />
+                      <AnimeCard
+                        title={it.title}
+                        href={it.href}
+                        image={it.image || ""}
+                        sources={it.sources}
+                        has_multi_servers={it.has_multi_servers}
+                      />
                     </div>
                   ))}
                 </div>

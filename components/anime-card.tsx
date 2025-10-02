@@ -24,8 +24,17 @@ export function AnimeCard({ title, href, image, isDub, className, sources, has_m
   const path = (() => {
     try {
       const u = new URL(href)
+      const parts = u.pathname.split("/").filter(Boolean)
+      // Extract just /play/anime-id format
+      if (parts.length >= 2 && parts[0] === "play") {
+        return `/${parts[0]}/${parts[1]}`
+      }
       return u.pathname
     } catch {
+      const parts = href.split("/").filter(Boolean)
+      if (parts.length >= 2 && parts[0] === "play") {
+        return `/${parts[0]}/${parts[1]}`
+      }
       return href
     }
   })()
@@ -34,12 +43,14 @@ export function AnimeCard({ title, href, image, isDub, className, sources, has_m
   const hasAnimeSaturn = sources?.some((s) => s.name === "AnimeSaturn")
   const showBadges = sources && sources.length > 0 && (hasAnimeWorld || hasAnimeSaturn)
 
-  // Store sources in sessionStorage for the watch page
   const handleClick = () => {
     if (sources && sources.length > 0) {
       try {
+        console.log("[v0] AnimeCard storing sources for path:", path, "sources:", sources)
         sessionStorage.setItem(`anizone:sources:${path}`, JSON.stringify(sources))
-      } catch {}
+      } catch (e) {
+        console.log("[v0] Failed to store sources:", e)
+      }
     }
   }
 
