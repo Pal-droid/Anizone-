@@ -7,16 +7,12 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const query = searchParams.get("q")
-    const type = searchParams.get("type") || "movie" // 'movie' or 'series'
 
     if (!query) {
       return NextResponse.json({ ok: false, error: "Query parameter missing" }, { status: 400 })
     }
 
-    const searchUrl =
-      type === "series"
-        ? `${BASE_URL}/serie-tv/?story=${encodeURIComponent(query)}&do=search&subaction=search`
-        : `${BASE_URL}/?story=${encodeURIComponent(query)}&do=search&subaction=search`
+    const searchUrl = `${BASE_URL}/serie-tv/?story=${encodeURIComponent(query)}&do=search&subaction=search`
 
     const response = await fetch(searchUrl, {
       headers: {
@@ -54,7 +50,6 @@ export async function GET(req: NextRequest) {
           image: image.startsWith("http") ? image : `${BASE_URL}${image}`,
           rating: rating || "N/A",
           isHD,
-          type,
         })
       }
     })

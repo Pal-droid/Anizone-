@@ -3,10 +3,9 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Search, Film, Tv } from "lucide-react"
+import { Search, Film } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MovieCard } from "@/components/movie-card"
 import { AnimatedLogo } from "@/components/animated-logo"
 import { SlideOutMenu } from "@/components/slide-out-menu"
@@ -15,7 +14,6 @@ import Link from "next/link"
 
 export default function MoviesPage() {
   const [searchQuery, setSearchQuery] = useState("")
-  const [searchType, setSearchType] = useState<"movie" | "series">("movie")
   const [results, setResults] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const isDesktop = useIsDesktop()
@@ -26,7 +24,7 @@ export default function MoviesPage() {
 
     setLoading(true)
     try {
-      const response = await fetch(`/api/movies-search?q=${encodeURIComponent(searchQuery)}&type=${searchType}`)
+      const response = await fetch(`/api/movies-search?q=${encodeURIComponent(searchQuery)}`)
       const data = await response.json()
 
       if (data.ok) {
@@ -59,17 +57,10 @@ export default function MoviesPage() {
               Film e Serie TV
             </h1>
 
-            <Tabs value={searchType} onValueChange={(v) => setSearchType(v as "movie" | "series")} className="mb-6">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="movie">Film</TabsTrigger>
-                <TabsTrigger value="series">Serie TV</TabsTrigger>
-              </TabsList>
-            </Tabs>
-
             <form onSubmit={handleSearch} className="flex gap-2">
               <Input
                 type="text"
-                placeholder={searchType === "movie" ? "Cerca film..." : "Cerca serie TV..."}
+                placeholder="Cerca film o serie TV..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="flex-1"
@@ -142,23 +133,10 @@ export default function MoviesPage() {
             Film e Serie TV
           </h1>
 
-          <Tabs value={searchType} onValueChange={(v) => setSearchType(v as "movie" | "series")} className="mb-8">
-            <TabsList className="grid w-full max-w-md grid-cols-2">
-              <TabsTrigger value="movie" className="flex items-center gap-2">
-                <Film size={18} />
-                Film
-              </TabsTrigger>
-              <TabsTrigger value="series" className="flex items-center gap-2">
-                <Tv size={18} />
-                Serie TV
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-
           <form onSubmit={handleSearch} className="flex gap-4 max-w-2xl">
             <Input
               type="text"
-              placeholder={searchType === "movie" ? "Cerca film..." : "Cerca serie TV..."}
+              placeholder="Cerca film o serie TV..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="flex-1 h-12 text-lg"
