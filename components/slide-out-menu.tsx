@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Menu, X, Film, BookOpen, Search, List, Calendar, Bug } from "lucide-react"
+import { Menu, X, Film, BookOpen, Search, List, Calendar, Bug, Tv } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { BugReportDialog } from "@/components/bug-report-dialog"
 
@@ -17,6 +17,7 @@ export function SlideOutMenu({ currentPath = "/" }: SlideOutMenuProps) {
   const menuItems = [
     { href: "/", icon: Film, label: "Anime", key: "anime" },
     { href: "/manga", icon: BookOpen, label: "Manga", key: "manga" },
+    { href: "/movies", icon: Tv, label: "Film & Serie", key: "movies" },
     { href: "/search", icon: Search, label: "Cerca", key: "search" },
     { href: "/lists", icon: List, label: "Liste", key: "lists" },
     { href: "/schedule", icon: Calendar, label: "Calendario", key: "schedule" },

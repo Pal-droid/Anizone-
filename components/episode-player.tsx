@@ -65,6 +65,7 @@ function storageGet<T = any>(key: string): T | null {
     return null
   }
 }
+
 function storageSet(key: string, val: any) {
   try {
     localStorage.setItem(key, JSON.stringify(val))
@@ -100,16 +101,22 @@ export function EpisodePlayer({
   const [useHlsFallback, setUseHlsFallback] = useState(false)
   const hlsRef = useRef<any>(null)
   const currentPathRef = useRef<string>("")
-
-  const seriesKeyForStore = useMemo(() => seriesBaseFromPath(path), [path])
   const lastSentAtRef = useRef<number>(0)
   const lastSentSecRef = useRef<number>(0)
   const restoreDoneRef = useRef<boolean>(false)
+
+  const seriesKeyForStore = useMemo(() => seriesBaseFromPath(path), [path])
 
   const availableServers = useMemo(() => {
     const servers = sources?.map((s) => s.name) || ["AnimeWorld"]
     return servers.length > 0 ? servers : ["AnimeWorld"]
   }, [sources])
+
+  // Map internal server names to display names
+  const serverDisplayNames = useMemo(() => ({
+    AnimeWorld: "World",
+    AnimeSaturn: "Saturn",
+  }), [])
 
   const isEmbedServer = selectedServer === "AnimeSaturn"
 
@@ -160,6 +167,7 @@ export function EpisodePlayer({
       else setAutoNext(true)
     } catch {}
   }, [])
+
   useEffect(() => {
     try {
       localStorage.setItem("anizone:autoNext", autoNext ? "1" : "0")
@@ -502,6 +510,61 @@ export function EpisodePlayer({
     }
   }
 
+  // Updated useEffect for AnimeSaturn iframe communication
+  useEffect(() => {
+    if (!isEmbedServer || !selectedEpisode) return
+    const iframe = iframeRef.current
+    if (!iframe) return
+
+    const animeId = extractAnimeIdFromUrl(path)
+    const progressKey = `progress:${animeId}:${selectedEpisode.num}`
+    let restoreDone = false
+
+    // Load saved progress from localStorage
+    const savedTime = storageGet<number>(progressKey) || 0
+
+    // Save progress
+    const saveProgress = (currentTime: number) => {
+      storageSet(progressKey, Math.floor(currentTime))
+      broadcastProgress(Math.floor(currentTime))
+    }
+
+    // Handle messages from iframe
+    const handleMessage = (e: MessageEvent) => {
+      if (e.source !== iframe.contentWindow) return // only accept messages from our iframe
+      if (!e.data?.type) return
+
+      if (e.data.type === "saturn-video-ended") {
+        onEnd()
+      }
+
+      if (e.data.type === "saturn-progress" && typeof e.data.currentTime === "number") {
+        saveProgress(e.data.currentTime)
+      }
+    }
+
+    window.addEventListener("message", handleMessage)
+
+    // Send resume time after iframe is ready
+    const sendResume = () => {
+      if (savedTime > 0 && !restoreDone && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({ type: "resume-video", time: savedTime }, "*")
+        restoreDone = true
+      }
+    }
+
+    // Try immediately, in case iframe is already loaded
+    sendResume()
+
+    // Also listen for load event
+    iframe.addEventListener("load", sendResume)
+
+    return () => {
+      window.removeEventListener("message", handleMessage)
+      iframe.removeEventListener("load", sendResume)
+    }
+  }, [isEmbedServer, selectedEpisode, path, onEnd])
+
   async function saveContinueForClick(ep: Episode) {
     try {
       const seriesKey = seriesBaseFromPath(path)
@@ -586,12 +649,12 @@ export function EpisodePlayer({
                 </Label>
                 <Select value={selectedServer} onValueChange={setSelectedServer}>
                   <SelectTrigger className="w-[120px] h-7 text-xs" id="server-select">
-                    <SelectValue />
+                    <SelectValue placeholder="Select server" />
                   </SelectTrigger>
                   <SelectContent>
                     {availableServers.map((server) => (
                       <SelectItem key={server} value={server} className="text-xs">
-                        {server}
+                        {serverDisplayNames[server as keyof typeof serverDisplayNames] || server}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -703,8 +766,8 @@ export function EpisodePlayer({
 
       {isEmbedServer && (
         <div className="text-xs text-muted-foreground">
-          Stai guardando tramite {selectedServer}. Il controllo della riproduzione e il salvataggio della posizione
-          potrebbero essere limitati.
+          Stai guardando tramite {serverDisplayNames[selectedServer as keyof typeof serverDisplayNames] || selectedServer}.
+          Il controllo della riproduzione e il salvataggio della posizione potrebbero essere limitati.
         </div>
       )}
     </div>

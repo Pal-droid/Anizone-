@@ -20,15 +20,15 @@ const sourceSansPro = Source_Sans_Pro({
 
 // --- Dynamic, domain-agnostic metadata ---
 export const metadata: Metadata = {
-  title: "Anizone - Guarda anime in italiano",
-  description: "Trova e guarda anime con episodi sub/dub ITA",
+  title: "Anizone - Guarda e leggi Anime & Manga in italiano",
+  description: "Cerca Anime & Manga con episodi sub/dub e scans ITA",
   generator: "pal",
   icons: {
     icon: "/favicon.ico", // browser favicon
   },
   openGraph: {
-    title: "Anizone - Guarda anime in italiano",
-    description: "Trova e guarda anime con episodi sub/dub ITA",
+    title: "Anizone - Guarda e leggi Anime & Manga in italiano",
+    description: "Cerca Anime & Manga con episodi sub/dub e scans ITA",
     url: "/", // relative path works dynamically in Next.js
     siteName: "Anizone",
     type: "website",
