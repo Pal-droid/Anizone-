@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Search, List, BookOpen, Calendar, Sparkles, Bug, Film } from "lucide-react"
+import { Search, List, BookOpen, Calendar, Sparkles, Bug } from "lucide-react"
 import HeroSearch from "@/components/hero-search"
 import { TopAnime } from "@/components/top-anime"
 import { DiscoverSections } from "@/components/discover"
@@ -49,13 +49,6 @@ export default function HomePage() {
               >
                 <BookOpen size={18} className="group-hover:scale-110 transition-transform" />
                 <span>Manga</span>
-              </Link>
-              <Link
-                href="/movies"
-                className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-smooth hover:glow group"
-              >
-                <Film size={18} className="group-hover:scale-110 transition-transform" />
-                <span>Film & Serie</span>
               </Link>
               <Link
                 href="/schedule"

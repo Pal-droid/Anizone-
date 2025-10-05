@@ -1,22 +1,23 @@
-import type React from "react";
-import type { Metadata } from "next";
-import { Playfair_Display, Source_Sans_3 as Source_Sans_Pro } from "next/font/google";
-import "./globals.css";
-import { AuthProvider } from "@/contexts/auth-context";
+import type React from "react"
+import type { Metadata } from "next"
+import { Playfair_Display, Source_Sans_3 as Source_Sans_Pro } from "next/font/google"
+import "./globals.css"
+import { AuthProvider } from "@/contexts/auth-context"
+import { SeasonalBackground } from "@/components/seasonal-background"
 
 const playfairDisplay = Playfair_Display({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-playfair",
   weight: ["400", "700"],
-});
+})
 
 const sourceSansPro = Source_Sans_Pro({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-source-sans",
   weight: ["400", "600"],
-});
+})
 
 // --- Dynamic, domain-agnostic metadata ---
 export const metadata: Metadata = {
@@ -41,21 +42,19 @@ export const metadata: Metadata = {
       },
     ],
   },
-};
+}
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
   return (
-    <html
-      lang="en"
-      className={`dark ${playfairDisplay.variable} ${sourceSansPro.variable}`}
-    >
+    <html lang="en" className={`dark ${playfairDisplay.variable} ${sourceSansPro.variable}`}>
       <body className="font-sans antialiased">
+        <SeasonalBackground />
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
-  );
+  )
 }
