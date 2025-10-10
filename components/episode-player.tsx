@@ -350,6 +350,11 @@ export function EpisodePlayer({
       setProxyUrl(null)
       setError(null)
 
+      if (hlsRef.current) {
+        hlsRef.current.destroy()
+        hlsRef.current = null
+      }
+
       try {
         console.log("[v0] Loading stream for episode:", selectedEpisode, "server:", selectedServer)
 
@@ -436,9 +441,8 @@ export function EpisodePlayer({
           setProxyUrl(proxy)
         } else if (selectedServer === "AnimePahe" && serverData.stream_url) {
           const m3u8Url = serverData.stream_url
-          console.log("[v0] AnimePahe m3u8 URL:", m3u8Url)
-          setStreamUrl(m3u8Url)
-          setProxyUrl(m3u8Url) // AnimePahe m3u8 can be played directly
+          console.log("[v0] AnimePahe m3u8 URL (native playback):", m3u8Url)
+          setProxyUrl(m3u8Url)
         } else if (selectedServer === "AnimeSaturn") {
           const finalStreamUrl = serverData.stream_url
 
@@ -467,13 +471,14 @@ export function EpisodePlayer({
   }, [selectedEpisode, selectedServer, selectedResolution, path])
 
   useEffect(() => {
-    if (!selectedServer || selectedServer === "AnimePahe") return
+    // Skip HLS.js entirely for AnimePahe and AnimeSaturn
+    if (selectedServer !== "AnimeWorld") return
     if (!proxyUrl || !videoRef.current) return
 
     const video = videoRef.current
 
-    // Only use HLS.js for AnimeWorld if needed
-    if (selectedServer === "AnimeWorld" && proxyUrl.includes(".m3u8")) {
+    // Only use HLS.js for AnimeWorld m3u8 streams
+    if (proxyUrl.includes(".m3u8")) {
       if (!window.Hls) {
         const script = document.createElement("script")
         script.src = "https://cdn.jsdelivr.net/npm/hls.js@latest"
@@ -810,7 +815,7 @@ export function EpisodePlayer({
             preload="metadata"
             autoPlay={autoNext}
             onEnded={onEnd}
-            src={proxyUrl}
+            src={isAnimePahe ? proxyUrl : undefined}
             onError={() => {
               setError("Errore di riproduzione. Riprovo...")
               if (selectedEpisode) localStorage.removeItem(`anizone:stream:${epKey(selectedEpisode)}`)
