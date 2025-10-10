@@ -41,7 +41,11 @@ export function AnimeCard({ title, href, image, isDub, className, sources, has_m
 
   const hasAnimeWorld = sources?.some((s) => s.name === "AnimeWorld")
   const hasAnimeSaturn = sources?.some((s) => s.name === "AnimeSaturn")
-  const showBadges = sources && sources.length > 0 && (hasAnimeWorld || hasAnimeSaturn)
+  const hasAnimePahe = sources?.some((s) => s.name === "AnimePahe")
+  const showBadges = sources && sources.length > 0 && (hasAnimeWorld || hasAnimeSaturn || hasAnimePahe)
+
+  const animePaheOnlySource = sources?.length === 1 && hasAnimePahe ? sources[0] : null
+  const displayImage = animePaheOnlySource && image.includes("animepahe.si") ? image : image
 
   const handleClick = () => {
     if (sources && sources.length > 0) {
@@ -61,7 +65,7 @@ export function AnimeCard({ title, href, image, isDub, className, sources, has_m
       <Card className="overflow-hidden hover:shadow-md transition-shadow h-full">
         <div className="relative aspect-[2/3] w-full bg-neutral-100 overflow-hidden">
           <img
-            src={image || "/placeholder.svg?height=450&width=300&query=poster%20anime%20cover"}
+            src={displayImage || "/placeholder.svg?height=450&width=300&query=poster%20anime%20cover"}
             alt={title}
             className="h-full w-full object-cover"
             loading="lazy"
@@ -84,6 +88,15 @@ export function AnimeCard({ title, href, image, isDub, className, sources, has_m
                   <img
                     src="https://t0.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://animesaturn.cx"
                     alt="AnimeSaturn"
+                    className="w-full h-full object-cover rounded-md"
+                  />
+                </div>
+              )}
+              {hasAnimePahe && (
+                <div className="w-6 h-6 rounded-lg overflow-hidden bg-white/90 p-0.5 shadow-sm">
+                  <img
+                    src="https://animepahe.si/favicon.ico"
+                    alt="AnimePahe"
                     className="w-full h-full object-cover rounded-md"
                   />
                 </div>

@@ -88,6 +88,7 @@ export function EpisodePlayer({
   const [episodes, setEpisodes] = useState<Episode[]>([])
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [selectedServer, setSelectedServer] = useState<string>("AnimeWorld")
+  const [selectedResolution, setSelectedResolution] = useState<string>("1080")
   const [streamUrl, setStreamUrl] = useState<string | null>(null)
   const [embedUrl, setEmbedUrl] = useState<string | null>(null)
   const [episodeRefUrl, setEpisodeRefUrl] = useState<string | null>(null)
@@ -112,13 +113,19 @@ export function EpisodePlayer({
     return servers.length > 0 ? servers : ["AnimeWorld"]
   }, [sources])
 
-  // Map internal server names to display names
-  const serverDisplayNames = useMemo(() => ({
-    AnimeWorld: "World",
-    AnimeSaturn: "Saturn",
-  }), [])
+  const serverDisplayNames = useMemo(
+    () => ({
+      AnimeWorld: "World",
+      AnimeSaturn: "Saturn",
+      AnimePahe: "Pahe",
+    }),
+    [],
+  )
 
   const isEmbedServer = selectedServer === "AnimeSaturn"
+  const isAnimePahe = selectedServer === "AnimePahe"
+
+  const availableResolutions = ["1080", "720", "480", "360"]
 
   useEffect(() => {
     if (currentPathRef.current && currentPathRef.current !== path) {
@@ -211,8 +218,9 @@ export function EpisodePlayer({
 
         const awSource = currentSources.find((s) => s.name === "AnimeWorld")
         const asSource = currentSources.find((s) => s.name === "AnimeSaturn")
+        const apSource = currentSources.find((s) => s.name === "AnimePahe")
 
-        console.log("[v0] Found sources:", { awSource, asSource })
+        console.log("[v0] Found sources:", { awSource, asSource, apSource })
 
         const params = new URLSearchParams()
         if (awSource) {
@@ -224,9 +232,13 @@ export function EpisodePlayer({
           params.set("AS", asSource.id)
           console.log("[v0] Using AnimeSaturn ID:", asSource.id, "from source object")
         }
+        if (apSource) {
+          params.set("AP_ANIME", apSource.id)
+          console.log("[v0] Using AnimePahe ID:", apSource.id, "from source object")
+        }
 
-        if (!awSource && !asSource) {
-          throw new Error("No valid AnimeWorld or AnimeSaturn sources found")
+        if (!awSource && !asSource && !apSource) {
+          throw new Error("No valid AnimeWorld, AnimeSaturn, or AnimePahe sources found")
         }
 
         const apiUrl = `https://aw-au-as-api.vercel.app/api/episodes?${params}`
@@ -257,13 +269,28 @@ export function EpisodePlayer({
         }
 
         const eps: Episode[] = unifiedEpisodes
-          .map((ep: any) => ({
-            num: ep.episode_number,
-            href:
-              selectedServer === "AnimeWorld" ? ep.sources.AnimeWorld?.url || "" : ep.sources.AnimeSaturn?.url || "",
-            id: selectedServer === "AnimeWorld" ? ep.sources.AnimeWorld?.id || "" : ep.sources.AnimeSaturn?.id || "",
-            unifiedData: ep,
-          }))
+          .map((ep: any) => {
+            let href = ""
+            let id = ""
+
+            if (selectedServer === "AnimeWorld") {
+              href = ep.sources.AnimeWorld?.url || ""
+              id = ep.sources.AnimeWorld?.id || ""
+            } else if (selectedServer === "AnimeSaturn") {
+              href = ep.sources.AnimeSaturn?.url || ""
+              id = ep.sources.AnimeSaturn?.id || ""
+            } else if (selectedServer === "AnimePahe") {
+              href = ep.sources.AnimePahe?.url || ""
+              id = ep.sources.AnimePahe?.id || ""
+            }
+
+            return {
+              num: ep.episode_number,
+              href,
+              id,
+              unifiedData: ep,
+            }
+          })
           .filter((ep: Episode) => ep.href || ep.id)
 
         console.log("[v0] Processed episodes:", eps)
@@ -303,6 +330,14 @@ export function EpisodePlayer({
     () => (selectedKey ? (episodes.find((e) => epKey(e) === selectedKey) ?? null) : null),
     [selectedKey, episodes],
   )
+
+  useEffect(() => {
+    if (isAnimePahe && selectedEpisode) {
+      // Trigger stream reload when resolution changes
+      setStreamUrl(null)
+      setProxyUrl(null)
+    }
+  }, [selectedResolution, isAnimePahe])
 
   useEffect(() => {
     if (!selectedEpisode) return
@@ -350,6 +385,14 @@ export function EpisodePlayer({
         if (selectedServer === "AnimeSaturn" && unifiedEp.sources.AnimeSaturn?.id) {
           params.set("AS", unifiedEp.sources.AnimeSaturn.id)
         }
+        if (selectedServer === "AnimePahe" && unifiedEp.sources.AnimePahe?.id) {
+          const apSource = currentSources.find((s) => s.name === "AnimePahe")
+          if (apSource) {
+            params.set("AP", unifiedEp.sources.AnimePahe.id)
+            params.set("AP_ANIME", apSource.id)
+            params.set("res", selectedResolution)
+          }
+        }
 
         if (!params.toString()) {
           throw new Error(`No valid ${selectedServer} source ID found for this episode`)
@@ -377,6 +420,11 @@ export function EpisodePlayer({
         const serverData = streamData[selectedServer]
 
         if (!serverData || !serverData.available) {
+          if (selectedServer === "AnimePahe") {
+            throw new Error(
+              `AnimePahe non disponibile per questa risoluzione (${selectedResolution}p). Prova un'altra risoluzione.`,
+            )
+          }
           throw new Error(`${selectedServer} is not available for this episode`)
         }
 
@@ -388,6 +436,12 @@ export function EpisodePlayer({
           const stamp = Math.floor(Date.now() / 60000)
           const proxy = `/api/proxy-stream?src=${encodeURIComponent(direct)}&ref=${encodeURIComponent(selectedEpisode.href)}&ts=${stamp}`
           setProxyUrl(proxy)
+        } else if (selectedServer === "AnimePahe" && serverData.stream_url) {
+          const m3u8Url = serverData.stream_url
+          console.log("[v0] AnimePahe m3u8 URL:", m3u8Url)
+          setStreamUrl(m3u8Url)
+          setProxyUrl(m3u8Url) // AnimePahe m3u8 can be played directly
+          setUseHlsFallback(true) // Use HLS.js for better compatibility
         } else if (selectedServer === "AnimeSaturn") {
           const finalStreamUrl = serverData.stream_url
 
@@ -413,7 +467,7 @@ export function EpisodePlayer({
       }
     })()
     return () => abort.abort()
-  }, [selectedEpisode, selectedServer, path])
+  }, [selectedEpisode, selectedServer, selectedResolution, path])
 
   useEffect(() => {
     if (!useHlsFallback || !proxyUrl || !videoRef.current) return
@@ -563,7 +617,7 @@ export function EpisodePlayer({
       window.removeEventListener("message", handleMessage)
       iframe.removeEventListener("load", sendResume)
     }
-  }, [isEmbedServer, selectedEpisode, path, onEnd])
+  }, [isEmbedServer, selectedEpisode, path])
 
   async function saveContinueForClick(ep: Episode) {
     try {
@@ -655,6 +709,26 @@ export function EpisodePlayer({
                     {availableServers.map((server) => (
                       <SelectItem key={server} value={server} className="text-xs">
                         {serverDisplayNames[server as keyof typeof serverDisplayNames] || server}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {isAnimePahe && (
+              <div className="flex items-center gap-2">
+                <Label htmlFor="resolution-select" className="text-xs text-muted-foreground">
+                  Qualità:
+                </Label>
+                <Select value={selectedResolution} onValueChange={setSelectedResolution}>
+                  <SelectTrigger className="w-[100px] h-7 text-xs" id="resolution-select">
+                    <SelectValue placeholder="Risoluzione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableResolutions.map((res) => (
+                      <SelectItem key={res} value={res} className="text-xs">
+                        {res}p
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -755,7 +829,7 @@ export function EpisodePlayer({
         )}
       </div>
 
-      {streamUrl && !isEmbedServer ? (
+      {streamUrl && !isEmbedServer && !isAnimePahe ? (
         <div className="text-sm">
           Apri il link diretto in una nuova scheda:{" "}
           <a className="underline" href={streamUrl} target="_blank" rel="noreferrer">
@@ -764,10 +838,13 @@ export function EpisodePlayer({
         </div>
       ) : null}
 
-      {isEmbedServer && (
+      {(isEmbedServer || isAnimePahe) && (
         <div className="text-xs text-muted-foreground">
-          Stai guardando tramite {serverDisplayNames[selectedServer as keyof typeof serverDisplayNames] || selectedServer}.
-          Il controllo della riproduzione e il salvataggio della posizione potrebbero essere limitati.
+          Stai guardando tramite{" "}
+          {serverDisplayNames[selectedServer as keyof typeof serverDisplayNames] || selectedServer}.
+          {isAnimePahe && ` Risoluzione: ${selectedResolution}p.`}
+          {isEmbedServer &&
+            " Il controllo della riproduzione e il salvataggio della posizione potrebbero essere limitati."}
         </div>
       )}
     </div>

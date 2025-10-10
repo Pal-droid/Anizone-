@@ -24,12 +24,20 @@ export async function GET(req: NextRequest) {
     const path = searchParams.get("path")
     const awId = searchParams.get("AW")
     const asId = searchParams.get("AS")
+    const apId = searchParams.get("AP")
+    const apAnimeId = searchParams.get("AP_ANIME")
+    const resolution = searchParams.get("res") || "1080"
 
-    if (awId || asId) {
+    if (awId || asId || (apId && apAnimeId)) {
       try {
         const params = new URLSearchParams()
         if (awId) params.set("AW", awId)
         if (asId) params.set("AS", asId)
+        if (apId && apAnimeId) {
+          params.set("AP", apId)
+          params.set("AP_ANIME", apAnimeId)
+          params.set("res", resolution)
+        }
 
         const unifiedRes = await fetch(`https://aw-au-as-api.vercel.app/api/stream?${params}`, {
           headers: {
@@ -48,8 +56,9 @@ export async function GET(req: NextRequest) {
 
           const animeWorldData = streamData.AnimeWorld
           const animeSaturnData = streamData.AnimeSaturn
+          const animePaheData = streamData.AnimePahe
 
-          // Prefer AnimeWorld if available, fallback to AnimeSaturn
+          // Prefer AnimeWorld if available, then AnimePahe, fallback to AnimeSaturn
           if (animeWorldData?.available && animeWorldData.stream_url) {
             return NextResponse.json({
               ok: true,
@@ -58,6 +67,16 @@ export async function GET(req: NextRequest) {
               source: "https://aw-au-as-api.vercel.app/api/stream",
               server: "AnimeWorld",
               unified: true,
+            })
+          } else if (animePaheData?.available && animePaheData.stream_url) {
+            return NextResponse.json({
+              ok: true,
+              streamUrl: animePaheData.stream_url,
+              source: "https://aw-au-as-api.vercel.app/api/stream",
+              server: "AnimePahe",
+              unified: true,
+              isM3u8: true, // AnimePahe always returns m3u8
+              resolution: resolution,
             })
           } else if (animeSaturnData?.available) {
             let streamUrl = animeSaturnData.stream_url
