@@ -80,7 +80,7 @@ export function AnimeCard({ title, href, image, isDub, className, sources, has_m
               {hasAnimeWorld && (
                 <div className="w-6 h-6 rounded-lg overflow-hidden bg-white/90 p-0.5 shadow-sm">
                   <img
-                    src="https://t0.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://animeworld.ac&size=256"
+                    src="https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://animeworld.ac&size=48"
                     alt="AnimeWorld"
                     className="w-full h-full object-cover rounded-md"
                   />
@@ -89,7 +89,7 @@ export function AnimeCard({ title, href, image, isDub, className, sources, has_m
               {hasAnimeSaturn && (
                 <div className="w-6 h-6 rounded-lg overflow-hidden bg-white/90 p-0.5 shadow-sm">
                   <img
-                    src="https://t0.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://animesaturn.cx"
+                    src="https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://animesaturn.cx&size=48"
                     alt="AnimeSaturn"
                     className="w-full h-full object-cover rounded-md"
                   />
@@ -98,7 +98,7 @@ export function AnimeCard({ title, href, image, isDub, className, sources, has_m
               {hasAnimePahe && (
                 <div className="w-6 h-6 rounded-lg overflow-hidden bg-white/90 p-0.5 shadow-sm">
                   <img
-                    src={`/api/animepahe-image-proxy?url=${encodeURIComponent("https://animepahe.si/favicon.ico")}`}
+                    src="https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://animepahe.si&size=48"
                     alt="AnimePahe"
                     className="w-full h-full object-cover rounded-md"
                   />

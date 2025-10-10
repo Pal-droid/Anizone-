@@ -99,7 +99,6 @@ export function EpisodePlayer({
   const [autoNext, setAutoNext] = useState<boolean>(true)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
-  const [useHlsFallback, setUseHlsFallback] = useState(false)
   const hlsRef = useRef<any>(null)
   const currentPathRef = useRef<string>("")
   const lastSentAtRef = useRef<number>(0)
@@ -350,7 +349,6 @@ export function EpisodePlayer({
       setEpisodeRefUrl(null)
       setProxyUrl(null)
       setError(null)
-      setUseHlsFallback(false)
 
       try {
         console.log("[v0] Loading stream for episode:", selectedEpisode, "server:", selectedServer)
@@ -441,7 +439,6 @@ export function EpisodePlayer({
           console.log("[v0] AnimePahe m3u8 URL:", m3u8Url)
           setStreamUrl(m3u8Url)
           setProxyUrl(m3u8Url) // AnimePahe m3u8 can be played directly
-          setUseHlsFallback(true) // Use HLS.js for better compatibility
         } else if (selectedServer === "AnimeSaturn") {
           const finalStreamUrl = serverData.stream_url
 
@@ -470,53 +467,57 @@ export function EpisodePlayer({
   }, [selectedEpisode, selectedServer, selectedResolution, path])
 
   useEffect(() => {
-    if (!useHlsFallback || !proxyUrl || !videoRef.current) return
+    if (!selectedServer || selectedServer === "AnimePahe") return
+    if (!proxyUrl || !videoRef.current) return
 
     const video = videoRef.current
 
-    if (!window.Hls) {
-      const script = document.createElement("script")
-      script.src = "https://cdn.jsdelivr.net/npm/hls.js@latest"
-      script.onload = () => initializeHls()
-      document.head.appendChild(script)
-    } else {
-      initializeHls()
-    }
-
-    function initializeHls() {
-      if (!window.Hls || !video || !proxyUrl) return
-
-      if (hlsRef.current) {
-        hlsRef.current.destroy()
-        hlsRef.current = null
+    // Only use HLS.js for AnimeWorld if needed
+    if (selectedServer === "AnimeWorld" && proxyUrl.includes(".m3u8")) {
+      if (!window.Hls) {
+        const script = document.createElement("script")
+        script.src = "https://cdn.jsdelivr.net/npm/hls.js@latest"
+        script.onload = () => initializeHls()
+        document.head.appendChild(script)
+      } else {
+        initializeHls()
       }
 
-      if (window.Hls.isSupported()) {
-        console.log("[v0] Initializing HLS.js for m3u8 stream:", proxyUrl)
-        const hls = new window.Hls({
-          enableWorker: true,
-          lowLatencyMode: false,
-        })
+      function initializeHls() {
+        if (!window.Hls || !video || !proxyUrl) return
 
-        hlsRef.current = hls
-        hls.loadSource(proxyUrl)
-        hls.attachMedia(video)
+        if (hlsRef.current) {
+          hlsRef.current.destroy()
+          hlsRef.current = null
+        }
 
-        hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
-          console.log("[v0] HLS manifest parsed successfully")
-        })
+        if (window.Hls.isSupported()) {
+          console.log("[v0] Initializing HLS.js for AnimeWorld m3u8 stream:", proxyUrl)
+          const hls = new window.Hls({
+            enableWorker: true,
+            lowLatencyMode: false,
+          })
 
-        hls.on(window.Hls.Events.ERROR, (event: any, data: any) => {
-          console.error("[v0] HLS error:", data)
-          if (data.fatal) {
-            setError("Errore nella riproduzione HLS")
-          }
-        })
-      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-        console.log("[v0] Using native HLS support")
-        video.src = proxyUrl
-      } else {
-        setError("HLS non supportato in questo browser")
+          hlsRef.current = hls
+          hls.loadSource(proxyUrl)
+          hls.attachMedia(video)
+
+          hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+            console.log("[v0] HLS manifest parsed successfully")
+          })
+
+          hls.on(window.Hls.Events.ERROR, (event: any, data: any) => {
+            console.error("[v0] HLS error:", data)
+            if (data.fatal) {
+              setError("Errore nella riproduzione HLS")
+            }
+          })
+        } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+          console.log("[v0] Using native HLS support")
+          video.src = proxyUrl
+        } else {
+          setError("HLS non supportato in questo browser")
+        }
       }
     }
 
@@ -526,7 +527,7 @@ export function EpisodePlayer({
         hlsRef.current = null
       }
     }
-  }, [useHlsFallback, proxyUrl])
+  }, [proxyUrl, selectedServer])
 
   useEffect(() => {
     if (isEmbedServer) return
@@ -555,16 +556,6 @@ export function EpisodePlayer({
     }
   }, [selectedEpisode, seriesKeyForStore, seriesTitle, isEmbedServer])
 
-  const onEnd = () => {
-    if (!autoNext || !selectedEpisode) return
-    const idx = episodes.findIndex((e) => epKey(e) === epKey(selectedEpisode))
-    if (idx >= 0 && idx + 1 < episodes.length) {
-      const next = episodes[idx + 1]
-      setSelectedKey(epKey(next))
-    }
-  }
-
-  // Updated useEffect for AnimeSaturn iframe communication
   useEffect(() => {
     if (!isEmbedServer || !selectedEpisode) return
     const iframe = iframeRef.current
@@ -686,6 +677,15 @@ export function EpisodePlayer({
     }).catch(() => {})
   }
 
+  const onEnd = () => {
+    if (!autoNext || !selectedEpisode) return
+    const idx = episodes.findIndex((e) => epKey(e) === epKey(selectedEpisode))
+    if (idx >= 0 && idx + 1 < episodes.length) {
+      const next = episodes[idx + 1]
+      setSelectedKey(epKey(next))
+    }
+  }
+
   return (
     <div className="w-full space-y-3">
       {nextEpisodeDate && nextEpisodeTime && (
@@ -802,7 +802,7 @@ export function EpisodePlayer({
           />
         ) : proxyUrl ? (
           <video
-            key={`${proxyUrl}-${useHlsFallback}`}
+            key={proxyUrl}
             ref={videoRef}
             className="w-full h-full"
             controls
@@ -810,7 +810,7 @@ export function EpisodePlayer({
             preload="metadata"
             autoPlay={autoNext}
             onEnded={onEnd}
-            src={!useHlsFallback ? proxyUrl : undefined}
+            src={proxyUrl}
             onError={() => {
               setError("Errore di riproduzione. Riprovo...")
               if (selectedEpisode) localStorage.removeItem(`anizone:stream:${epKey(selectedEpisode)}`)
@@ -828,15 +828,6 @@ export function EpisodePlayer({
           <div className="text-sm text-neutral-200 p-4 text-center">{error || "Caricamento in corso..."}</div>
         )}
       </div>
-
-      {streamUrl && !isEmbedServer && !isAnimePahe ? (
-        <div className="text-sm">
-          Apri il link diretto in una nuova scheda:{" "}
-          <a className="underline" href={streamUrl} target="_blank" rel="noreferrer">
-            Apri
-          </a>
-        </div>
-      ) : null}
 
       {(isEmbedServer || isAnimePahe) && (
         <div className="text-xs text-muted-foreground">
