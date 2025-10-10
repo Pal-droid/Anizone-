@@ -233,7 +233,7 @@ export function EpisodePlayer({
           console.log("[v0] Using AnimeSaturn ID:", asSource.id, "from source object")
         }
         if (apSource) {
-          params.set("AP_ANIME", apSource.id)
+          params.set("AP", apSource.id)
           console.log("[v0] Using AnimePahe ID:", apSource.id, "from source object")
         }
 
