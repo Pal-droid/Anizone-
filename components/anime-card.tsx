@@ -45,7 +45,10 @@ export function AnimeCard({ title, href, image, isDub, className, sources, has_m
   const showBadges = sources && sources.length > 0 && (hasAnimeWorld || hasAnimeSaturn || hasAnimePahe)
 
   const animePaheOnlySource = sources?.length === 1 && hasAnimePahe ? sources[0] : null
-  const displayImage = animePaheOnlySource && image.includes("animepahe.si") ? image : image
+  const displayImage =
+    animePaheOnlySource && image.includes("animepahe.si")
+      ? `/api/animepahe-image-proxy?url=${encodeURIComponent(image)}`
+      : image
 
   const handleClick = () => {
     if (sources && sources.length > 0) {
@@ -95,7 +98,7 @@ export function AnimeCard({ title, href, image, isDub, className, sources, has_m
               {hasAnimePahe && (
                 <div className="w-6 h-6 rounded-lg overflow-hidden bg-white/90 p-0.5 shadow-sm">
                   <img
-                    src="https://animepahe.si/favicon.ico"
+                    src={`/api/animepahe-image-proxy?url=${encodeURIComponent("https://animepahe.si/favicon.ico")}`}
                     alt="AnimePahe"
                     className="w-full h-full object-cover rounded-md"
                   />

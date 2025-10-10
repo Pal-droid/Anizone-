@@ -16,11 +16,12 @@ export const GET = withCors(async (req: NextRequest) => {
     const path = searchParams.get("path")
     const awId = searchParams.get("AW")
     const asId = searchParams.get("AS")
+    const apId = searchParams.get("AP")
 
-    if (awId && asId) {
+    if (awId && asId && apId) {
       try {
         const unifiedRes = await fetch(
-          `https://aw-au-as-api.vercel.app/api/episodes?AW=${encodeURIComponent(awId)}&AS=${encodeURIComponent(asId)}`,
+          `https://aw-au-as-api.vercel.app/api/episodes?AW=${encodeURIComponent(awId)}&AS=${encodeURIComponent(asId)}&AP=${encodeURIComponent(apId)}`,
           {
             headers: {
               "User-Agent":
@@ -40,14 +41,15 @@ export const GET = withCors(async (req: NextRequest) => {
           if (Array.isArray(unifiedData) && unifiedData.length > 0) {
             const episodes = unifiedData
               .map((ep: any) => {
-                // Ensure both sources are properly included
+                // Ensure all sources are properly included
                 const awSource = ep.sources?.AnimeWorld
                 const asSource = ep.sources?.AnimeSaturn
+                const apSource = ep.sources?.AnimePahe
 
                 return {
                   num: ep.episode_number,
-                  href: awSource?.url || asSource?.url || "",
-                  id: awSource?.id || asSource?.id || "",
+                  href: awSource?.url || asSource?.url || apSource?.url || "",
+                  id: awSource?.id || asSource?.id || apSource?.id || "",
                   sources: {
                     AnimeWorld: awSource
                       ? {
@@ -61,6 +63,13 @@ export const GET = withCors(async (req: NextRequest) => {
                           available: !!asSource.url,
                           url: asSource.url,
                           id: asSource.id,
+                        }
+                      : { available: false },
+                    AnimePahe: apSource
+                      ? {
+                          available: !!apSource.url,
+                          url: apSource.url,
+                          id: apSource.id,
                         }
                       : { available: false },
                   },
@@ -84,7 +93,7 @@ export const GET = withCors(async (req: NextRequest) => {
       }
     }
 
-    if (asId && !awId) {
+    if (asId && !awId && !apId) {
       try {
         const unifiedRes = await fetch(`https://aw-au-as-api.vercel.app/api/episodes?AS=${encodeURIComponent(asId)}`, {
           headers: {

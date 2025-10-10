@@ -695,14 +695,14 @@ export function EpisodePlayer({
       <div className="w-full">
         <div className="mb-2 flex items-center justify-between">
           <div className="text-sm font-medium">Episodi</div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 flex-wrap">
             {availableServers.length > 1 && (
               <div className="flex items-center gap-2">
                 <Label htmlFor="server-select" className="text-xs text-muted-foreground">
                   Server:
                 </Label>
                 <Select value={selectedServer} onValueChange={setSelectedServer}>
-                  <SelectTrigger className="w-[120px] h-7 text-xs" id="server-select">
+                  <SelectTrigger className="w-[100px] h-7 text-xs" id="server-select">
                     <SelectValue placeholder="Select server" />
                   </SelectTrigger>
                   <SelectContent>
@@ -722,7 +722,7 @@ export function EpisodePlayer({
                   Qualità:
                 </Label>
                 <Select value={selectedResolution} onValueChange={setSelectedResolution}>
-                  <SelectTrigger className="w-[100px] h-7 text-xs" id="resolution-select">
+                  <SelectTrigger className="w-[90px] h-7 text-xs" id="resolution-select">
                     <SelectValue placeholder="Risoluzione" />
                   </SelectTrigger>
                   <SelectContent>
