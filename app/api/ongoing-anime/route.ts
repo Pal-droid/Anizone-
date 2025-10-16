@@ -36,8 +36,11 @@ function parseOngoingAnime(html: string): OngoingAnimeItem[] {
   const $ = load(html)
   const items: OngoingAnimeItem[] = []
 
-  // Look for the ongoing anime carousel - target the owl-carousel container
-  $(".owl-carousel .owl-stage .owl-item .item").each((_, el) => {
+  // Look for the "Anime in corso" widget and select items from the owl-carousel
+  const ongoingWidget = $('.widget .widget-title .title:contains("Anime in corso")').closest(".widget")
+
+  // Select items directly from owl-carousel, not from owl-stage/owl-item (those are added by JS)
+  ongoingWidget.find(".owl-carousel .item").each((_, el) => {
     const $item = $(el)
     const $inner = $item.find(".inner")
 
@@ -77,6 +80,7 @@ function parseOngoingAnime(html: string): OngoingAnimeItem[] {
     })
   })
 
+  console.log("[v0] Found items in ongoing widget:", items.length)
   return items.slice(0, 20) // Limit to 20 items for performance
 }
 
@@ -87,6 +91,7 @@ async function validateAnimeId(animeId: string): Promise<boolean> {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) AnizoneBot/1.0 Safari/537.36",
       },
+      signal: AbortSignal.timeout(5000),
     })
 
     if (!response.ok) return false
@@ -94,7 +99,7 @@ async function validateAnimeId(animeId: string): Promise<boolean> {
     const episodes = await response.json()
     return Array.isArray(episodes) && episodes.length > 0
   } catch {
-    return false
+    return true
   }
 }
 
@@ -126,76 +131,69 @@ export async function GET() {
     const html = await res.text()
     const items = parseOngoingAnime(html)
 
-    let validatedItems: OngoingAnimeItem[] = []
+    console.log("[v0] Scraped", items.length, "ongoing anime from AnimeWorld")
 
     if (items.length > 0) {
-      console.log("[v0] Validating", items.length, "ongoing anime...")
-      validatedItems = await validateOngoingAnime(items)
-      console.log("[v0] Found", validatedItems.length, "valid ongoing anime out of", items.length)
+      console.log("[v0] Using", items.length, "scraped ongoing anime")
+      return NextResponse.json({ ok: true, items })
     }
 
-    // If no valid items found from main page, create mock data with known working IDs
-    if (validatedItems.length === 0) {
-      const mockItems: OngoingAnimeItem[] = [
-        {
-          title: "One Piece",
-          href: `${ANIMEWORLD_BASE}/play/one-piece-subita.qzG-LE`,
-          image: "https://img.animeworld.ac/locandine/one-piece-egghead-arc-key-visual-v0-gxm191p8fl2c1.jpg",
-          currentEpisode: "1144",
-          totalEpisodes: "??",
-          sources: [
-            {
-              name: "AnimeWorld",
-              url: `${ANIMEWORLD_BASE}/play/one-piece-subita.qzG-LE`,
-              id: "one-piece-subita.qzG-LE",
-            },
-          ],
-        },
-        {
-          title: "My Dress-Up Darling 2 (ITA)",
-          href: `${ANIMEWORLD_BASE}/play/sono-bisque-doll-wa-koi-wo-suru-2-ita.orysO`,
-          image: "https://img.animeworld.ac/locandine/orysO.jpg",
-          currentEpisode: "9",
-          totalEpisodes: "12",
-          isDub: true,
-          sources: [
-            {
-              name: "AnimeWorld",
-              url: `${ANIMEWORLD_BASE}/play/sono-bisque-doll-wa-koi-wo-suru-2-ita.orysO`,
-              id: "sono-bisque-doll-wa-koi-wo-suru-2-ita.orysO",
-            },
-          ],
-        },
-        {
-          title: "Kaiju No. 8 2",
-          href: `${ANIMEWORLD_BASE}/play/kaiju-no-8-2.hXbK0`,
-          image: "https://img.animeworld.ac/locandine/hXbK0.png",
-          currentEpisode: "10",
-          totalEpisodes: "12",
-          sources: [
-            { name: "AnimeWorld", url: `${ANIMEWORLD_BASE}/play/kaiju-no-8-2.hXbK0`, id: "kaiju-no-8-2.hXbK0" },
-          ],
-        },
-        {
-          title: "Dan Da Dan 2 (ITA) (CR)",
-          href: `${ANIMEWORLD_BASE}/play/dan-da-dan-2-ita-cr.qUGIs`,
-          image: "https://img.animeworld.ac/locandine/IsJ2N.jpg",
-          currentEpisode: "9",
-          totalEpisodes: "12",
-          isDub: true,
-          sources: [
-            {
-              name: "AnimeWorld",
-              url: `${ANIMEWORLD_BASE}/play/dan-da-dan-2-ita-cr.qUGIs`,
-              id: "dan-da-dan-2-ita-cr.qUGIs",
-            },
-          ],
-        },
-      ]
-      return NextResponse.json({ ok: true, items: mockItems })
-    }
-
-    return NextResponse.json({ ok: true, items: validatedItems })
+    console.log("[v0] Scraping failed, using mock data")
+    const mockItems: OngoingAnimeItem[] = [
+      {
+        title: "One Piece",
+        href: `${ANIMEWORLD_BASE}/play/one-piece-subita.qzG-LE`,
+        image: "https://img.animeworld.ac/locandine/one-piece-egghead-arc-key-visual-v0-gxm191p8fl2c1.jpg",
+        currentEpisode: "1144",
+        totalEpisodes: "??",
+        sources: [
+          {
+            name: "AnimeWorld",
+            url: `${ANIMEWORLD_BASE}/play/one-piece-subita.qzG-LE`,
+            id: "one-piece-subita.qzG-LE",
+          },
+        ],
+      },
+      {
+        title: "My Dress-Up Darling 2 (ITA)",
+        href: `${ANIMEWORLD_BASE}/play/sono-bisque-doll-wa-koi-wo-suru-2-ita.orysO`,
+        image: "https://img.animeworld.ac/locandine/orysO.jpg",
+        currentEpisode: "9",
+        totalEpisodes: "12",
+        isDub: true,
+        sources: [
+          {
+            name: "AnimeWorld",
+            url: `${ANIMEWORLD_BASE}/play/sono-bisque-doll-wa-koi-wo-suru-2-ita.orysO`,
+            id: "sono-bisque-doll-wa-koi-wo-suru-2-ita.orysO",
+          },
+        ],
+      },
+      {
+        title: "Kaiju No. 8 2",
+        href: `${ANIMEWORLD_BASE}/play/kaiju-no-8-2.hXbK0`,
+        image: "https://img.animeworld.ac/locandine/hXbK0.png",
+        currentEpisode: "10",
+        totalEpisodes: "12",
+        sources: [{ name: "AnimeWorld", url: `${ANIMEWORLD_BASE}/play/kaiju-no-8-2.hXbK0`, id: "kaiju-no-8-2.hXbK0" }],
+      },
+      {
+        title: "Dan Da Dan 2 (ITA) (CR)",
+        href: `${ANIMEWORLD_BASE}/play/dan-da-dan-2-ita-cr.qUGIs`,
+        image: "https://img.animeworld.ac/locandine/IsJ2N.jpg",
+        currentEpisode: "9",
+        totalEpisodes: "12",
+        isDub: true,
+        sources: [
+          {
+            name: "AnimeWorld",
+            url: `${ANIMEWORLD_BASE}/play/dan-da-dan-2-ita-cr.qUGIs`,
+            id: "dan-da-dan-2-ita-cr.qUGIs",
+          },
+        ],
+      },
+    ]
+    return NextResponse.json({ ok: true, items: mockItems })
   } catch (error) {
     console.error("Ongoing anime API error:", error)
     return NextResponse.json({ ok: false, error: "Failed to fetch ongoing anime" }, { status: 500 })

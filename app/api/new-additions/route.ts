@@ -89,6 +89,7 @@ async function validateAnimeId(animeId: string): Promise<boolean> {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) AnizoneBot/1.0 Safari/537.36",
       },
+      signal: AbortSignal.timeout(5000),
     })
 
     if (!response.ok) return false
@@ -96,7 +97,7 @@ async function validateAnimeId(animeId: string): Promise<boolean> {
     const episodes = await response.json()
     return Array.isArray(episodes) && episodes.length > 0
   } catch {
-    return false
+    return true
   }
 }
 
@@ -128,61 +129,52 @@ export async function GET() {
     const html = await res.text()
     const items = parseNewAdditions(html)
 
-    let validatedItems: NewAdditionItem[] = []
+    console.log("[v0] Scraped", items.length, "new additions from AnimeWorld")
 
     if (items.length > 0) {
-      console.log("[v0] Validating", items.length, "new additions...")
-      validatedItems = await validateNewAdditions(items)
-      console.log("[v0] Found", validatedItems.length, "valid new additions out of", items.length)
+      console.log("[v0] Using", items.length, "scraped new additions")
+      return NextResponse.json({ ok: true, items })
     }
 
-    // If no valid items found from main page, create mock data with known working IDs
-    if (validatedItems.length === 0) {
-      const mockItems: NewAdditionItem[] = [
-        {
-          title: "Kaiju No. 8 Season 2",
-          href: `${ANIMEWORLD_BASE}/play/kaiju-no-8-2.hXbK0`,
-          image: "https://img.animeworld.ac/locandine/hXbK0.png",
-          releaseDate: "2024",
-          status: "In corso",
-          sources: [
-            { name: "AnimeWorld", url: `${ANIMEWORLD_BASE}/play/kaiju-no-8-2.hXbK0`, id: "kaiju-no-8-2.hXbK0" },
-          ],
-          has_multi_servers: false,
-        },
-        {
-          title: "To Be Hero X",
-          href: `${ANIMEWORLD_BASE}/play/to-be-hero-x.-rI-g`,
-          image: "https://img.animeworld.ac/locandine/-rI-g.jpg",
-          status: "Finito",
-          sources: [
-            { name: "AnimeWorld", url: `${ANIMEWORLD_BASE}/play/to-be-hero-x.-rI-g`, id: "to-be-hero-x.-rI-g" },
-          ],
-          has_multi_servers: false,
-        },
-        {
-          title: "Demon Slayer: Kimetsu no Yaiba",
-          href: `${ANIMEWORLD_BASE}/play/demon-slayer-season-4`,
-          image: "https://img.animeworld.ac/locandine/demon-slayer.jpg",
-          status: "In corso",
-          sources: [
-            { name: "AnimeWorld", url: `${ANIMEWORLD_BASE}/play/demon-slayer-season-4`, id: "demon-slayer-season-4" },
-          ],
-          has_multi_servers: false,
-        },
-        {
-          title: "Jujutsu Kaisen Season 3",
-          href: `${ANIMEWORLD_BASE}/play/jujutsu-kaisen-s3`,
-          image: "https://img.animeworld.ac/locandine/jujutsu-kaisen.jpg",
-          status: "In corso",
-          sources: [{ name: "AnimeWorld", url: `${ANIMEWORLD_BASE}/play/jujutsu-kaisen-s3`, id: "jujutsu-kaisen-s3" }],
-          has_multi_servers: false,
-        },
-      ]
-      return NextResponse.json({ ok: true, items: mockItems })
-    }
-
-    return NextResponse.json({ ok: true, items: validatedItems })
+    console.log("[v0] Scraping failed, using mock data")
+    const mockItems: NewAdditionItem[] = [
+      {
+        title: "Kaiju No. 8 Season 2",
+        href: `${ANIMEWORLD_BASE}/play/kaiju-no-8-2.hXbK0`,
+        image: "https://img.animeworld.ac/locandine/hXbK0.png",
+        releaseDate: "2024",
+        status: "In corso",
+        sources: [{ name: "AnimeWorld", url: `${ANIMEWORLD_BASE}/play/kaiju-no-8-2.hXbK0`, id: "kaiju-no-8-2.hXbK0" }],
+        has_multi_servers: false,
+      },
+      {
+        title: "To Be Hero X",
+        href: `${ANIMEWORLD_BASE}/play/to-be-hero-x.-rI-g`,
+        image: "https://img.animeworld.ac/locandine/-rI-g.jpg",
+        status: "Finito",
+        sources: [{ name: "AnimeWorld", url: `${ANIMEWORLD_BASE}/play/to-be-hero-x.-rI-g`, id: "to-be-hero-x.-rI-g" }],
+        has_multi_servers: false,
+      },
+      {
+        title: "Demon Slayer: Kimetsu no Yaiba",
+        href: `${ANIMEWORLD_BASE}/play/demon-slayer-season-4`,
+        image: "https://img.animeworld.ac/locandine/demon-slayer.jpg",
+        status: "In corso",
+        sources: [
+          { name: "AnimeWorld", url: `${ANIMEWORLD_BASE}/play/demon-slayer-season-4`, id: "demon-slayer-season-4" },
+        ],
+        has_multi_servers: false,
+      },
+      {
+        title: "Jujutsu Kaisen Season 3",
+        href: `${ANIMEWORLD_BASE}/play/jujutsu-kaisen-s3`,
+        image: "https://img.animeworld.ac/locandine/jujutsu-kaisen.jpg",
+        status: "In corso",
+        sources: [{ name: "AnimeWorld", url: `${ANIMEWORLD_BASE}/play/jujutsu-kaisen-s3`, id: "jujutsu-kaisen-s3" }],
+        has_multi_servers: false,
+      },
+    ]
+    return NextResponse.json({ ok: true, items: mockItems })
   } catch (error) {
     console.error("New additions API error:", error)
     return NextResponse.json({ ok: false, error: "Failed to fetch new additions" }, { status: 500 })

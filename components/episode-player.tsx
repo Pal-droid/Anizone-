@@ -471,61 +471,7 @@ export function EpisodePlayer({
   }, [selectedEpisode, selectedServer, selectedResolution, path])
 
   useEffect(() => {
-    // Skip HLS.js entirely for AnimePahe and AnimeSaturn
-    if (selectedServer !== "AnimeWorld") return
-    if (!proxyUrl || !videoRef.current) return
-
-    const video = videoRef.current
-
-    // Only use HLS.js for AnimeWorld m3u8 streams
-    if (proxyUrl.includes(".m3u8")) {
-      if (!window.Hls) {
-        const script = document.createElement("script")
-        script.src = "https://cdn.jsdelivr.net/npm/hls.js@latest"
-        script.onload = () => initializeHls()
-        document.head.appendChild(script)
-      } else {
-        initializeHls()
-      }
-
-      function initializeHls() {
-        if (!window.Hls || !video || !proxyUrl) return
-
-        if (hlsRef.current) {
-          hlsRef.current.destroy()
-          hlsRef.current = null
-        }
-
-        if (window.Hls.isSupported()) {
-          console.log("[v0] Initializing HLS.js for AnimeWorld m3u8 stream:", proxyUrl)
-          const hls = new window.Hls({
-            enableWorker: true,
-            lowLatencyMode: false,
-          })
-
-          hlsRef.current = hls
-          hls.loadSource(proxyUrl)
-          hls.attachMedia(video)
-
-          hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
-            console.log("[v0] HLS manifest parsed successfully")
-          })
-
-          hls.on(window.Hls.Events.ERROR, (event: any, data: any) => {
-            console.error("[v0] HLS error:", data)
-            if (data.fatal) {
-              setError("Errore nella riproduzione HLS")
-            }
-          })
-        } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-          console.log("[v0] Using native HLS support")
-          video.src = proxyUrl
-        } else {
-          setError("HLS non supportato in questo browser")
-        }
-      }
-    }
-
+    // Skip HLS.js entirely - let browser handle video natively
     return () => {
       if (hlsRef.current) {
         hlsRef.current.destroy()
@@ -815,7 +761,7 @@ export function EpisodePlayer({
             preload="metadata"
             autoPlay={autoNext}
             onEnded={onEnd}
-            src={isAnimePahe ? proxyUrl : undefined}
+            src={proxyUrl}
             onError={() => {
               setError("Errore di riproduzione. Riprovo...")
               if (selectedEpisode) localStorage.removeItem(`anizone:stream:${epKey(selectedEpisode)}`)
