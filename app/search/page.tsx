@@ -63,6 +63,7 @@ export default function SearchPage() {
   const [hasSearched, setHasSearched] = useState(false)
   const [showingDefaults, setShowingDefaults] = useState(false)
   const [pagination, setPagination] = useState<PaginationInfo | null>(null)
+  const [showingDefaultManga, setShowingDefaultManga] = useState(false)
 
   const genreId = sp.get("genre")
   const keyword = sp.get("keyword")
@@ -107,17 +108,12 @@ export default function SearchPage() {
       let r: Response
       const hasFilters = hasOtherFilters()
 
-      console.log("[v0] Search params:", { keyword, genreId, hasFilters, queryString })
-
       if (genreId && !keyword) {
-        console.log("[v0] Using regular API for genre search")
         r = await fetch(`/api/search?${queryString}`)
       } else if (keyword && !hasFilters) {
-        console.log("[v0] Using unified API for keyword-only search")
         r = await fetch(`/api/unified-search?keyword=${encodeURIComponent(keyword)}`)
         setIsUnified(true)
       } else {
-        console.log("[v0] Using regular API for filtered search")
         r = await fetch(`/api/search?${queryString}`)
       }
 
@@ -152,6 +148,7 @@ export default function SearchPage() {
     setLoading(true)
     setError(null)
     setHasSearched(true)
+    setShowingDefaultManga(false)
     try {
       const searchParams = new URLSearchParams()
       if (params.keyword) searchParams.set("keyword", params.keyword)
@@ -178,7 +175,6 @@ export default function SearchPage() {
       if (key === "keyword" || key === "genre" || key === "tab" || key === "page") return false
       return value && value.trim() !== "" && value !== "any" && value !== "0" && value !== "all"
     })
-    console.log("[v0] Has other filters:", hasFilters, "All params:", allParams)
     return hasFilters
   }
 
@@ -199,17 +195,32 @@ export default function SearchPage() {
     }
   }, [queryString, genreId, searchType])
 
+  // 👇 Updated Manga effect
   useEffect(() => {
-    if (searchType === "manga" && keyword) {
-      searchManga({
-        keyword: keyword,
-        type: "all",
-        author: "",
-        year: "",
-        genre: "",
-        artist: "",
-        sort: "default",
-      })
+    if (searchType === "manga") {
+      const fetchManga = async () => {
+        setLoading(true)
+        setError(null)
+        try {
+          let data
+          if (keyword) {
+            setShowingDefaultManga(false)
+            const r = await fetch(`/api/manga-search?keyword=${encodeURIComponent(keyword)}`)
+            data = await r.json()
+          } else {
+            // ✅ Fetch default manga results
+            setShowingDefaultManga(true)
+            const r = await fetch(`/api/manga-scrape`)
+            data = await r.json()
+          }
+          setMangaItems(data.results || [])
+        } catch (e: any) {
+          setError(e?.message || "Errore nel caricamento dei manga")
+        } finally {
+          setLoading(false)
+        }
+      }
+      fetchManga()
     }
   }, [searchType, keyword])
 
@@ -217,14 +228,8 @@ export default function SearchPage() {
     if (!pagination) return
 
     let targetPage = pageNum
-
-    // Wrap around logic - if trying to go beyond max page, wrap to page 1
-    if (pageNum > pagination.totalPages) {
-      targetPage = 1
-    } else if (pageNum < 1) {
-      // If trying to go below page 1, wrap to last page
-      targetPage = pagination.totalPages
-    }
+    if (pageNum > pagination.totalPages) targetPage = 1
+    else if (pageNum < 1) targetPage = pagination.totalPages
 
     const newParams = new URLSearchParams(sp.toString())
     newParams.set("page", targetPage.toString())
@@ -260,6 +265,7 @@ export default function SearchPage() {
             </TabsTrigger>
           </TabsList>
 
+          {/* === ANIME TAB === */}
           <TabsContent value="anime" className="space-y-4">
             <div className="rounded-lg bg-neutral-950 text-white p-4">
               <h1 className="text-lg font-bold">
@@ -272,8 +278,10 @@ export default function SearchPage() {
                   : "Trova episodi sub/dub ITA e guardali direttamente."}
               </p>
             </div>
+
             <SearchForm />
             {error && <div className="text-red-600 text-sm">{error}</div>}
+
             {loading ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
                 {Array.from({ length: 10 }).map((_, i) => (
@@ -347,13 +355,22 @@ export default function SearchPage() {
             )}
           </TabsContent>
 
+          {/* === MANGA TAB === */}
           <TabsContent value="manga" className="space-y-4">
             <div className="rounded-lg bg-neutral-950 text-white p-4">
-              <h1 className="text-lg font-bold">Cerca Manga</h1>
-              <p className="text-xs text-neutral-300 mt-1">Trova capitoli tradotti in ITA e leggili direttamente.</p>
+              <h1 className="text-lg font-bold">
+                {showingDefaultManga ? "Raccomandazioni Manga" : "Cerca Manga"}
+              </h1>
+              <p className="text-xs text-neutral-300 mt-1">
+                {showingDefaultManga
+                  ? "Manga popolari o aggiornati di recente."
+                  : "Trova capitoli tradotti in ITA e leggili direttamente."}
+              </p>
             </div>
+
             <MangaSearchForm onSearch={searchManga} isLoading={loading} />
             {error && <div className="text-red-600 text-sm">{error}</div>}
+
             {loading ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
@@ -367,7 +384,11 @@ export default function SearchPage() {
               </div>
             ) : mangaItems.length > 0 ? (
               <div className="space-y-4">
-                <h2 className="text-lg font-semibold">Risultati manga ({mangaItems.length})</h2>
+                <h2 className="text-lg font-semibold">
+                  {showingDefaultManga
+                    ? `Manga consigliati (${mangaItems.length})`
+                    : `Risultati manga (${mangaItems.length})`}
+                </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                   {mangaItems.map((manga, index) => (
                     <MangaCard key={index} manga={manga} />
