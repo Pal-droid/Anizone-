@@ -145,7 +145,10 @@ export default function SearchPage() {
     setError(null)
     setHasSearched(true)
     try {
-      const response = await fetch("/api/manga-search")
+      const url = keyword
+        ? `/api/manga-search?keyword=${encodeURIComponent(keyword)}`
+        : `/api/manga-search`
+      const response = await fetch(url)
       const data = await response.json()
       setMangaItems(data.results || [])
     } catch (e: any) {
@@ -186,13 +189,18 @@ export default function SearchPage() {
     if (searchType === "manga") {
       searchManga()
     }
-  }, [searchType])
+  }, [searchType, keyword])
 
   const navigateToPage = (pageNum: number) => {
     if (!pagination) return
+
     let targetPage = pageNum
-    if (pageNum > pagination.totalPages) targetPage = 1
-    else if (pageNum < 1) targetPage = pagination.totalPages
+    if (pageNum > pagination.totalPages) {
+      targetPage = 1
+    } else if (pageNum < 1) {
+      targetPage = pagination.totalPages
+    }
+
     const newParams = new URLSearchParams(sp.toString())
     newParams.set("page", targetPage.toString())
     router.push(`/search?${newParams.toString()}`)
@@ -227,7 +235,7 @@ export default function SearchPage() {
             </TabsTrigger>
           </TabsList>
 
-          {/* Anime Tab */}
+          {/* ANIME TAB */}
           <TabsContent value="anime" className="space-y-4">
             <div className="rounded-lg bg-neutral-950 text-white p-4">
               <h1 className="text-lg font-bold">
@@ -315,13 +323,13 @@ export default function SearchPage() {
             )}
           </TabsContent>
 
-          {/* Manga Tab */}
+          {/* MANGA TAB */}
           <TabsContent value="manga" className="space-y-4">
             <div className="rounded-lg bg-neutral-950 text-white p-4">
               <h1 className="text-lg font-bold">Cerca Manga</h1>
               <p className="text-xs text-neutral-300 mt-1">Trova capitoli tradotti in ITA e leggili direttamente.</p>
             </div>
-            <MangaSearchForm onSearch={searchManga} isLoading={loading} />
+            <MangaSearchForm onSearch={() => searchManga()} isLoading={loading} />
             {error && <div className="text-red-600 text-sm">{error}</div>}
             {loading ? (
               <div className="text-center py-8">
