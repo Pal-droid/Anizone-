@@ -140,15 +140,29 @@ export default function SearchPage() {
     }
   }
 
-  const searchManga = async () => {
+  const searchManga = async (params: {
+    keyword: string
+    type: string
+    author: string
+    year: string
+    genre: string
+    artist: string
+    sort: string
+  }) => {
     setLoading(true)
     setError(null)
     setHasSearched(true)
     try {
-      const url = keyword
-        ? `/api/manga-search?keyword=${encodeURIComponent(keyword)}`
-        : `/api/manga-search`
-      const response = await fetch(url)
+      const searchParams = new URLSearchParams()
+      if (params.keyword) searchParams.set("keyword", params.keyword)
+      if (params.type && params.type !== "all") searchParams.set("type", params.type)
+      if (params.author) searchParams.set("author", params.author)
+      if (params.year) searchParams.set("year", params.year)
+      if (params.genre) searchParams.set("genre", params.genre)
+      if (params.artist) searchParams.set("artist", params.artist)
+      if (params.sort && params.sort !== "default") searchParams.set("sort", params.sort)
+
+      const response = await fetch(`/api/manga-search?${searchParams.toString()}`)
       const data = await response.json()
       setMangaItems(data.results || [])
     } catch (e: any) {
@@ -186,8 +200,16 @@ export default function SearchPage() {
   }, [queryString, genreId, searchType])
 
   useEffect(() => {
-    if (searchType === "manga") {
-      searchManga()
+    if (searchType === "manga" && keyword) {
+      searchManga({
+        keyword: keyword,
+        type: "all",
+        author: "",
+        year: "",
+        genre: "",
+        artist: "",
+        sort: "default",
+      })
     }
   }, [searchType, keyword])
 
@@ -195,9 +217,12 @@ export default function SearchPage() {
     if (!pagination) return
 
     let targetPage = pageNum
+
+    // Wrap around logic - if trying to go beyond max page, wrap to page 1
     if (pageNum > pagination.totalPages) {
       targetPage = 1
     } else if (pageNum < 1) {
+      // If trying to go below page 1, wrap to last page
       targetPage = pagination.totalPages
     }
 
@@ -235,7 +260,6 @@ export default function SearchPage() {
             </TabsTrigger>
           </TabsList>
 
-          {/* ANIME TAB */}
           <TabsContent value="anime" className="space-y-4">
             <div className="rounded-lg bg-neutral-950 text-white p-4">
               <h1 className="text-lg font-bold">
@@ -323,13 +347,12 @@ export default function SearchPage() {
             )}
           </TabsContent>
 
-          {/* MANGA TAB */}
           <TabsContent value="manga" className="space-y-4">
             <div className="rounded-lg bg-neutral-950 text-white p-4">
               <h1 className="text-lg font-bold">Cerca Manga</h1>
               <p className="text-xs text-neutral-300 mt-1">Trova capitoli tradotti in ITA e leggili direttamente.</p>
             </div>
-            <MangaSearchForm onSearch={() => searchManga()} isLoading={loading} />
+            <MangaSearchForm onSearch={searchManga} isLoading={loading} />
             {error && <div className="text-red-600 text-sm">{error}</div>}
             {loading ? (
               <div className="text-center py-8">
