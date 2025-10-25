@@ -26,9 +26,10 @@ export async function GET(req: NextRequest) {
     const asId = searchParams.get("AS")
     const apId = searchParams.get("AP")
     const apAnimeId = searchParams.get("AP_ANIME")
+    const auId = searchParams.get("AU")
     const resolution = searchParams.get("res") || "1080"
 
-    if (awId || asId || (apId && apAnimeId)) {
+    if (awId || asId || (apId && apAnimeId) || auId) {
       try {
         const params = new URLSearchParams()
         if (awId) params.set("AW", awId)
@@ -38,6 +39,7 @@ export async function GET(req: NextRequest) {
           params.set("AP_ANIME", apAnimeId)
           params.set("res", resolution)
         }
+        if (auId) params.set("AU", auId)
 
         const unifiedRes = await fetch(`https://aw-au-as-api.vercel.app/api/stream?${params}`, {
           headers: {
@@ -48,7 +50,7 @@ export async function GET(req: NextRequest) {
             "Cache-Control": "no-cache",
             Pragma: "no-cache",
           },
-          signal: AbortSignal.timeout(25000), // Increased timeout
+          signal: AbortSignal.timeout(25000),
         })
 
         if (unifiedRes.ok) {
@@ -57,8 +59,8 @@ export async function GET(req: NextRequest) {
           const animeWorldData = streamData.AnimeWorld
           const animeSaturnData = streamData.AnimeSaturn
           const animePaheData = streamData.AnimePahe
+          const aniUnityData = streamData.AniUnity
 
-          // Prefer AnimeWorld if available, then AnimePahe, fallback to AnimeSaturn
           if (animeWorldData?.available && animeWorldData.stream_url) {
             return NextResponse.json({
               ok: true,
@@ -68,6 +70,15 @@ export async function GET(req: NextRequest) {
               server: "AnimeWorld",
               unified: true,
             })
+          } else if (aniUnityData?.available && aniUnityData.stream_url) {
+            return NextResponse.json({
+              ok: true,
+              streamUrl: aniUnityData.stream_url,
+              source: "https://aw-au-as-api.vercel.app/api/stream",
+              server: "AniUnity",
+              unified: true,
+              isDirectMp4: true,
+            })
           } else if (animePaheData?.available && animePaheData.stream_url) {
             return NextResponse.json({
               ok: true,
@@ -75,7 +86,7 @@ export async function GET(req: NextRequest) {
               source: "https://aw-au-as-api.vercel.app/api/stream",
               server: "AnimePahe",
               unified: true,
-              isM3u8: true, // AnimePahe always returns m3u8
+              isM3u8: true,
               resolution: resolution,
             })
           } else if (animeSaturnData?.available) {
@@ -84,18 +95,14 @@ export async function GET(req: NextRequest) {
 
             let isM3u8 = false
 
-            // Check if stream_url is already an m3u8
             if (streamUrl && streamUrl.includes(".m3u8")) {
               isM3u8 = true
-            }
-            // If embed contains base64 encoded HTML with m3u8, extract the m3u8 URL
-            else if (embed && embed.includes("data:text/html;base64")) {
+            } else if (embed && embed.includes("data:text/html;base64")) {
               try {
                 const base64Match = embed.match(/data:text\/html;base64,([^"]+)/)
                 if (base64Match) {
                   const decodedHtml = atob(base64Match[1])
 
-                  // Try multiple patterns to find m3u8 URLs
                   const m3u8Patterns = [
                     /videoSrc\s*=\s*['"]([^'"]+\.m3u8[^'"]*)['"]/i,
                     /src\s*:\s*['"]([^'"]+\.m3u8[^'"]*)['"]/i,
@@ -126,7 +133,7 @@ export async function GET(req: NextRequest) {
               source: "https://aw-au-as-api.vercel.app/api/stream",
               server: "AnimeSaturn",
               unified: true,
-              isM3u8, // Flag for HLS streams
+              isM3u8,
             })
           } else {
             return NextResponse.json(
@@ -143,7 +150,6 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Fallback to original AnimeWorld scraping
     if (!path) {
       return NextResponse.json(
         { ok: false, error: "Parametro 'path' mancante. Esempio: /play/naruto-ita.Ze1Qv/NoZjU" },

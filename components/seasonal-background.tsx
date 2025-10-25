@@ -13,10 +13,13 @@ interface Particle {
 
 export function SeasonalBackground() {
   const [particles, setParticles] = useState<Particle[]>([])
+  const [hasPlayed, setHasPlayed] = useState(false)
   const season = getCurrentSeason()
   const theme = getSeasonalTheme(season)
 
   useEffect(() => {
+    if (hasPlayed) return
+
     // Generate particles
     const newParticles: Particle[] = Array.from({ length: theme.particles.count }, (_, i) => ({
       id: i,
@@ -26,7 +29,8 @@ export function SeasonalBackground() {
       size: 0.8 + Math.random() * 0.4, // 0.8-1.2 scale
     }))
     setParticles(newParticles)
-  }, [theme.particles.count])
+    setHasPlayed(true)
+  }, [theme.particles.count, hasPlayed])
 
   return (
     <>

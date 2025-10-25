@@ -117,12 +117,14 @@ export function EpisodePlayer({
       AnimeWorld: "World",
       AnimeSaturn: "Saturn",
       AnimePahe: "Pahe",
+      AniUnity: "Unity",
     }),
     [],
   )
 
   const isEmbedServer = selectedServer === "AnimeSaturn"
   const isAnimePahe = selectedServer === "AnimePahe"
+  const isAniUnity = selectedServer === "AniUnity"
 
   const availableResolutions = ["1080", "720", "480", "360"]
 
@@ -130,16 +132,13 @@ export function EpisodePlayer({
     if (currentPathRef.current && currentPathRef.current !== path) {
       console.log("[v0] Anime path changed from", currentPathRef.current, "to", path, "- clearing cached data")
 
-      // Clear all cached episode and stream data for the old anime
       try {
         const oldAnimeId = extractAnimeIdFromUrl(currentPathRef.current)
         const newAnimeId = extractAnimeIdFromUrl(path)
 
         if (oldAnimeId !== newAnimeId) {
-          // Clear sessionStorage for the old anime
           sessionStorage.removeItem(`anizone:sources:${currentPathRef.current}`)
 
-          // Clear localStorage cache for episodes and streams
           const keysToRemove = []
           for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i)
@@ -149,7 +148,6 @@ export function EpisodePlayer({
           }
           keysToRemove.forEach((key) => localStorage.removeItem(key))
 
-          // Reset component state
           setEpisodes([])
           setSelectedKey(null)
           setStreamUrl(null)
@@ -196,7 +194,6 @@ export function EpisodePlayer({
 
         let currentSources = sources
 
-        // Try to get fresh sources from sessionStorage first
         try {
           const storedSources = sessionStorage.getItem(`anizone:sources:${path}`)
           if (storedSources) {
@@ -218,8 +215,9 @@ export function EpisodePlayer({
         const awSource = currentSources.find((s) => s.name === "AnimeWorld")
         const asSource = currentSources.find((s) => s.name === "AnimeSaturn")
         const apSource = currentSources.find((s) => s.name === "AnimePahe")
+        const auSource = currentSources.find((s) => s.name === "AniUnity")
 
-        console.log("[v0] Found sources:", { awSource, asSource, apSource })
+        console.log("[v0] Found sources:", { awSource, asSource, apSource, auSource })
 
         const params = new URLSearchParams()
         if (awSource) {
@@ -235,9 +233,13 @@ export function EpisodePlayer({
           params.set("AP", apSource.id)
           console.log("[v0] Using AnimePahe ID:", apSource.id, "from source object")
         }
+        if (auSource) {
+          params.set("AU", auSource.id)
+          console.log("[v0] Using AniUnity ID:", auSource.id, "from source object")
+        }
 
-        if (!awSource && !asSource && !apSource) {
-          throw new Error("No valid AnimeWorld, AnimeSaturn, or AnimePahe sources found")
+        if (!awSource && !asSource && !apSource && !auSource) {
+          throw new Error("No valid AnimeWorld, AnimeSaturn, AnimePahe, or AniUnity sources found")
         }
 
         const apiUrl = `https://aw-au-as-api.vercel.app/api/episodes?${params}`
@@ -281,6 +283,9 @@ export function EpisodePlayer({
             } else if (selectedServer === "AnimePahe") {
               href = ep.sources.AnimePahe?.url || ""
               id = ep.sources.AnimePahe?.id || ""
+            } else if (selectedServer === "AniUnity") {
+              href = ep.sources.AniUnity?.url || ""
+              id = ep.sources.AniUnity?.id || ""
             }
 
             return {
@@ -332,7 +337,6 @@ export function EpisodePlayer({
 
   useEffect(() => {
     if (isAnimePahe && selectedEpisode) {
-      // Trigger stream reload when resolution changes
       setStreamUrl(null)
       setProxyUrl(null)
     }
@@ -396,6 +400,9 @@ export function EpisodePlayer({
             params.set("res", selectedResolution)
           }
         }
+        if (selectedServer === "AniUnity" && unifiedEp.sources.AniUnity?.id) {
+          params.set("AU", unifiedEp.sources.AniUnity.id)
+        }
 
         if (!params.toString()) {
           throw new Error(`No valid ${selectedServer} source ID found for this episode`)
@@ -439,6 +446,10 @@ export function EpisodePlayer({
           const stamp = Math.floor(Date.now() / 60000)
           const proxy = `/api/proxy-stream?src=${encodeURIComponent(direct)}&ref=${encodeURIComponent(selectedEpisode.href)}&ts=${stamp}`
           setProxyUrl(proxy)
+        } else if (selectedServer === "AniUnity" && serverData.stream_url) {
+          const directMp4Url = serverData.stream_url
+          console.log("[v0] AniUnity direct MP4 URL:", directMp4Url)
+          setProxyUrl(directMp4Url)
         } else if (selectedServer === "AnimePahe" && serverData.stream_url) {
           const m3u8Url = serverData.stream_url
           console.log("[v0] AnimePahe m3u8 URL (native playback):", m3u8Url)
@@ -447,11 +458,9 @@ export function EpisodePlayer({
           const finalStreamUrl = serverData.stream_url
 
           if (finalStreamUrl) {
-            // Use iframe embed for all AnimeSaturn streams (both MP4 and M3U8)
             const embedIframeUrl = `https://animesaturn-proxy.onrender.com/embed?url=${encodeURIComponent(finalStreamUrl)}`
             setEmbedUrl(embedIframeUrl)
           } else if (serverData.embed) {
-            // Fallback to existing embed HTML if no direct stream URL
             setEmbedUrl(`data:text/html;charset=utf-8,${encodeURIComponent(serverData.embed)}`)
           } else {
             throw new Error("No valid stream data found for AnimeSaturn")
@@ -471,7 +480,6 @@ export function EpisodePlayer({
   }, [selectedEpisode, selectedServer, selectedResolution, path])
 
   useEffect(() => {
-    // Skip HLS.js entirely - let browser handle video natively
     return () => {
       if (hlsRef.current) {
         hlsRef.current.destroy()
@@ -516,18 +524,15 @@ export function EpisodePlayer({
     const progressKey = `progress:${animeId}:${selectedEpisode.num}`
     let restoreDone = false
 
-    // Load saved progress from localStorage
     const savedTime = storageGet<number>(progressKey) || 0
 
-    // Save progress
     const saveProgress = (currentTime: number) => {
       storageSet(progressKey, Math.floor(currentTime))
       broadcastProgress(Math.floor(currentTime))
     }
 
-    // Handle messages from iframe
     const handleMessage = (e: MessageEvent) => {
-      if (e.source !== iframe.contentWindow) return // only accept messages from our iframe
+      if (e.source !== iframe.contentWindow) return
       if (!e.data?.type) return
 
       if (e.data.type === "saturn-video-ended") {
@@ -541,7 +546,6 @@ export function EpisodePlayer({
 
     window.addEventListener("message", handleMessage)
 
-    // Send resume time after iframe is ready
     const sendResume = () => {
       if (savedTime > 0 && !restoreDone && iframe.contentWindow) {
         iframe.contentWindow.postMessage({ type: "resume-video", time: savedTime }, "*")
@@ -549,10 +553,8 @@ export function EpisodePlayer({
       }
     }
 
-    // Try immediately, in case iframe is already loaded
     sendResume()
 
-    // Also listen for load event
     iframe.addEventListener("load", sendResume)
 
     return () => {
@@ -780,11 +782,12 @@ export function EpisodePlayer({
         )}
       </div>
 
-      {(isEmbedServer || isAnimePahe) && (
+      {(isEmbedServer || isAnimePahe || isAniUnity) && (
         <div className="text-xs text-muted-foreground">
           Stai guardando tramite{" "}
           {serverDisplayNames[selectedServer as keyof typeof serverDisplayNames] || selectedServer}.
           {isAnimePahe && ` Risoluzione: ${selectedResolution}p.`}
+          {isAniUnity && " Riproduzione diretta MP4."}
           {isEmbedServer &&
             " Il controllo della riproduzione e il salvataggio della posizione potrebbero essere limitati."}
         </div>

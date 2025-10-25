@@ -99,7 +99,7 @@ export function LatestMangaChapters() {
 
               <div className="flex-1 min-w-0 flex flex-col">
                 <div className="flex items-start justify-between gap-2 mb-2">
-                  <h3 className="font-medium text-sm leading-tight line-clamp-2 flex-shrink-0">
+                  <h3 className="font-medium text-sm leading-tight line-clamp-2">
                     <Link href={`/manga/${obfuscateId(manga.id)}`} className="hover:text-primary">
                       {manga.title}
                     </Link>
@@ -117,12 +117,19 @@ export function LatestMangaChapters() {
 
                 <div className="space-y-1 flex-1">
                   {manga.chapters.map((chapter, index) => (
-                    <div key={index} className="flex items-center justify-between text-xs">
-                      <Link href={chapter.url} className="text-primary hover:underline flex items-center gap-1">
-                        {chapter.title}
-                        {chapter.isNew && <span className="bg-red-500 text-white px-1 rounded text-[10px]">NUOVO</span>}
+                    <div key={index} className="flex items-center justify-between gap-2 text-xs min-w-0">
+                      <Link
+                        href={chapter.url}
+                        className="text-primary hover:underline flex items-center gap-1 truncate min-w-0"
+                      >
+                        <span className="truncate">{chapter.title}</span>
+                        {chapter.isNew && (
+                          <span className="bg-red-500 text-white px-1 rounded text-[10px] flex-shrink-0">NUOVO</span>
+                        )}
                       </Link>
-                      {chapter.date && <span className="text-muted-foreground">{chapter.date}</span>}
+                      {chapter.date && (
+                        <span className="text-muted-foreground flex-shrink-0 text-xs">{chapter.date}</span>
+                      )}
                     </div>
                   ))}
                 </div>

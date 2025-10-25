@@ -233,8 +233,10 @@
     }
   }
 
+  /* Changed to play once on page load instead of infinite loop */
   .animate-fall {
-    animation: fall linear infinite;
+    animation: fall linear forwards;
+    animation-fill-mode: forwards;
   }
 
   @keyframes float-slow {

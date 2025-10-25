@@ -17,23 +17,27 @@ export const GET = withCors(async (req: NextRequest) => {
     const awId = searchParams.get("AW")
     const asId = searchParams.get("AS")
     const apId = searchParams.get("AP")
+    const auId = searchParams.get("AU")
 
-    if (awId && asId && apId) {
+    if ((awId || asId || apId || auId) && (awId || asId || apId || auId)) {
       try {
-        const unifiedRes = await fetch(
-          `https://aw-au-as-api.vercel.app/api/episodes?AW=${encodeURIComponent(awId)}&AS=${encodeURIComponent(asId)}&AP=${encodeURIComponent(apId)}`,
-          {
-            headers: {
-              "User-Agent":
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) AnizoneBot/1.0 Safari/537.36",
-              Accept: "application/json, text/plain, */*",
-              "Accept-Language": "it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7",
-              "Cache-Control": "no-cache",
-              Pragma: "no-cache",
-            },
-            signal: AbortSignal.timeout(20000), // Increased timeout
+        const params = new URLSearchParams()
+        if (awId) params.set("AW", awId)
+        if (asId) params.set("AS", asId)
+        if (apId) params.set("AP", apId)
+        if (auId) params.set("AU", auId)
+
+        const unifiedRes = await fetch(`https://aw-au-as-api.vercel.app/api/episodes?${params}`, {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) AnizoneBot/1.0 Safari/537.36",
+            Accept: "application/json, text/plain, */*",
+            "Accept-Language": "it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7",
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
           },
-        )
+          signal: AbortSignal.timeout(20000),
+        })
 
         if (unifiedRes.ok) {
           const unifiedData = await unifiedRes.json()
@@ -41,15 +45,15 @@ export const GET = withCors(async (req: NextRequest) => {
           if (Array.isArray(unifiedData) && unifiedData.length > 0) {
             const episodes = unifiedData
               .map((ep: any) => {
-                // Ensure all sources are properly included
                 const awSource = ep.sources?.AnimeWorld
                 const asSource = ep.sources?.AnimeSaturn
                 const apSource = ep.sources?.AnimePahe
+                const auSource = ep.sources?.AniUnity
 
                 return {
                   num: ep.episode_number,
-                  href: awSource?.url || asSource?.url || apSource?.url || "",
-                  id: awSource?.id || asSource?.id || apSource?.id || "",
+                  href: awSource?.url || asSource?.url || apSource?.url || auSource?.url || "",
+                  id: awSource?.id || asSource?.id || apSource?.id || auSource?.id || "",
                   sources: {
                     AnimeWorld: awSource
                       ? {
@@ -70,6 +74,13 @@ export const GET = withCors(async (req: NextRequest) => {
                           available: !!apSource.url,
                           url: apSource.url,
                           id: apSource.id,
+                        }
+                      : { available: false },
+                    AniUnity: auSource
+                      ? {
+                          available: !!auSource.url,
+                          url: auSource.url,
+                          id: auSource.id,
                         }
                       : { available: false },
                   },
@@ -93,7 +104,7 @@ export const GET = withCors(async (req: NextRequest) => {
       }
     }
 
-    if (asId && !awId && !apId) {
+    if (asId && !awId && !apId && !auId) {
       try {
         const unifiedRes = await fetch(`https://aw-au-as-api.vercel.app/api/episodes?AS=${encodeURIComponent(asId)}`, {
           headers: {
@@ -138,7 +149,6 @@ export const GET = withCors(async (req: NextRequest) => {
       )
     }
 
-    // Clean up the path for proper URL construction
     let cleanPath = path
     if (path.startsWith("/play/")) {
       cleanPath = path.replace(/\/+/g, "/")
@@ -159,7 +169,6 @@ export const GET = withCors(async (req: NextRequest) => {
       })
       .filter(Boolean) as Array<{ num: number; href: string; id?: string }>
 
-    // Dedupe by episode number (keep first occurrence in DOM order)
     const byNum = new Map<number, { num: number; href: string; id?: string }>()
     for (const ep of mapped) {
       if (!byNum.has(ep.num)) byNum.set(ep.num, ep)
