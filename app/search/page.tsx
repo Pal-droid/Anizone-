@@ -200,16 +200,29 @@ export default function SearchPage() {
   }, [queryString, genreId, searchType])
 
   useEffect(() => {
-    if (searchType === "manga" && keyword) {
-      searchManga({
-        keyword: keyword,
-        type: "all",
-        author: "",
-        year: "",
-        genre: "",
-        artist: "",
-        sort: "default",
-      })
+    if (searchType === "manga") {
+      if (keyword) {
+        searchManga({
+          keyword: keyword,
+          type: "all",
+          author: "",
+          year: "",
+          genre: "",
+          artist: "",
+          sort: "default",
+        })
+      } else {
+        // Load default manga results when no keyword is present
+        searchManga({
+          keyword: "",
+          type: "all",
+          author: "",
+          year: "",
+          genre: "",
+          artist: "",
+          sort: "default",
+        })
+      }
     }
   }, [searchType, keyword])
 
@@ -355,9 +368,14 @@ export default function SearchPage() {
             <MangaSearchForm onSearch={searchManga} isLoading={loading} />
             {error && <div className="text-red-600 text-sm">{error}</div>}
             {loading ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                <p className="mt-2 text-muted-foreground">Cercando manga...</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <div key={i} className="animate-pulse space-y-2">
+                    <div className="aspect-[2/3] bg-neutral-200 rounded" />
+                    <div className="h-3 w-3/4 bg-neutral-200 rounded" />
+                    <div className="h-2 w-1/2 bg-neutral-200 rounded" />
+                  </div>
+                ))}
               </div>
             ) : mangaItems.length === 0 && hasSearched ? (
               <div className="text-center py-8">
