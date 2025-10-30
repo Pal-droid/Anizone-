@@ -148,6 +148,7 @@ export default function SearchPage() {
     genre: string
     artist: string
     sort: string
+    page?: string
   }) => {
     setLoading(true)
     setError(null)
@@ -161,12 +162,16 @@ export default function SearchPage() {
       if (params.genre) searchParams.set("genre", params.genre)
       if (params.artist) searchParams.set("artist", params.artist)
       if (params.sort && params.sort !== "default") searchParams.set("sort", params.sort)
+      const page = params.page || "1"
+      if (page !== "1") searchParams.set("page", page)
 
       const response = await fetch(`/api/manga-search?${searchParams.toString()}`)
       const data = await response.json()
       setMangaItems(data.results || [])
+      setPagination(data.pagination || null)
     } catch (e: any) {
       setError(e?.message || "Errore nella ricerca manga")
+      setPagination(null)
     } finally {
       setLoading(false)
     }
@@ -201,6 +206,7 @@ export default function SearchPage() {
 
   useEffect(() => {
     if (searchType === "manga") {
+      const page = sp.get("page") || "1"
       if (keyword) {
         searchManga({
           keyword: keyword,
@@ -210,6 +216,7 @@ export default function SearchPage() {
           genre: "",
           artist: "",
           sort: "default",
+          page: page,
         })
       } else {
         // Load default manga results when no keyword is present
@@ -221,10 +228,11 @@ export default function SearchPage() {
           genre: "",
           artist: "",
           sort: "default",
+          page: page,
         })
       }
     }
-  }, [searchType, keyword])
+  }, [searchType, keyword, sp.get("page")])
 
   const navigateToPage = (pageNum: number) => {
     if (!pagination) return
@@ -391,6 +399,46 @@ export default function SearchPage() {
                     <MangaCard key={index} manga={manga} />
                   ))}
                 </div>
+                {pagination && (
+                  <div className="flex items-center justify-between py-3 px-2 border-t border-neutral-800 bg-neutral-900/50 rounded-lg">
+                    <button
+                      onClick={() => navigateToPage(pagination.currentPage - 1)}
+                      disabled={!pagination.hasPrevious}
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-neutral-800 transition-colors"
+                    >
+                      <ArrowLeft size={14} />
+                      Precedente
+                    </button>
+
+                    <div className="flex items-center gap-2 text-sm text-neutral-300">
+                      <span>pagina</span>
+                      <input
+                        type="number"
+                        min="1"
+                        max={pagination.totalPages}
+                        value={pagination.currentPage}
+                        onChange={(e) => {
+                          const page = Number.parseInt(e.target.value)
+                          if (page >= 1 && page <= pagination.totalPages) {
+                            navigateToPage(page)
+                          }
+                        }}
+                        className="w-12 px-2 py-1 text-xs bg-neutral-800 border border-neutral-700 rounded text-center text-neutral-200 focus:border-neutral-600 focus:outline-none"
+                      />
+                      <span>di</span>
+                      <span className="font-medium">{pagination.totalPages}</span>
+                    </div>
+
+                    <button
+                      onClick={() => navigateToPage(pagination.currentPage + 1)}
+                      disabled={!pagination.hasNext}
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-neutral-800 transition-colors"
+                    >
+                      Successiva
+                      <ArrowLeft size={14} className="rotate-180" />
+                    </button>
+                  </div>
+                )}
               </div>
             ) : null}
           </TabsContent>

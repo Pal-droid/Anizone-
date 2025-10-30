@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { BookOpen, ArrowLeft } from "lucide-react"
 import { useState, useEffect } from "react"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import { MangaCard } from "@/components/manga-card"
 import { MangaSearchForm } from "@/components/manga-search-form"
 import { SlideOutMenu } from "@/components/slide-out-menu"
@@ -20,16 +20,27 @@ interface MangaResult {
   story: string
 }
 
+interface PaginationInfo {
+  currentPage: number
+  totalPages: number
+  hasNext: boolean
+  hasPrevious: boolean
+}
+
 export default function MangaSearchPage() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const [searchResults, setSearchResults] = useState<MangaResult[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   const [currentQuery, setCurrentQuery] = useState("")
   const [initialLoadComplete, setInitialLoadComplete] = useState(false)
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null)
 
   useEffect(() => {
     const genre = searchParams.get("genre")
+    const page = searchParams.get("page") || "1"
+
     if (genre) {
       handleSearch({
         keyword: "",
@@ -39,24 +50,27 @@ export default function MangaSearchPage() {
         genre: genre,
         artist: "",
         sort: "default",
+        page,
       })
     } else {
-      loadBaseArchive()
+      loadBaseArchive(page)
     }
   }, [searchParams])
 
-  const loadBaseArchive = async () => {
+  const loadBaseArchive = async (page = "1") => {
     setIsLoading(true)
     setHasSearched(true)
     setCurrentQuery("archivio completo")
 
     try {
-      const response = await fetch("/api/manga-search")
+      const response = await fetch(`/api/manga-search?page=${page}`)
       const data = await response.json()
       setSearchResults(data.results || [])
+      setPagination(data.pagination || null)
     } catch (error) {
       console.error("Error loading base archive:", error)
       setSearchResults([])
+      setPagination(null)
     } finally {
       setIsLoading(false)
       setInitialLoadComplete(true)
@@ -71,6 +85,7 @@ export default function MangaSearchPage() {
     genre: string
     artist: string
     sort: string
+    page?: string
   }) => {
     setIsLoading(true)
     setHasSearched(true)
@@ -85,17 +100,38 @@ export default function MangaSearchPage() {
       if (params.genre) searchParams.set("genre", params.genre)
       if (params.artist) searchParams.set("artist", params.artist)
       if (params.sort && params.sort !== "default") searchParams.set("sort", params.sort)
+      if (params.page && params.page !== "1") searchParams.set("page", params.page)
 
       const response = await fetch(`/api/manga-search?${searchParams.toString()}`)
       const data = await response.json()
       setSearchResults(data.results || [])
+      setPagination(data.pagination || null)
     } catch (error) {
       console.error("Error searching manga:", error)
       setSearchResults([])
+      setPagination(null)
     } finally {
       setIsLoading(false)
       setInitialLoadComplete(true)
     }
+  }
+
+  const navigateToPage = (pageNum: number) => {
+    if (!pagination) return
+
+    let targetPage = pageNum
+
+    // Wrap around logic
+    if (pageNum > pagination.totalPages) {
+      targetPage = 1
+    } else if (pageNum < 1) {
+      targetPage = pagination.totalPages
+    }
+
+    const newParams = new URLSearchParams(searchParams.toString())
+    newParams.set("page", targetPage.toString())
+    router.push(`/search-manga?${newParams.toString()}`)
+    router.refresh()
   }
 
   return (
@@ -120,9 +156,14 @@ export default function MangaSearchPage() {
         </div>
 
         {isLoading && (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-            <p className="mt-2 text-muted-foreground">Cercando manga...</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div key={i} className="animate-pulse space-y-2">
+                <div className="aspect-[2/3] bg-neutral-200 dark:bg-neutral-800 rounded" />
+                <div className="h-3 w-3/4 bg-neutral-200 dark:bg-neutral-800 rounded" />
+                <div className="h-2 w-1/2 bg-neutral-200 dark:bg-neutral-800 rounded" />
+              </div>
+            ))}
           </div>
         )}
 
@@ -147,6 +188,47 @@ export default function MangaSearchPage() {
                 <MangaCard key={index} manga={manga} />
               ))}
             </div>
+
+            {pagination && (
+              <div className="flex items-center justify-between py-3 px-2 border-t border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/50 rounded-lg">
+                <button
+                  onClick={() => navigateToPage(pagination.currentPage - 1)}
+                  disabled={!pagination.hasPrevious}
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 rounded disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-neutral-200 dark:disabled:hover:bg-neutral-800 transition-colors"
+                >
+                  <ArrowLeft size={14} />
+                  Precedente
+                </button>
+
+                <div className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
+                  <span>pagina</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max={pagination.totalPages}
+                    value={pagination.currentPage}
+                    onChange={(e) => {
+                      const page = Number.parseInt(e.target.value)
+                      if (page >= 1 && page <= pagination.totalPages) {
+                        navigateToPage(page)
+                      }
+                    }}
+                    className="w-12 px-2 py-1 text-xs bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded text-center text-neutral-800 dark:text-neutral-200 focus:border-neutral-400 dark:focus:border-neutral-600 focus:outline-none"
+                  />
+                  <span>di</span>
+                  <span className="font-medium">{pagination.totalPages}</span>
+                </div>
+
+                <button
+                  onClick={() => navigateToPage(pagination.currentPage + 1)}
+                  disabled={!pagination.hasNext}
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 rounded disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-neutral-200 dark:disabled:hover:bg-neutral-800 transition-colors"
+                >
+                  Successiva
+                  <ArrowLeft size={14} className="rotate-180" />
+                </button>
+              </div>
+            )}
           </div>
         )}
 

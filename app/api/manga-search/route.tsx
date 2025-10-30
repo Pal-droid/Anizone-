@@ -27,7 +27,7 @@ async function fetchWithRedirects(url: string, maxRedirects = 5): Promise<Respon
 
       // Make location absolute if it's relative
       currentUrl = location.startsWith("http") ? location : new URL(location, currentUrl).toString()
-      console.log(`[v0] Following redirect to: ${currentUrl}`)
+      console.log("[v0] Following redirect to: ${currentUrl}")
       continue
     }
 
@@ -47,11 +47,12 @@ export async function GET(request: NextRequest) {
   const genre = searchParams.get("genre") || ""
   const artist = searchParams.get("artist") || ""
   const sort = searchParams.get("sort") || ""
+  const page = searchParams.get("page") || "1"
 
   try {
     let searchUrl = "https://www.mangaworld.cx/archive"
 
-    if (keyword || type || author || year || genre || artist || sort) {
+    if (keyword || type || author || year || genre || artist || sort || page !== "1") {
       searchUrl += `?keyword=${encodeURIComponent(keyword)}`
       if (type && type !== "all") searchUrl += `&type=${encodeURIComponent(type)}`
       if (author) searchUrl += `&author=${encodeURIComponent(author)}`
@@ -59,6 +60,7 @@ export async function GET(request: NextRequest) {
       if (genre) searchUrl += `&genre=${encodeURIComponent(genre)}`
       if (artist) searchUrl += `&artist=${encodeURIComponent(artist)}`
       if (sort && sort !== "default") searchUrl += `&sort=${sort}`
+      if (page !== "1") searchUrl += `&page=${page}`
     }
 
     console.log("[v0] Manga search URL:", searchUrl)
@@ -72,10 +74,45 @@ export async function GET(request: NextRequest) {
     const mangaResults = parseMangaSearchResults(html)
     console.log("[v0] Parsed manga results count:", mangaResults.length)
 
-    return NextResponse.json({ results: mangaResults })
+    const pagination = parsePaginationData(html)
+    console.log("[v0] Pagination data:", pagination)
+
+    return NextResponse.json({ results: mangaResults, pagination })
   } catch (error) {
     console.error("Error fetching manga search results:", error)
     return NextResponse.json({ error: "Failed to fetch manga results" }, { status: 500 })
+  }
+}
+
+function parsePaginationData(html: string) {
+  try {
+    // Use regex to find the JSON object containing pagination data
+    // Pattern matches: {"URL":"https://www.mangaworld.cx"..."totalPages":X..."page":Y...}
+    const regex = /\{[^{}]*"URL":"https:\/\/www\.mangaworld\.cx"[^{}]*"totalPages":\d+[^{}]*"page":\d+[^{}]*\}/
+    const match = html.match(regex)
+
+    if (match) {
+      const jsonStr = match[0]
+      const data = JSON.parse(jsonStr)
+
+      const currentPage = data.page || 1
+      const totalPages = data.totalPages || 1
+
+      console.log("[v0] Parsed pagination - Current page:", currentPage, "Total pages:", totalPages)
+
+      return {
+        currentPage,
+        totalPages,
+        hasNext: currentPage < totalPages,
+        hasPrevious: currentPage > 1,
+      }
+    }
+
+    console.log("[v0] No pagination data found in HTML")
+    return null
+  } catch (error) {
+    console.error("[v0] Error parsing pagination data:", error)
+    return null
   }
 }
 
