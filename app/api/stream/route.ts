@@ -23,23 +23,11 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const path = searchParams.get("path")
     const awId = searchParams.get("AW")
-    const asId = searchParams.get("AS")
-    const apId = searchParams.get("AP")
-    const apAnimeId = searchParams.get("AP_ANIME")
-    const auId = searchParams.get("AU")
-    const resolution = searchParams.get("res") || "1080"
 
-    if (awId || asId || (apId && apAnimeId) || auId) {
+    if (awId) {
       try {
         const params = new URLSearchParams()
-        if (awId) params.set("AW", awId)
-        if (asId) params.set("AS", asId)
-        if (apId && apAnimeId) {
-          params.set("AP", apId)
-          params.set("AP_ANIME", apAnimeId)
-          params.set("res", resolution)
-        }
-        if (auId) params.set("AU", auId)
+        params.set("AW", awId)
 
         const unifiedRes = await fetch(`https://aw-au-as-api.vercel.app/api/stream?${params}`, {
           headers: {
@@ -55,11 +43,7 @@ export async function GET(req: NextRequest) {
 
         if (unifiedRes.ok) {
           const streamData = await unifiedRes.json()
-
           const animeWorldData = streamData.AnimeWorld
-          const animeSaturnData = streamData.AnimeSaturn
-          const animePaheData = streamData.AnimePahe
-          const aniUnityData = streamData.AniUnity
 
           if (animeWorldData?.available && animeWorldData.stream_url) {
             return NextResponse.json({
@@ -70,74 +54,9 @@ export async function GET(req: NextRequest) {
               server: "AnimeWorld",
               unified: true,
             })
-          } else if (aniUnityData?.available && aniUnityData.stream_url) {
-            return NextResponse.json({
-              ok: true,
-              streamUrl: aniUnityData.stream_url,
-              source: "https://aw-au-as-api.vercel.app/api/stream",
-              server: "AniUnity",
-              unified: true,
-              isDirectMp4: true,
-            })
-          } else if (animePaheData?.available && animePaheData.stream_url) {
-            return NextResponse.json({
-              ok: true,
-              streamUrl: animePaheData.stream_url,
-              source: "https://aw-au-as-api.vercel.app/api/stream",
-              server: "AnimePahe",
-              unified: true,
-              isM3u8: true,
-              resolution: resolution,
-            })
-          } else if (animeSaturnData?.available) {
-            let streamUrl = animeSaturnData.stream_url
-            const embed = animeSaturnData.embed
-
-            let isM3u8 = false
-
-            if (streamUrl && streamUrl.includes(".m3u8")) {
-              isM3u8 = true
-            } else if (embed && embed.includes("data:text/html;base64")) {
-              try {
-                const base64Match = embed.match(/data:text\/html;base64,([^"]+)/)
-                if (base64Match) {
-                  const decodedHtml = atob(base64Match[1])
-
-                  const m3u8Patterns = [
-                    /videoSrc\s*=\s*['"]([^'"]+\.m3u8[^'"]*)['"]/i,
-                    /src\s*:\s*['"]([^'"]+\.m3u8[^'"]*)['"]/i,
-                    /file\s*:\s*['"]([^'"]+\.m3u8[^'"]*)['"]/i,
-                    /source\s*:\s*['"]([^'"]+\.m3u8[^'"]*)['"]/i,
-                    /'([^']+\.m3u8[^']*)'/g,
-                    /"([^"]+\.m3u8[^"]*)"/g,
-                  ]
-
-                  for (const pattern of m3u8Patterns) {
-                    const match = decodedHtml.match(pattern)
-                    if (match && match[1]) {
-                      streamUrl = match[1]
-                      isM3u8 = true
-                      break
-                    }
-                  }
-                }
-              } catch (e) {
-                console.warn("Failed to parse AnimeSaturn m3u8 embed:", e)
-              }
-            }
-
-            return NextResponse.json({
-              ok: true,
-              streamUrl,
-              embed,
-              source: "https://aw-au-as-api.vercel.app/api/stream",
-              server: "AnimeSaturn",
-              unified: true,
-              isM3u8,
-            })
           } else {
             return NextResponse.json(
-              { ok: false, error: "Nessun server disponibile per questo episodio", streamData },
+              { ok: false, error: "AnimeWorld non disponibile per questo episodio", streamData },
               { status: 404 },
             )
           }
@@ -152,10 +71,11 @@ export async function GET(req: NextRequest) {
 
     if (!path) {
       return NextResponse.json(
-        { ok: false, error: "Parametro 'path' mancante. Esempio: /play/naruto-ita.Ze1Qv/NoZjU" },
+        { ok: false, error: "Parametro mancante. Usa AW=<id> oppure path=<path>" },
         { status: 400 },
       )
     }
+
     const url = path.startsWith("http") ? path : `${ANIMEWORLD_BASE}${path}`
 
     const { html, finalUrl } = await fetchHtml(url)

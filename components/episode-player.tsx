@@ -13,7 +13,7 @@ declare global {
   }
 }
 
-type Episode = { num: number; href: string; id?: string }
+type Episode = { num: number; href: string; id?: string; unifiedData?: any }
 type Source = { name: string; url: string; id: string }
 
 function epKey(e: Episode) {
@@ -54,6 +54,14 @@ function extractAnimeIdFromUrl(url: string): string {
     }
     return url
   }
+}
+
+function extractAnimeIdFromSourceId(sourceId: string): string {
+  // If it contains a slash, it might be an episode ID - extract the anime part
+  if (sourceId.includes("/")) {
+    return sourceId.split("/")[0]
+  }
+  return sourceId
 }
 
 function storageGet<T = any>(key: string): T | null {
@@ -108,23 +116,22 @@ export function EpisodePlayer({
   const seriesKeyForStore = useMemo(() => seriesBaseFromPath(path), [path])
 
   const availableServers = useMemo(() => {
-    const servers = sources?.map((s) => s.name) || ["AnimeWorld"]
-    return servers.length > 0 ? servers : ["AnimeWorld"]
+    const serverNames = sources?.map((s) => s.name) || []
+    // Only include AnimeWorld for now, others are unavailable
+    return serverNames.filter((name) => name === "AnimeWorld")
   }, [sources])
 
   const serverDisplayNames = useMemo(
     () => ({
       AnimeWorld: "World",
-      AnimeSaturn: "Saturn",
-      AnimePahe: "Pahe",
-      AniUnity: "Unity",
+      AnimeSaturn: "Saturn (non disponibile)",
+      AnimePahe: "Pahe (non disponibile)",
     }),
     [],
   )
 
   const isEmbedServer = selectedServer === "AnimeSaturn"
   const isAnimePahe = selectedServer === "AnimePahe"
-  const isAniUnity = selectedServer === "AniUnity"
 
   const availableResolutions = ["1080", "720", "480", "360"]
 
@@ -194,6 +201,7 @@ export function EpisodePlayer({
 
         let currentSources = sources
 
+        // Try to get sources from sessionStorage first
         try {
           const storedSources = sessionStorage.getItem(`anizone:sources:${path}`)
           if (storedSources) {
@@ -209,39 +217,39 @@ export function EpisodePlayer({
 
         if (!currentSources || currentSources.length === 0) {
           console.log("[v0] No sources available after checking both props and sessionStorage")
-          throw new Error("No sources available. Please go back and select an anime from the main page.")
+          throw new Error("No sources available. Please go back and select an anime from the search page.")
         }
 
+        // Find the source for each provider
         const awSource = currentSources.find((s) => s.name === "AnimeWorld")
         const asSource = currentSources.find((s) => s.name === "AnimeSaturn")
         const apSource = currentSources.find((s) => s.name === "AnimePahe")
-        const auSource = currentSources.find((s) => s.name === "AniUnity")
 
-        console.log("[v0] Found sources:", { awSource, asSource, apSource, auSource })
+        console.log("[v0] Found sources:", { awSource, asSource, apSource })
 
+        // Build params using the correct IDs from sources
         const params = new URLSearchParams()
+
         if (awSource) {
-          const animeId = extractAnimeIdFromUrl(awSource.url)
+          // Use the ID directly from the source object (e.g., "fly-me-to-the-moon.cGPnE")
+          const animeId = awSource.id || extractAnimeIdFromSourceId(awSource.id)
           params.set("AW", animeId)
-          console.log("[v0] Using anime ID from URL:", animeId, "extracted from:", awSource.url)
+          console.log("[v0] Using AnimeWorld ID:", animeId)
         }
         if (asSource) {
           params.set("AS", asSource.id)
-          console.log("[v0] Using AnimeSaturn ID:", asSource.id, "from source object")
+          console.log("[v0] Using AnimeSaturn ID:", asSource.id)
         }
         if (apSource) {
           params.set("AP", apSource.id)
-          console.log("[v0] Using AnimePahe ID:", apSource.id, "from source object")
-        }
-        if (auSource) {
-          params.set("AU", auSource.id)
-          console.log("[v0] Using AniUnity ID:", auSource.id, "from source object")
+          console.log("[v0] Using AnimePahe ID:", apSource.id)
         }
 
-        if (!awSource && !asSource && !apSource && !auSource) {
-          throw new Error("No valid AnimeWorld, AnimeSaturn, AnimePahe, or AniUnity sources found")
+        if (!awSource && !asSource && !apSource) {
+          throw new Error("No valid AnimeWorld, AnimeSaturn, or AnimePahe sources found in the sources list")
         }
 
+        // Call the external unified API directly
         const apiUrl = `https://aw-au-as-api.vercel.app/api/episodes?${params}`
         console.log("[v0] Calling unified episodes API:", apiUrl)
 
@@ -254,11 +262,10 @@ export function EpisodePlayer({
         })
 
         console.log("[v0] Unified episodes API response status:", r.status)
-        console.log("[v0] Response headers:", Object.fromEntries(r.headers.entries()))
 
         if (!r.ok) {
           const errorText = await r.text()
-          throw new Error(`Unified API failed with status ${r.status}: ${errorText}`)
+          throw new Error(`API failed with status ${r.status}: ${errorText}`)
         }
 
         const unifiedEpisodes = await r.json()
@@ -269,23 +276,16 @@ export function EpisodePlayer({
           throw new Error("Invalid response format from unified API")
         }
 
+        // Process episodes - only use AnimeWorld for now
         const eps: Episode[] = unifiedEpisodes
           .map((ep: any) => {
             let href = ""
             let id = ""
 
-            if (selectedServer === "AnimeWorld") {
-              href = ep.sources.AnimeWorld?.url || ""
-              id = ep.sources.AnimeWorld?.id || ""
-            } else if (selectedServer === "AnimeSaturn") {
-              href = ep.sources.AnimeSaturn?.url || ""
-              id = ep.sources.AnimeSaturn?.id || ""
-            } else if (selectedServer === "AnimePahe") {
-              href = ep.sources.AnimePahe?.url || ""
-              id = ep.sources.AnimePahe?.id || ""
-            } else if (selectedServer === "AniUnity") {
-              href = ep.sources.AniUnity?.url || ""
-              id = ep.sources.AniUnity?.id || ""
+            // Only use AnimeWorld since AnimeSaturn and AnimePahe are marked unavailable
+            if (ep.sources.AnimeWorld?.available) {
+              href = ep.sources.AnimeWorld.url || ""
+              id = ep.sources.AnimeWorld.id || ""
             }
 
             return {
@@ -300,6 +300,7 @@ export function EpisodePlayer({
         console.log("[v0] Processed episodes:", eps)
         setEpisodes(eps)
 
+        // Handle episode param from URL
         let epParam: number | null = null
         try {
           const u = new URL(typeof window !== "undefined" ? window.location.href : "https://dummy.local")
@@ -316,19 +317,13 @@ export function EpisodePlayer({
       } catch (e: any) {
         if (abort.signal.aborted) return
         console.log("[v0] Episode loading error:", e)
-        console.log("[v0] Error details:", {
-          message: e?.message,
-          stack: e?.stack,
-          name: e?.name,
-          cause: e?.cause,
-        })
         setError(e?.message || "Errore nel caricamento episodi")
       } finally {
         if (!abort.signal.aborted) setLoadingEpisodes(false)
       }
     })()
     return () => abort.abort()
-  }, [path, selectedServer, sources, availableServers])
+  }, [path, selectedServer, sources])
 
   const selectedEpisode = useMemo(
     () => (selectedKey ? (episodes.find((e) => epKey(e) === selectedKey) ?? null) : null),
@@ -362,52 +357,25 @@ export function EpisodePlayer({
       try {
         console.log("[v0] Loading stream for episode:", selectedEpisode, "server:", selectedServer)
 
-        if (!(selectedEpisode as any).unifiedData) {
+        const unifiedEp = selectedEpisode.unifiedData
+        if (!unifiedEp) {
           throw new Error("No unified data available for this episode")
         }
 
-        let currentSources = sources
-        try {
-          const storedSources = sessionStorage.getItem(`anizone:sources:${path}`)
-          if (storedSources) {
-            const parsedSources = JSON.parse(storedSources)
-            if (Array.isArray(parsedSources) && parsedSources.length > 0) {
-              currentSources = parsedSources
-            }
-          }
-        } catch (e) {
-          console.log("[v0] Could not get sources from sessionStorage for streaming:", e)
-        }
-
-        if (!currentSources || currentSources.length === 0) {
-          throw new Error("No sources available for streaming")
-        }
-
+        // Build stream params using the episode-specific ID
         const params = new URLSearchParams()
-        const unifiedEp = (selectedEpisode as any).unifiedData
 
         if (selectedServer === "AnimeWorld" && unifiedEp.sources.AnimeWorld?.id) {
+          // Use the episode ID (e.g., "fly-me-to-the-moon.cGPnE/EsEPtO")
           params.set("AW", unifiedEp.sources.AnimeWorld.id)
-        }
-        if (selectedServer === "AnimeSaturn" && unifiedEp.sources.AnimeSaturn?.id) {
-          params.set("AS", unifiedEp.sources.AnimeSaturn.id)
-        }
-        if (selectedServer === "AnimePahe" && unifiedEp.sources.AnimePahe?.id) {
-          const apSource = currentSources.find((s) => s.name === "AnimePahe")
-          if (apSource) {
-            params.set("AP", unifiedEp.sources.AnimePahe.id)
-            params.set("AP_ANIME", apSource.id)
-            params.set("res", selectedResolution)
-          }
-        }
-        if (selectedServer === "AniUnity" && unifiedEp.sources.AniUnity?.id) {
-          params.set("AU", unifiedEp.sources.AniUnity.id)
+          console.log("[v0] Using AnimeWorld episode ID for stream:", unifiedEp.sources.AnimeWorld.id)
         }
 
         if (!params.toString()) {
           throw new Error(`No valid ${selectedServer} source ID found for this episode`)
         }
 
+        // Call the external unified stream API
         const apiUrl = `https://aw-au-as-api.vercel.app/api/stream?${params}`
         console.log("[v0] Calling unified stream API:", apiUrl)
 
@@ -423,48 +391,28 @@ export function EpisodePlayer({
 
         if (!r.ok) {
           const errorText = await r.text()
-          throw new Error(`Unified stream API failed with status ${r.status}: ${errorText}`)
+          throw new Error(`Stream API failed with status ${r.status}: ${errorText}`)
         }
 
         const streamData = await r.json()
+        console.log("[v0] Stream data:", streamData)
+
         const serverData = streamData[selectedServer]
 
         if (!serverData || !serverData.available) {
-          if (selectedServer === "AnimePahe") {
-            throw new Error(
-              `AnimePahe non disponibile per questa risoluzione (${selectedResolution}p). Prova un'altra risoluzione.`,
-            )
-          }
           throw new Error(`${selectedServer} is not available for this episode`)
         }
 
         if (selectedServer === "AnimeWorld" && serverData.stream_url) {
           const direct = serverData.stream_url
+          console.log("[v0] Got AnimeWorld stream URL:", direct)
           setStreamUrl(direct)
           setEpisodeRefUrl(selectedEpisode.href)
 
+          // Create proxy URL for playback
           const stamp = Math.floor(Date.now() / 60000)
           const proxy = `/api/proxy-stream?src=${encodeURIComponent(direct)}&ref=${encodeURIComponent(selectedEpisode.href)}&ts=${stamp}`
           setProxyUrl(proxy)
-        } else if (selectedServer === "AniUnity" && serverData.stream_url) {
-          const directMp4Url = serverData.stream_url
-          console.log("[v0] AniUnity direct MP4 URL:", directMp4Url)
-          setProxyUrl(directMp4Url)
-        } else if (selectedServer === "AnimePahe" && serverData.stream_url) {
-          const m3u8Url = serverData.stream_url
-          console.log("[v0] AnimePahe m3u8 URL (native playback):", m3u8Url)
-          setProxyUrl(m3u8Url)
-        } else if (selectedServer === "AnimeSaturn") {
-          const finalStreamUrl = serverData.stream_url
-
-          if (finalStreamUrl) {
-            const embedIframeUrl = `https://animesaturn-proxy.onrender.com/embed?url=${encodeURIComponent(finalStreamUrl)}`
-            setEmbedUrl(embedIframeUrl)
-          } else if (serverData.embed) {
-            setEmbedUrl(`data:text/html;charset=utf-8,${encodeURIComponent(serverData.embed)}`)
-          } else {
-            throw new Error("No valid stream data found for AnimeSaturn")
-          }
         } else {
           throw new Error(`Invalid stream data format for ${selectedServer}`)
         }
@@ -782,12 +730,11 @@ export function EpisodePlayer({
         )}
       </div>
 
-      {(isEmbedServer || isAnimePahe || isAniUnity) && (
+      {(isEmbedServer || isAnimePahe) && (
         <div className="text-xs text-muted-foreground">
           Stai guardando tramite{" "}
           {serverDisplayNames[selectedServer as keyof typeof serverDisplayNames] || selectedServer}.
           {isAnimePahe && ` Risoluzione: ${selectedResolution}p.`}
-          {isAniUnity && " Riproduzione diretta MP4."}
           {isEmbedServer &&
             " Il controllo della riproduzione e il salvataggio della posizione potrebbero essere limitati."}
         </div>

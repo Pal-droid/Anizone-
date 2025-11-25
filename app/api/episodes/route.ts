@@ -17,15 +17,13 @@ export const GET = withCors(async (req: NextRequest) => {
     const awId = searchParams.get("AW")
     const asId = searchParams.get("AS")
     const apId = searchParams.get("AP")
-    const auId = searchParams.get("AU")
 
-    if ((awId || asId || apId || auId) && (awId || asId || apId || auId)) {
+    if (awId || asId || apId) {
       try {
         const params = new URLSearchParams()
         if (awId) params.set("AW", awId)
         if (asId) params.set("AS", asId)
         if (apId) params.set("AP", apId)
-        if (auId) params.set("AU", auId)
 
         const unifiedRes = await fetch(`https://aw-au-as-api.vercel.app/api/episodes?${params}`, {
           headers: {
@@ -48,12 +46,11 @@ export const GET = withCors(async (req: NextRequest) => {
                 const awSource = ep.sources?.AnimeWorld
                 const asSource = ep.sources?.AnimeSaturn
                 const apSource = ep.sources?.AnimePahe
-                const auSource = ep.sources?.AniUnity
 
                 return {
                   num: ep.episode_number,
-                  href: awSource?.url || asSource?.url || apSource?.url || auSource?.url || "",
-                  id: awSource?.id || asSource?.id || apSource?.id || auSource?.id || "",
+                  href: awSource?.url || asSource?.url || apSource?.url || "",
+                  id: awSource?.id || asSource?.id || apSource?.id || "",
                   sources: {
                     AnimeWorld: awSource
                       ? {
@@ -62,27 +59,8 @@ export const GET = withCors(async (req: NextRequest) => {
                           id: awSource.id,
                         }
                       : { available: false },
-                    AnimeSaturn: asSource
-                      ? {
-                          available: !!asSource.url,
-                          url: asSource.url,
-                          id: asSource.id,
-                        }
-                      : { available: false },
-                    AnimePahe: apSource
-                      ? {
-                          available: !!apSource.url,
-                          url: apSource.url,
-                          id: apSource.id,
-                        }
-                      : { available: false },
-                    AniUnity: auSource
-                      ? {
-                          available: !!auSource.url,
-                          url: auSource.url,
-                          id: auSource.id,
-                        }
-                      : { available: false },
+                    AnimeSaturn: { available: false }, // Mark as unavailable
+                    AnimePahe: { available: false }, // Mark as unavailable
                   },
                 }
               })
@@ -100,51 +78,13 @@ export const GET = withCors(async (req: NextRequest) => {
           console.warn(`Unified episodes API failed with status ${unifiedRes.status}:`, errorText)
         }
       } catch (unifiedError) {
-        console.warn("Unified episodes API failed, falling back to AnimeWorld:", unifiedError)
-      }
-    }
-
-    if (asId && !awId && !apId && !auId) {
-      try {
-        const unifiedRes = await fetch(`https://aw-au-as-api.vercel.app/api/episodes?AS=${encodeURIComponent(asId)}`, {
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) AnizoneBot/1.0 Safari/537.36",
-            Accept: "application/json, text/plain, */*",
-            "Accept-Language": "it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7",
-          },
-          signal: AbortSignal.timeout(20000),
-        })
-
-        if (unifiedRes.ok) {
-          const unifiedData = await unifiedRes.json()
-
-          if (Array.isArray(unifiedData) && unifiedData.length > 0) {
-            const episodes = unifiedData
-              .map((ep: any) => ({
-                num: ep.episode_number,
-                href: ep.sources.AnimeSaturn?.url || "",
-                id: ep.sources.AnimeSaturn?.id || "",
-                sources: ep.sources,
-              }))
-              .filter((ep: any) => ep.href || ep.id)
-
-            return NextResponse.json({
-              ok: true,
-              episodes,
-              source: "https://aw-au-as-api.vercel.app/api/episodes",
-              unified: true,
-            })
-          }
-        }
-      } catch (unifiedError) {
-        console.warn("Unified AnimeSaturn episodes API failed:", unifiedError)
+        console.warn("Unified episodes API failed:", unifiedError)
       }
     }
 
     if (!path) {
       return NextResponse.json(
-        { ok: false, error: "Parametro 'path' mancante. Esempio: /play/horimiya.Mse3-/lRRhWd" },
+        { ok: false, error: "Parametro mancante. Usa AW=<id>, AS=<id>, AP=<id> oppure path=<path>" },
         { status: 400 },
       )
     }

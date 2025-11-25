@@ -17,8 +17,18 @@ export default function WatchPage() {
   const legacyPath = sp.get("path")
 
   const path = useMemo(() => {
-    if (obfuscatedPath) return deobfuscateUrl(obfuscatedPath).trim()
-    return legacyPath?.trim()
+    console.log("[v0] WatchPage - obfuscatedPath:", obfuscatedPath, "legacyPath:", legacyPath)
+
+    if (obfuscatedPath) {
+      const decoded = deobfuscateUrl(obfuscatedPath)
+      console.log("[v0] WatchPage - decoded path:", decoded)
+      return decoded?.trim() || null
+    }
+    if (legacyPath) {
+      console.log("[v0] WatchPage - using legacy path:", legacyPath)
+      return legacyPath.trim()
+    }
+    return null
   }, [obfuscatedPath, legacyPath])
 
   const [title, setTitle] = useState<string>("Anime")
@@ -29,7 +39,14 @@ export default function WatchPage() {
   const [loadingSources, setLoadingSources] = useState(true)
 
   useEffect(() => {
-    if (!path) return
+    if (!path) {
+      console.log("[v0] WatchPage - No path available")
+      setLoadingMeta(false)
+      setLoadingSources(false)
+      return
+    }
+
+    console.log("[v0] WatchPage - Loading with path:", path)
 
     // Reset state for new anime
     setTitle("Anime")
@@ -50,38 +67,35 @@ export default function WatchPage() {
       .join(" ")
     setTitle(capitalizedName || "Anime")
 
-    // Fetch sources (first episode) from AW/AUS API
     const fetchSources = async () => {
       try {
         let mappedSources: Source[] = []
 
-        // Legacy sessionStorage
-        const stored = sessionStorage.getItem(`anizone:sources:${path}`)
+        // Try to get sources from sessionStorage (stored when clicking anime card from search)
+        const storageKey = `anizone:sources:${path}`
+        console.log("[v0] WatchPage - Looking for sources with key:", storageKey)
+
+        const stored = sessionStorage.getItem(storageKey)
+        console.log("[v0] WatchPage - sessionStorage stored:", stored)
+
         if (stored) {
-          mappedSources = JSON.parse(stored)
-        } else {
-          // Fetch first episode
-          const response = await fetch(`https://aw-au-as-api.vercel.app/api/episodes?AW=${encodeURIComponent(path)}`)
-          if (response.ok) {
-            const data = await response.json()
-            if (Array.isArray(data) && data.length > 0) {
-              const firstEpisode = data[0]
-              Object.entries(firstEpisode.sources).forEach(([name, info]: any) => {
-                if (info.available && info.url && info.id) {
-                  mappedSources.push({
-                    name,
-                    url: info.url,
-                    id: info.id,
-                  })
-                }
-              })
-            }
+          const parsedSources = JSON.parse(stored)
+          console.log("[v0] WatchPage - Parsed sources:", parsedSources)
+          if (Array.isArray(parsedSources) && parsedSources.length > 0) {
+            mappedSources = parsedSources
+            console.log("[v0] WatchPage - Using sources from sessionStorage:", mappedSources)
           }
+        }
+
+        // If no sources in sessionStorage, we can't proceed without proper source IDs
+        // The user needs to navigate from search to get proper sources
+        if (mappedSources.length === 0) {
+          console.log("[v0] WatchPage - No sources in sessionStorage - user should navigate from search")
         }
 
         setSources(mappedSources)
       } catch (err) {
-        console.log("[WatchPage] Error fetching sources:", err)
+        console.log("[v0] WatchPage - Error fetching sources:", err)
       } finally {
         setLoadingSources(false)
       }
@@ -103,7 +117,7 @@ export default function WatchPage() {
           }
         }
       } catch (err) {
-        console.log("[WatchPage] Error fetching meta:", err)
+        console.log("[v0] WatchPage - Error fetching meta:", err)
       } finally {
         setLoadingMeta(false)
       }
@@ -118,9 +132,12 @@ export default function WatchPage() {
     return (
       <main className="px-4 py-8 overflow-x-hidden">
         <div className="text-sm text-red-600">Parametro "path" mancante.</div>
+        <div className="text-xs text-muted-foreground mt-2">
+          Debug: p={obfuscatedPath || "null"}, path={legacyPath || "null"}
+        </div>
         <div className="mt-4">
-          <Link href="/" className="underline">
-            Torna alla home
+          <Link href="/search" className="underline">
+            Vai alla ricerca
           </Link>
         </div>
       </main>
@@ -147,7 +164,15 @@ export default function WatchPage() {
             <div className="h-20 bg-gray-300 rounded-md w-full" />
           </div>
         ) : sources.length === 0 ? (
-          <div className="text-center text-red-600">Nessuna fonte disponibile per questo anime.</div>
+          <div className="text-center space-y-4">
+            <div className="text-red-600">Nessuna fonte disponibile per questo anime.</div>
+            <p className="text-muted-foreground text-sm">
+              Per favore cerca l'anime dalla pagina di ricerca per ottenere le fonti corrette.
+            </p>
+            <Link href="/search" className="inline-block underline text-primary">
+              Vai alla ricerca
+            </Link>
+          </div>
         ) : (
           <>
             <div className="w-full max-w-5xl mx-auto">

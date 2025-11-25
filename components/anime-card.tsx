@@ -24,7 +24,8 @@ type Props = {
 export function AnimeCard({ title, href, image, isDub, className, sources, has_multi_servers }: Props) {
   const path = (() => {
     try {
-      const u = new URL(href)
+      // Handle full URLs like https://www.animeworld.ac/play/fly-me-to-the-moon.cGPnE
+      const u = new URL(href, "https://dummy.local")
       const parts = u.pathname.split("/").filter(Boolean)
       // Extract just /play/anime-id format
       if (parts.length >= 2 && parts[0] === "play") {
@@ -36,30 +37,35 @@ export function AnimeCard({ title, href, image, isDub, className, sources, has_m
       if (parts.length >= 2 && parts[0] === "play") {
         return `/${parts[0]}/${parts[1]}`
       }
-      return href
+      return href.startsWith("/") ? href : `/${href}`
     }
   })()
+
+  console.log("[v0] AnimeCard - href:", href, "extracted path:", path, "sources:", sources)
 
   const hasAnimeWorld = sources?.some((s) => s.name === "AnimeWorld")
   const hasAnimeSaturn = sources?.some((s) => s.name === "AnimeSaturn")
   const hasAnimePahe = sources?.some((s) => s.name === "AnimePahe")
-  const hasAniUnity = sources?.some((s) => s.name === "AniUnity")
-  const showBadges = sources && sources.length > 0 && (hasAnimeWorld || hasAnimeSaturn || hasAnimePahe || hasAniUnity)
+  const showBadges = sources && sources.length > 0 && (hasAnimeWorld || hasAnimeSaturn || hasAnimePahe)
 
   const isAnimePaheImage = image.includes("animepahe.si") || image.includes("animepahe.com")
   const displayImage = isAnimePaheImage ? `/api/animepahe-image-proxy?url=${encodeURIComponent(image)}` : image
 
   const handleClick = () => {
+    console.log("[v0] AnimeCard - Clicked, storing sources for path:", path)
     if (sources && sources.length > 0) {
       try {
-        sessionStorage.setItem(`anizone:sources:${path}`, JSON.stringify(sources))
+        const storageKey = `anizone:sources:${path}`
+        console.log("[v0] AnimeCard - Storing to sessionStorage with key:", storageKey)
+        sessionStorage.setItem(storageKey, JSON.stringify(sources))
       } catch (e) {
-        console.error("Failed to store sources:", e)
+        console.error("[v0] AnimeCard - Failed to store sources:", e)
       }
     }
   }
 
   const obfuscatedPath = obfuscateUrl(path)
+  console.log("[v0] AnimeCard - obfuscated path:", obfuscatedPath)
 
   return (
     <Link href={`/watch?p=${obfuscatedPath}`} className={cn("block", className)} onClick={handleClick}>
@@ -98,15 +104,6 @@ export function AnimeCard({ title, href, image, isDub, className, sources, has_m
                     <img
                       src="https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://animepahe.si&size=48"
                       alt="AnimePahe"
-                      className="w-full h-full object-cover rounded"
-                    />
-                  </div>
-                )}
-                {hasAniUnity && (
-                  <div className="w-7 h-7 rounded-lg overflow-hidden bg-white/95 p-1 shadow-md backdrop-blur-sm">
-                    <img
-                      src="https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://animeunity.so&size=64"
-                      alt="Unity"
                       className="w-full h-full object-cover rounded"
                     />
                   </div>
