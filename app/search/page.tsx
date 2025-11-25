@@ -9,8 +9,9 @@ import { MangaCard } from "@/components/manga-card"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { GENRES } from "@/lib/genre-map"
 import Link from "next/link"
-import { ArrowLeft, Film, BookOpen } from "lucide-react"
+import { Film, BookOpen, ChevronLeft, ChevronRight } from "lucide-react"
 import { SlideOutMenu } from "@/components/slide-out-menu"
+import { cn } from "@/lib/utils"
 
 type Source = {
   name: string
@@ -107,17 +108,12 @@ export default function SearchPage() {
       let r: Response
       const hasFilters = hasOtherFilters()
 
-      console.log("[v0] Search params:", { keyword, genreId, hasFilters, queryString })
-
       if (genreId && !keyword) {
-        console.log("[v0] Using regular API for genre search")
         r = await fetch(`/api/search?${queryString}`)
       } else if (keyword && !hasFilters) {
-        console.log("[v0] Using unified API for keyword-only search")
         r = await fetch(`/api/unified-search?keyword=${encodeURIComponent(keyword)}`)
         setIsUnified(true)
       } else {
-        console.log("[v0] Using regular API for filtered search")
         r = await fetch(`/api/search?${queryString}`)
       }
 
@@ -179,12 +175,10 @@ export default function SearchPage() {
 
   const hasOtherFilters = () => {
     const allParams = Array.from(sp.entries())
-    const hasFilters = allParams.some(([key, value]) => {
+    return allParams.some(([key, value]) => {
       if (key === "keyword" || key === "genre" || key === "tab" || key === "page") return false
       return value && value.trim() !== "" && value !== "any" && value !== "0" && value !== "all"
     })
-    console.log("[v0] Has other filters:", hasFilters, "All params:", allParams)
-    return hasFilters
   }
 
   useEffect(() => {
@@ -219,7 +213,6 @@ export default function SearchPage() {
           page: page,
         })
       } else {
-        // Load default manga results when no keyword is present
         searchManga({
           keyword: "",
           type: "all",
@@ -236,77 +229,158 @@ export default function SearchPage() {
 
   const navigateToPage = (pageNum: number) => {
     if (!pagination) return
-
     let targetPage = pageNum
-
-    // Wrap around logic - if trying to go beyond max page, wrap to page 1
-    if (pageNum > pagination.totalPages) {
-      targetPage = 1
-    } else if (pageNum < 1) {
-      // If trying to go below page 1, wrap to last page
-      targetPage = pagination.totalPages
-    }
+    if (pageNum > pagination.totalPages) targetPage = 1
+    else if (pageNum < 1) targetPage = pagination.totalPages
 
     const newParams = new URLSearchParams(sp.toString())
     newParams.set("page", targetPage.toString())
     router.push(`/search?${newParams.toString()}`)
   }
 
+  const SkeletonCard = () => (
+    <div className="space-y-3">
+      <div className="aspect-[2/3] skeleton rounded-2xl" />
+      <div className="space-y-2 px-1">
+        <div className="h-4 skeleton rounded-lg w-3/4" />
+        <div className="h-3 skeleton rounded-lg w-1/2" />
+      </div>
+    </div>
+  )
+
+  const PaginationBar = () => {
+    if (!pagination || isUnified) return null
+
+    return (
+      <div className="flex items-center justify-center gap-2 py-4">
+        <button
+          onClick={() => navigateToPage(pagination.currentPage - 1)}
+          disabled={!pagination.hasPrevious}
+          className={cn(
+            "w-10 h-10 rounded-full flex items-center justify-center",
+            "bg-muted/50 text-foreground transition-all duration-200",
+            "disabled:opacity-40 disabled:cursor-not-allowed",
+            "hover:bg-muted active:scale-95",
+          )}
+        >
+          <ChevronLeft size={20} />
+        </button>
+
+        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-muted/30">
+          <span className="text-sm text-muted-foreground">Pagina</span>
+          <input
+            type="number"
+            min="1"
+            max={pagination.totalPages}
+            value={pagination.currentPage}
+            onChange={(e) => {
+              const page = Number.parseInt(e.target.value)
+              if (page >= 1 && page <= pagination.totalPages) {
+                navigateToPage(page)
+              }
+            }}
+            className={cn(
+              "w-12 px-2 py-1 text-sm text-center rounded-lg",
+              "bg-card border border-border text-foreground",
+              "focus:outline-none focus:ring-2 focus:ring-ring",
+            )}
+          />
+          <span className="text-sm text-muted-foreground">di {pagination.totalPages}</span>
+        </div>
+
+        <button
+          onClick={() => navigateToPage(pagination.currentPage + 1)}
+          disabled={!pagination.hasNext}
+          className={cn(
+            "w-10 h-10 rounded-full flex items-center justify-center",
+            "bg-muted/50 text-foreground transition-all duration-200",
+            "disabled:opacity-40 disabled:cursor-not-allowed",
+            "hover:bg-muted active:scale-95",
+          )}
+        >
+          <ChevronRight size={20} />
+        </button>
+      </div>
+    )
+  }
+
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen bg-background">
       <SlideOutMenu currentPath="/search" />
 
-      <header className="border-b sticky top-0 glass z-10">
-        <div className="px-4 py-3 flex items-center justify-center">
-          <Link href="/" className="text-lg font-extrabold tracking-tight">
+      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border">
+        <div className="px-6 py-4 flex items-center justify-center">
+          <Link href="/" className="text-xl font-bold text-foreground">
             Anizone
           </Link>
         </div>
       </header>
 
-      <section className="px-4 py-4 space-y-4 max-w-7xl mx-auto">
+      <section className="px-4 py-5 space-y-5 max-w-7xl mx-auto">
         <Tabs
           value={searchType}
           onValueChange={(value) => setSearchType(value as "anime" | "manga")}
           className="w-full"
         >
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="anime" className="flex items-center gap-2">
-              <Film size={16} />
-              Anime
+          <TabsList className="grid w-full grid-cols-2 h-12 p-1 bg-muted/50 rounded-2xl">
+            <TabsTrigger
+              value="anime"
+              className={cn(
+                "flex items-center justify-center gap-2 rounded-xl h-full",
+                "data-[state=active]:bg-card data-[state=active]:shadow-sm",
+                "transition-all duration-200",
+              )}
+            >
+              <Film size={18} />
+              <span className="font-medium">Anime</span>
             </TabsTrigger>
-            <TabsTrigger value="manga" className="flex items-center gap-2">
-              <BookOpen size={16} />
-              Manga
+            <TabsTrigger
+              value="manga"
+              className={cn(
+                "flex items-center justify-center gap-2 rounded-xl h-full",
+                "data-[state=active]:bg-card data-[state=active]:shadow-sm",
+                "transition-all duration-200",
+              )}
+            >
+              <BookOpen size={18} />
+              <span className="font-medium">Manga</span>
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="anime" className="space-y-4">
-            <div className="rounded-lg bg-neutral-950 text-white p-4">
-              <h1 className="text-lg font-bold">
-                {showingDefaults ? "Raccomandazioni Anime" : genreId ? `Genere: ${genreName}` : "Cerca Anime"}
-                {isUnified && <span className="text-sm font-normal text-neutral-300 ml-2">(Ricerca unificata)</span>}
+          <TabsContent value="anime" className="space-y-5 mt-5">
+            <div className="surface-elevated p-5">
+              <h1 className="text-xl font-bold text-foreground">
+                {showingDefaults ? "Raccomandazioni" : genreId ? `Genere: ${genreName}` : "Cerca Anime"}
               </h1>
-              <p className="text-xs text-neutral-300 mt-1">
-                {showingDefaults
-                  ? "Anime popolari e nuove uscite per te."
-                  : "Trova episodi sub/dub ITA e guardali direttamente."}
+              <p className="text-sm text-muted-foreground mt-1">
+                {showingDefaults ? "Anime popolari e nuove uscite per te" : "Trova episodi sub/dub ITA"}
               </p>
+              {isUnified && (
+                <div className="mt-2 inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                  Ricerca unificata
+                </div>
+              )}
             </div>
+
             <SearchForm />
-            {error && <div className="text-red-600 text-sm">{error}</div>}
+
+            {error && (
+              <div className="surface-elevated p-4 border-l-4 border-destructive">
+                <p className="text-sm text-destructive">{error}</p>
+              </div>
+            )}
+
             {loading ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
-                {Array.from({ length: 10 }).map((_, i) => (
-                  <div key={i} className="animate-pulse space-y-2">
-                    <div className="aspect-[2/3] bg-neutral-200 rounded" />
-                    <div className="h-3 w-3/4 bg-neutral-200 rounded" />
-                  </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <SkeletonCard key={i} />
                 ))}
               </div>
             ) : animeItems.length === 0 && hasSearched ? (
-              <div className="text-sm text-muted-foreground">
-                Nessun risultato trovato. Prova a cambiare parola chiave o filtri.
+              <div className="surface-elevated p-8 text-center">
+                <Film size={48} className="mx-auto mb-4 text-muted-foreground" />
+                <h2 className="text-lg font-semibold text-foreground mb-2">Nessun risultato</h2>
+                <p className="text-muted-foreground text-sm">Prova a cambiare parola chiave o filtri</p>
               </div>
             ) : (
               <>
@@ -323,122 +397,48 @@ export default function SearchPage() {
                     />
                   ))}
                 </div>
-
-                {pagination && !isUnified && (
-                  <div className="flex items-center justify-between py-3 px-2 border-t border-neutral-800 bg-neutral-900/50 rounded-lg">
-                    <button
-                      onClick={() => navigateToPage(pagination.currentPage - 1)}
-                      disabled={!pagination.hasPrevious}
-                      className="flex items-center gap-1 px-3 py-1.5 text-sm bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-neutral-800 transition-colors"
-                    >
-                      <ArrowLeft size={14} />
-                      Precedente
-                    </button>
-
-                    <div className="flex items-center gap-2 text-sm text-neutral-300">
-                      <span>pagina</span>
-                      <input
-                        type="number"
-                        min="1"
-                        max={pagination.totalPages}
-                        value={pagination.currentPage}
-                        onChange={(e) => {
-                          const page = Number.parseInt(e.target.value)
-                          if (page >= 1 && page <= pagination.totalPages) {
-                            navigateToPage(page)
-                          }
-                        }}
-                        className="w-12 px-2 py-1 text-xs bg-neutral-800 border border-neutral-700 rounded text-center text-neutral-200 focus:border-neutral-600 focus:outline-none"
-                      />
-                      <span>di</span>
-                      <span className="font-medium">{pagination.totalPages}</span>
-                    </div>
-
-                    <button
-                      onClick={() => navigateToPage(pagination.currentPage + 1)}
-                      disabled={!pagination.hasNext}
-                      className="flex items-center gap-1 px-3 py-1.5 text-sm bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-neutral-800 transition-colors"
-                    >
-                      Successiva
-                      <ArrowLeft size={14} className="rotate-180" />
-                    </button>
-                  </div>
-                )}
+                <PaginationBar />
               </>
             )}
           </TabsContent>
 
-          <TabsContent value="manga" className="space-y-4">
-            <div className="rounded-lg bg-neutral-950 text-white p-4">
-              <h1 className="text-lg font-bold">Cerca Manga</h1>
-              <p className="text-xs text-neutral-300 mt-1">Trova capitoli tradotti in ITA e leggili direttamente.</p>
+          <TabsContent value="manga" className="space-y-5 mt-5">
+            <div className="surface-elevated p-5">
+              <h1 className="text-xl font-bold text-foreground">Cerca Manga</h1>
+              <p className="text-sm text-muted-foreground mt-1">Trova capitoli tradotti in ITA</p>
             </div>
+
             <MangaSearchForm onSearch={searchManga} isLoading={loading} />
-            {error && <div className="text-red-600 text-sm">{error}</div>}
+
+            {error && (
+              <div className="surface-elevated p-4 border-l-4 border-destructive">
+                <p className="text-sm text-destructive">{error}</p>
+              </div>
+            )}
+
             {loading ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                 {Array.from({ length: 12 }).map((_, i) => (
-                  <div key={i} className="animate-pulse space-y-2">
-                    <div className="aspect-[2/3] bg-neutral-200 rounded" />
-                    <div className="h-3 w-3/4 bg-neutral-200 rounded" />
-                    <div className="h-2 w-1/2 bg-neutral-200 rounded" />
-                  </div>
+                  <SkeletonCard key={i} />
                 ))}
               </div>
             ) : mangaItems.length === 0 && hasSearched ? (
-              <div className="text-center py-8">
+              <div className="surface-elevated p-8 text-center">
                 <BookOpen size={48} className="mx-auto mb-4 text-muted-foreground" />
-                <h2 className="text-lg font-semibold mb-2">Nessun risultato</h2>
-                <p className="text-muted-foreground">Non sono stati trovati manga. Prova con altri filtri.</p>
+                <h2 className="text-lg font-semibold text-foreground mb-2">Nessun risultato</h2>
+                <p className="text-muted-foreground text-sm">Non sono stati trovati manga. Prova con altri filtri.</p>
               </div>
             ) : mangaItems.length > 0 ? (
-              <div className="space-y-4">
-                <h2 className="text-lg font-semibold">Risultati manga ({mangaItems.length})</h2>
+              <div className="space-y-5">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-foreground">Risultati ({mangaItems.length})</h2>
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                   {mangaItems.map((manga, index) => (
                     <MangaCard key={index} manga={manga} />
                   ))}
                 </div>
-                {pagination && (
-                  <div className="flex items-center justify-between py-3 px-2 border-t border-neutral-800 bg-neutral-900/50 rounded-lg">
-                    <button
-                      onClick={() => navigateToPage(pagination.currentPage - 1)}
-                      disabled={!pagination.hasPrevious}
-                      className="flex items-center gap-1 px-3 py-1.5 text-sm bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-neutral-800 transition-colors"
-                    >
-                      <ArrowLeft size={14} />
-                      Precedente
-                    </button>
-
-                    <div className="flex items-center gap-2 text-sm text-neutral-300">
-                      <span>pagina</span>
-                      <input
-                        type="number"
-                        min="1"
-                        max={pagination.totalPages}
-                        value={pagination.currentPage}
-                        onChange={(e) => {
-                          const page = Number.parseInt(e.target.value)
-                          if (page >= 1 && page <= pagination.totalPages) {
-                            navigateToPage(page)
-                          }
-                        }}
-                        className="w-12 px-2 py-1 text-xs bg-neutral-800 border border-neutral-700 rounded text-center text-neutral-200 focus:border-neutral-600 focus:outline-none"
-                      />
-                      <span>di</span>
-                      <span className="font-medium">{pagination.totalPages}</span>
-                    </div>
-
-                    <button
-                      onClick={() => navigateToPage(pagination.currentPage + 1)}
-                      disabled={!pagination.hasNext}
-                      className="flex items-center gap-1 px-3 py-1.5 text-sm bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-neutral-800 transition-colors"
-                    >
-                      Successiva
-                      <ArrowLeft size={14} className="rotate-180" />
-                    </button>
-                  </div>
-                )}
+                <PaginationBar />
               </div>
             ) : null}
           </TabsContent>

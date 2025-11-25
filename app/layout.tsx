@@ -1,41 +1,48 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Playfair_Display, Source_Sans_3 as Source_Sans_Pro } from "next/font/google"
+import { Inter, JetBrains_Mono } from "next/font/google"
 import "./globals.css"
 import { AuthProvider } from "@/contexts/auth-context"
 import { SeasonalBackground } from "@/components/seasonal-background"
 
-const playfairDisplay = Playfair_Display({
+const inter = Inter({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-playfair",
-  weight: ["400", "700"],
+  variable: "--font-inter",
 })
 
-const sourceSansPro = Source_Sans_Pro({
+const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-source-sans",
-  weight: ["400", "600"],
+  variable: "--font-mono",
 })
 
-// --- Dynamic, domain-agnostic metadata ---
 export const metadata: Metadata = {
   title: "Anizone - Guarda e leggi Anime & Manga in italiano",
   description: "Cerca Anime & Manga con episodi sub/dub e scans ITA",
   generator: "pal",
   icons: {
-    icon: "/favicon.ico", // browser favicon
+    icon: "/favicon.ico",
+  },
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f8f7ff" },
+    { media: "(prefers-color-scheme: dark)", color: "#1a1820" },
+  ],
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
   },
   openGraph: {
     title: "Anizone - Guarda e leggi Anime & Manga in italiano",
     description: "Cerca Anime & Manga con episodi sub/dub e scans ITA",
-    url: "/", // relative path works dynamically in Next.js
+    url: "/",
     siteName: "Anizone",
     type: "website",
     images: [
       {
-        url: "/favicon.ico", // relative OG image, Next.js will resolve
+        url: "/favicon.ico",
         width: 64,
         height: 64,
         alt: "Anizone Logo",
@@ -50,8 +57,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`dark ${playfairDisplay.variable} ${sourceSansPro.variable}`}>
-      <body className="font-sans antialiased">
+    <html lang="it" className={`dark ${inter.variable} ${jetbrainsMono.variable}`}>
+      <body className="font-sans antialiased overscroll-none">
         <SeasonalBackground />
         <AuthProvider>{children}</AuthProvider>
       </body>
