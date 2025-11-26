@@ -22,7 +22,7 @@ export const GET = withCors(async (req: NextRequest) => {
       try {
         const params = new URLSearchParams()
         if (awId) params.set("AW", awId)
-        if (asId) params.set("AS", asId)
+        if (asId) params.set("AS", asId.toLowerCase())
         if (apId) params.set("AP", apId)
 
         const unifiedRes = await fetch(`https://aw-au-as-api.vercel.app/api/episodes?${params}`, {
@@ -59,8 +59,14 @@ export const GET = withCors(async (req: NextRequest) => {
                           id: awSource.id,
                         }
                       : { available: false },
-                    AnimeSaturn: { available: false }, // Mark as unavailable
-                    AnimePahe: { available: false }, // Mark as unavailable
+                    AnimeSaturn: asSource
+                      ? {
+                          available: !!asSource.url,
+                          url: asSource.url,
+                          id: asSource.id,
+                        }
+                      : { available: false },
+                    AnimePahe: { available: false },
                   },
                 }
               })
