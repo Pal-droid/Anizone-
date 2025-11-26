@@ -51,9 +51,28 @@ export function AnimeCard({ title, href, image, isDub, className, sources, has_m
     if (sources && sources.length > 0) {
       try {
         const storageKey = `anizone:sources:${path}`
+        console.log("[v0] AnimeCard storing sources with key:", storageKey, "sources:", sources)
         sessionStorage.setItem(storageKey, JSON.stringify(sources))
       } catch (e) {
         console.error("Failed to store sources:", e)
+      }
+    } else {
+      try {
+        const animeId = path.split("/").pop() || ""
+        if (animeId) {
+          const defaultSources = [
+            {
+              name: "AnimeWorld",
+              url: `https://www.animeworld.ac${path}`,
+              id: animeId,
+            },
+          ]
+          const storageKey = `anizone:sources:${path}`
+          console.log("[v0] AnimeCard creating default sources with key:", storageKey, "sources:", defaultSources)
+          sessionStorage.setItem(storageKey, JSON.stringify(defaultSources))
+        }
+      } catch (e) {
+        console.error("Failed to store default sources:", e)
       }
     }
   }

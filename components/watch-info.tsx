@@ -33,25 +33,57 @@ type AnimeItem = {
 export function WatchInfo({ seriesPath }: { seriesPath: string }) {
   const path = useMemo(() => {
     try {
-      const u = new URL(seriesPath, "https://dummy.local")
-      const parts = u.pathname.split("/").filter(Boolean)
-      return parts.length >= 2 ? `/${parts[0]}/${parts[1]}` : u.pathname
+      // Handle full URLs
+      if (seriesPath.startsWith("http")) {
+        const u = new URL(seriesPath)
+        const parts = u.pathname.split("/").filter(Boolean)
+        if (parts.length >= 2 && parts[0] === "play") {
+          return `/${parts[0]}/${parts[1]}`
+        }
+        return u.pathname
+      }
+
+      // Handle paths
+      const parts = seriesPath.split("/").filter(Boolean)
+      if (parts.length >= 2 && parts[0] === "play") {
+        return `/${parts[0]}/${parts[1]}`
+      }
+      return seriesPath.startsWith("/") ? seriesPath : `/${seriesPath}`
     } catch {
       const parts = seriesPath.split("/").filter(Boolean)
-      return parts.length >= 2 ? `/${parts[0]}/${parts[1]}` : seriesPath
+      if (parts.length >= 2 && parts[0] === "play") {
+        return `/${parts[0]}/${parts[1]}`
+      }
+      return seriesPath.startsWith("/") ? seriesPath : `/${seriesPath}`
     }
   }, [seriesPath])
+
+  const animeWorldPath = useMemo(() => {
+    try {
+      const storedSources = sessionStorage.getItem(`anizone:sources:${path}`)
+      if (storedSources) {
+        const parsedSources = JSON.parse(storedSources)
+        const awSource = parsedSources.find((s: any) => s.name === "AnimeWorld")
+        if (awSource && awSource.id) {
+          return `/play/${awSource.id}`
+        }
+      }
+    } catch (e) {
+      // Ignore
+    }
+    return path
+  }, [path])
 
   const [meta, setMeta] = useState<Meta | null>(null)
   const [similar, setSimilar] = useState<AnimeItem[]>([])
   const [related, setRelated] = useState<AnimeItem[]>([])
+  const [loadingSimilar, setLoadingSimilar] = useState(true)
+  const [loadingRelated, setLoadingRelated] = useState(true)
 
   useEffect(() => {
     let alive = true
     ;(async () => {
       try {
-        console.log("[v0] WatchInfo fetching metadata for path:", path)
-
         let metaPath = path
         try {
           const storedSources = sessionStorage.getItem(`anizone:sources:${path}`)
@@ -59,41 +91,68 @@ export function WatchInfo({ seriesPath }: { seriesPath: string }) {
             const parsedSources = JSON.parse(storedSources)
             const asSource = parsedSources.find((s: any) => s.name === "AnimeSaturn")
             if (asSource && asSource.url) {
-              console.log("[v0] Found AnimeSaturn source in sessionStorage:", asSource.url)
               metaPath = asSource.url
             }
           }
         } catch (e) {
-          console.log("[v0] Could not get sources from sessionStorage:", e)
+          // Ignore sessionStorage errors
         }
 
-        const [m, s, r] = await Promise.all([
-          fetch(`/api/anime-meta?path=${encodeURIComponent(metaPath)}`)
-            .then((x) => x.json())
-            .catch(() => null),
-          fetch(`/api/anime-similar?path=${encodeURIComponent(path)}`)
-            .then((x) => x.json())
-            .catch(() => null),
-          fetch(`/api/anime-related?path=${encodeURIComponent(path)}`)
-            .then((x) => x.json())
-            .catch(() => null),
-        ])
-        if (!alive) return
-        console.log("[v0] Metadata fetch result:", m)
-        console.log("[v0] Similar anime fetch result:", s)
-        console.log("[v0] Related anime fetch result:", r)
+        // Fetch metadata
+        fetch(`/api/anime-meta?path=${encodeURIComponent(metaPath)}`)
+          .then((x) => x.json())
+          .then((m) => {
+            if (alive && m?.ok) setMeta(m.meta)
+          })
+          .catch(() => {})
 
-        if (m?.ok) setMeta(m.meta)
-        if (s?.ok) setSimilar(s.items || [])
-        if (r?.ok) setRelated(r.items || [])
+        console.log("[v0] WatchInfo fetching related/similar with path:", animeWorldPath)
+
+        // Fetch similar anime
+        fetch(`/api/anime-similar?path=${encodeURIComponent(animeWorldPath)}`)
+          .then((x) => x.json())
+          .then((s) => {
+            if (alive) {
+              console.log("[v0] WatchInfo similar response:", s)
+              if (s?.ok && s.items) {
+                setSimilar(s.items)
+              }
+              setLoadingSimilar(false)
+            }
+          })
+          .catch((err) => {
+            console.error("[v0] WatchInfo similar error:", err)
+            if (alive) setLoadingSimilar(false)
+          })
+
+        // Fetch related anime
+        fetch(`/api/anime-related?path=${encodeURIComponent(animeWorldPath)}`)
+          .then((x) => x.json())
+          .then((r) => {
+            if (alive) {
+              console.log("[v0] WatchInfo related response:", r)
+              if (r?.ok && r.items) {
+                setRelated(r.items)
+              }
+              setLoadingRelated(false)
+            }
+          })
+          .catch((err) => {
+            console.error("[v0] WatchInfo related error:", err)
+            if (alive) setLoadingRelated(false)
+          })
       } catch (e) {
-        console.log("[v0] WatchInfo error:", e)
+        console.error("[v0] WatchInfo error:", e)
+        if (alive) {
+          setLoadingSimilar(false)
+          setLoadingRelated(false)
+        }
       }
     })()
     return () => {
       alive = false
     }
-  }, [path])
+  }, [path, animeWorldPath])
 
   return (
     <div className="grid gap-4">
@@ -106,7 +165,6 @@ export function WatchInfo({ seriesPath }: { seriesPath: string }) {
             <div className="w-full max-w-[100vw] overflow-x-hidden">
               <div className="grid grid-cols-[120px_1fr] sm:grid-cols-[130px_1fr] gap-4 min-w-0">
                 <div className="sm:justify-self-start flex items-center">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={meta.image || "/placeholder.svg?height=195&width=130&query=anime%20poster"}
                     alt={meta.title}
@@ -182,7 +240,20 @@ export function WatchInfo({ seriesPath }: { seriesPath: string }) {
         </Card>
       ) : null}
 
-      {similar?.length ? (
+      {loadingSimilar ? (
+        <Card>
+          <CardHeader className="py-3">
+            <CardTitle className="text-base">Serie simili</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="shrink-0 w-[150px] h-[260px] bg-muted animate-pulse rounded-2xl" />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : similar?.length ? (
         <Card>
           <CardHeader className="py-3">
             <CardTitle className="text-base">Serie simili</CardTitle>
@@ -209,7 +280,20 @@ export function WatchInfo({ seriesPath }: { seriesPath: string }) {
         </Card>
       ) : null}
 
-      {related?.length ? (
+      {loadingRelated ? (
+        <Card>
+          <CardHeader className="py-3">
+            <CardTitle className="text-base">Correlati</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="shrink-0 w-[150px] h-[260px] bg-muted animate-pulse rounded-2xl" />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : related?.length ? (
         <Card>
           <CardHeader className="py-3">
             <CardTitle className="text-base">Correlati</CardTitle>
