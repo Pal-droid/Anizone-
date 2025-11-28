@@ -87,7 +87,7 @@ export function SlideOutMenu({ currentPath = "/" }: SlideOutMenuProps) {
                   <img
                     src="/favicon.ico"
                     alt="Logo"
-                    className="w-6 h-6"
+                    className="w-6 h-6 rounded-xl"
                     onError={() => setFaviconError(true)}
                   />
                 ) : (
