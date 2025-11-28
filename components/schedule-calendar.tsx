@@ -46,31 +46,49 @@ export function ScheduleCalendar() {
     e.preventDefault()
 
     try {
-      // Fetch metadata to get sources
-      const response = await fetch(`/api/anime-meta?path=${encodeURIComponent(item.href)}`)
-      const data = await response.json()
+      // Fetch anime metadata first
+      const metaResponse = await fetch(
+        `/api/anime-meta?path=${encodeURIComponent(item.href)}`
+      )
+      const metaData = await metaResponse.json()
 
-      if (data.ok && data.source) {
-        const animeId = item.href.split("/").pop()?.split(".")[0] || ""
+      if (metaData.ok && metaData.source) {
+        // Extract the full anime ID, including suffix like `.IbmP5`
+        const animeId = item.href.split("/").pop() || ""
 
-        // Create sources array similar to search page
+        // Fetch episodes using the full ID
+        const episodesResponse = await fetch(`/api/episodes?AW=${animeId}`)
+        const episodesData = await episodesResponse.json()
+
+        // Prepare sources for watch page
         const sources = [
           {
             name: "AnimeWorld",
-            url: data.source,
+            url: metaData.source,
             id: animeId,
+            episodes: episodesData.episodes || [],
           },
         ]
 
-        // Store sources in sessionStorage for the watch page
-        sessionStorage.setItem(`anizone:sources:${item.href}`, JSON.stringify(sources))
+        // Store sources in sessionStorage
+        sessionStorage.setItem(
+          `anizone:sources:${item.href}`,
+          JSON.stringify(sources)
+        )
       }
     } catch (error) {
-      console.error("[v0] Failed to fetch sources for calendar anime:", error)
+      console.error(
+        "[v1] Failed to fetch metadata or episodes for calendar anime:",
+        error
+      )
     }
 
     // Obfuscate path for watch page
-    const obfuscatedPath = btoa(item.href).replace(/[+/=]/g, (m) => ({ "+": "-", "/": "_", "=": "" })[m] || m)
+    const obfuscatedPath = btoa(item.href).replace(/[+/=]/g, (m) => ({
+      "+": "-",
+      "/": "_",
+      "=": "",
+    }[m] || m))
     window.location.href = `/watch?p=${obfuscatedPath}`
   }
 
@@ -147,12 +165,12 @@ export function ScheduleCalendar() {
                       <div className="relative w-24 h-32 flex-shrink-0 rounded-xl overflow-hidden bg-muted">
                         {item.image ? (
                           <img
-                            src={item.image || "/placeholder.svg"}
+                            src={item.image}
                             alt={item.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement
-                              target.src = `/placeholder.svg?height=128&width=96&query=anime poster`
+                              target.src = "/placeholder.svg"
                             }}
                           />
                         ) : (
@@ -160,7 +178,6 @@ export function ScheduleCalendar() {
                             <ImageIcon className="w-8 h-8 text-primary/40" />
                           </div>
                         )}
-                        {/* Overlay gradient */}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                       </div>
 
