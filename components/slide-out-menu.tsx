@@ -13,6 +13,7 @@ interface SlideOutMenuProps {
 export function SlideOutMenu({ currentPath = "/" }: SlideOutMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [showBugReport, setShowBugReport] = useState(false)
+  const [faviconError, setFaviconError] = useState(false)
 
   useEffect(() => {
     if (isOpen) {
@@ -82,7 +83,16 @@ export function SlideOutMenu({ currentPath = "/" }: SlideOutMenuProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
-                <span className="text-primary text-lg font-bold">A</span>
+                {!faviconError ? (
+                  <img
+                    src="/favicon.ico"
+                    alt="Logo"
+                    className="w-6 h-6"
+                    onError={() => setFaviconError(true)}
+                  />
+                ) : (
+                  <span className="text-primary text-lg font-bold select-none">A</span>
+                )}
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Anizone</h2>
