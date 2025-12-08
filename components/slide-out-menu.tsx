@@ -13,6 +13,7 @@ interface SlideOutMenuProps {
 export function SlideOutMenu({ currentPath = "/" }: SlideOutMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [showBugReport, setShowBugReport] = useState(false)
+  const [faviconError, setFaviconError] = useState(false)
 
   useEffect(() => {
     if (isOpen) {
@@ -50,9 +51,9 @@ export function SlideOutMenu({ currentPath = "/" }: SlideOutMenuProps) {
         onClick={() => setIsOpen(true)}
         className={cn(
           "fixed top-4 left-4 z-50 w-12 h-12 flex items-center justify-center",
-          "bg-primary text-primary-foreground rounded-2xl",
-          "shadow-lg shadow-primary/25 transition-all duration-200",
-          "active:scale-95 hover:shadow-xl hover:shadow-primary/30",
+          "bg-transparent text-foreground rounded-2xl",
+          "transition-all duration-200",
+          "active:scale-95 hover:text-primary",
         )}
         aria-label="Apri menu"
       >
@@ -82,7 +83,16 @@ export function SlideOutMenu({ currentPath = "/" }: SlideOutMenuProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
-                <span className="text-primary text-lg font-bold">A</span>
+                {!faviconError ? (
+                  <img
+                    src="/favicon.ico"
+                    alt="Logo"
+                    className="w-6 h-6 rounded-xl"
+                    onError={() => setFaviconError(true)}
+                  />
+                ) : (
+                  <span className="text-primary text-lg font-bold select-none">A</span>
+                )}
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Anizone</h2>
@@ -159,7 +169,7 @@ export function SlideOutMenu({ currentPath = "/" }: SlideOutMenuProps) {
         </nav>
 
         <div className="px-6 py-4 border-t border-border">
-          <p className="text-xs text-muted-foreground text-center">Anizone v1.0</p>
+          <p className="text-xs text-muted-foreground text-center">Anizone v0.1.2 - Alpha</p>
         </div>
       </div>
 

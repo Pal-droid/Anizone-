@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
+import { obfuscateUrl } from "@/lib/utils"
 
 type AnimeItem = {
   title: string
@@ -43,9 +44,7 @@ export function AnimeContentSections() {
 
   function AnimeGrid({ items }: { items: AnimeItem[] }) {
     // Use same layout for loading and actual items
-    const displayItems = loading
-      ? Array.from({ length: 10 }).map((_, i) => ({ key: `loading-${i}` }))
-      : items
+    const displayItems = loading ? Array.from({ length: 10 }).map((_, i) => ({ key: `loading-${i}` })) : items
 
     return (
       <div className="overflow-x-auto">
@@ -59,7 +58,7 @@ export function AnimeContentSections() {
             ) : (
               <Link
                 key={index}
-                href={`/watch?path=${encodeURIComponent(
+                href={`/watch?p=${obfuscateUrl(
                   (() => {
                     try {
                       const u = new URL(item.href)
@@ -67,15 +66,15 @@ export function AnimeContentSections() {
                     } catch {
                       return item.href
                     }
-                  })()
+                  })(),
                 )}`}
                 className="group flex-shrink-0 w-32"
                 onClick={() => {
                   try {
                     const animePath = new URL(item.href).pathname
-                    const sources = [
-                      { name: "AnimeWorld", url: item.href, id: item.href.split("/").pop() || "" },
-                    ]
+                    const pathParts = animePath.split("/").filter(Boolean)
+                    const animeId = pathParts.slice(1, -1).join("/") || pathParts[1] || ""
+                    const sources = [{ name: "AnimeWorld", url: item.href, id: animeId }]
                     sessionStorage.setItem(`anizone:sources:${animePath}`, JSON.stringify(sources))
                   } catch {}
                 }}
@@ -114,7 +113,7 @@ export function AnimeContentSections() {
                   <span className="line-clamp-2 break-words leading-tight">{item.title}</span>
                 </h3>
               </Link>
-            )
+            ),
           )}
         </div>
       </div>

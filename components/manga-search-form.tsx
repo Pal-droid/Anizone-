@@ -75,6 +75,7 @@ interface MangaSearchFormProps {
     genre: string
     artist: string
     sort: string
+    page?: string
   }) => void
   isLoading?: boolean
 }
@@ -103,6 +104,7 @@ export function MangaSearchForm({ onSearch, isLoading = false }: MangaSearchForm
       genre: genreValue,
       artist,
       sort,
+      page: "1",
     })
   }
 
@@ -116,6 +118,7 @@ export function MangaSearchForm({ onSearch, isLoading = false }: MangaSearchForm
       genre,
       artist,
       sort,
+      page: "1",
     })
   }
 

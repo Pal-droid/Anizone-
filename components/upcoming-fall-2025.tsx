@@ -37,6 +37,16 @@ export default function UpcomingFall() {
     const fetchUpcomingAnime = async () => {
       try {
         const response = await fetch("/api/upcoming-fall-2025")
+
+        if (!response.ok) {
+          console.log("[v0] API response status:", response.status)
+          const data = await response.json().catch(() => ({}))
+          setWidgetTitle(data.widgetTitle || "Uscite Inverno 2026")
+          setError(data.error || "Failed to load upcoming anime")
+          setLoading(false)
+          return
+        }
+
         const data: ApiResponse = await response.json()
         console.log("Items found in API:", data.debug?.foundItems)
 

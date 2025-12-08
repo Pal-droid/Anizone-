@@ -86,17 +86,13 @@ export async function GET(request: NextRequest) {
 
 function parsePaginationData(html: string) {
   try {
-    // Use regex to find the JSON object containing pagination data
-    // Pattern matches: {"URL":"https://www.mangaworld.cx"..."totalPages":X..."page":Y...}
-    const regex = /\{[^{}]*"URL":"https:\/\/www\.mangaworld\.cx"[^{}]*"totalPages":\d+[^{}]*"page":\d+[^{}]*\}/
+    // Looks for JSON with "totalPages" and "page" properties
+    const regex = /"totalPages"\s*:\s*(\d+)\s*[,}][\s\S]*?"page"\s*:\s*(\d+)/
     const match = html.match(regex)
 
     if (match) {
-      const jsonStr = match[0]
-      const data = JSON.parse(jsonStr)
-
-      const currentPage = data.page || 1
-      const totalPages = data.totalPages || 1
+      const totalPages = Number.parseInt(match[1], 10)
+      const currentPage = Number.parseInt(match[2], 10)
 
       console.log("[v0] Parsed pagination - Current page:", currentPage, "Total pages:", totalPages)
 

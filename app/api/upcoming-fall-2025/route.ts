@@ -32,6 +32,8 @@ export async function GET() {
       const titleElem = $widget.find(".widget-title .title")
       const titleText = titleElem.text().trim()
 
+      console.log("[v0] Widget title found:", titleText, "Link:", moreLink)
+
       // Only process widgets that are upcoming
       if (!moreLink.includes("/upcoming/")) return
 
@@ -67,30 +69,60 @@ export async function GET() {
       })
     })
 
+    if (!widgetTitle) {
+      const now = new Date()
+      const month = now.getMonth() + 1
+      const year = now.getFullYear()
+
+      let season = "Inverno"
+      if (month >= 3 && month <= 5) season = "Primavera"
+      else if (month >= 6 && month <= 8) season = "Estate"
+      else if (month >= 9 && month <= 11) season = "Autunno"
+
+      const seasonYear = month >= 9 ? year + 1 : year
+      widgetTitle = `Uscite ${season} ${seasonYear}`
+      console.log("[v0] Generated fallback title:", widgetTitle)
+    }
+
     // Remove duplicates and limit to 20
     const uniqueAnime = upcomingAnime
       .filter((anime, index, self) => index === self.findIndex((a) => a.id === anime.id))
       .slice(0, 20)
 
+    console.log("[v0] Final widget title being returned:", widgetTitle)
+
     return NextResponse.json({
       success: true,
       data: uniqueAnime,
       count: uniqueAnime.length,
-      widgetTitle, // the correct dynamic widget title
+      widgetTitle,
       debug: { foundItems: uniqueAnime.length },
     })
   } catch (error) {
     console.error("Error fetching upcoming anime:", error)
+
+    const now = new Date()
+    const month = now.getMonth() + 1
+    const year = now.getFullYear()
+
+    let season = "Inverno"
+    if (month >= 3 && month <= 5) season = "Primavera"
+    else if (month >= 6 && month <= 8) season = "Estate"
+    else if (month >= 9 && month <= 11) season = "Autunno"
+
+    const seasonYear = month >= 9 ? year + 1 : year
+    const fallbackTitle = `Uscite ${season} ${seasonYear}`
+
     return NextResponse.json(
       {
         success: false,
         error: "Failed to fetch upcoming anime",
         data: [],
         count: 0,
-        widgetTitle: "",
+        widgetTitle: fallbackTitle,
         debug: { foundItems: 0 },
       },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }

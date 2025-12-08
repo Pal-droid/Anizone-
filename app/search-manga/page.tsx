@@ -134,6 +134,58 @@ export default function MangaSearchPage() {
     router.refresh()
   }
 
+  const PaginationBar = () => {
+    if (!pagination) return null
+
+    return (
+      <div className="flex items-center justify-center gap-2 py-4">
+        <button
+          onClick={() => navigateToPage(pagination.currentPage - 1)}
+          disabled={!pagination.hasPrevious}
+          className="w-10 h-10 rounded-full flex items-center justify-center bg-muted/50 text-foreground transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted active:scale-95"
+        >
+          <ArrowLeft size={20} />
+        </button>
+
+        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-muted/30">
+          <span className="text-sm text-muted-foreground">Pagina</span>
+          <input
+            type="number"
+            min="1"
+            max={pagination.totalPages}
+            value={pagination.currentPage}
+            onChange={(e) => {
+              const page = Number.parseInt(e.target.value)
+              if (page >= 1 && page <= pagination.totalPages) {
+                navigateToPage(page)
+              }
+            }}
+            className="w-12 px-2 py-1 text-sm text-center rounded-lg bg-card border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+          <span className="text-sm text-muted-foreground">di {pagination.totalPages}</span>
+        </div>
+
+        <button
+          onClick={() => navigateToPage(pagination.currentPage + 1)}
+          disabled={!pagination.hasNext}
+          className="w-10 h-10 rounded-full flex items-center justify-center bg-muted/50 text-foreground transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted active:scale-95"
+        >
+          <ArrowLeft size={20} className="rotate-180" />
+        </button>
+      </div>
+    )
+  }
+
+  const SkeletonCard = () => (
+    <div className="space-y-3">
+      <div className="aspect-[2/3] skeleton rounded-2xl" />
+      <div className="space-y-2 px-1">
+        <div className="h-4 skeleton rounded-lg w-3/4" />
+        <div className="h-3 skeleton rounded-lg w-1/2" />
+      </div>
+    </div>
+  )
+
   return (
     <main className="min-h-screen">
       <SlideOutMenu currentPath="/search-manga" />
@@ -155,14 +207,10 @@ export default function MangaSearchPage() {
           </div>
         </div>
 
-        {isLoading && (
+        {isLoading && searchResults.length === 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {Array.from({ length: 12 }).map((_, i) => (
-              <div key={i} className="animate-pulse space-y-2">
-                <div className="aspect-[2/3] bg-neutral-200 dark:bg-neutral-800 rounded" />
-                <div className="h-3 w-3/4 bg-neutral-200 dark:bg-neutral-800 rounded" />
-                <div className="h-2 w-1/2 bg-neutral-200 dark:bg-neutral-800 rounded" />
-              </div>
+              <SkeletonCard key={i} />
             ))}
           </div>
         )}
@@ -189,46 +237,7 @@ export default function MangaSearchPage() {
               ))}
             </div>
 
-            {pagination && (
-              <div className="flex items-center justify-between py-3 px-2 border-t border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/50 rounded-lg">
-                <button
-                  onClick={() => navigateToPage(pagination.currentPage - 1)}
-                  disabled={!pagination.hasPrevious}
-                  className="flex items-center gap-1 px-3 py-1.5 text-sm bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 rounded disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-neutral-200 dark:disabled:hover:bg-neutral-800 transition-colors"
-                >
-                  <ArrowLeft size={14} />
-                  Precedente
-                </button>
-
-                <div className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
-                  <span>pagina</span>
-                  <input
-                    type="number"
-                    min="1"
-                    max={pagination.totalPages}
-                    value={pagination.currentPage}
-                    onChange={(e) => {
-                      const page = Number.parseInt(e.target.value)
-                      if (page >= 1 && page <= pagination.totalPages) {
-                        navigateToPage(page)
-                      }
-                    }}
-                    className="w-12 px-2 py-1 text-xs bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded text-center text-neutral-800 dark:text-neutral-200 focus:border-neutral-400 dark:focus:border-neutral-600 focus:outline-none"
-                  />
-                  <span>di</span>
-                  <span className="font-medium">{pagination.totalPages}</span>
-                </div>
-
-                <button
-                  onClick={() => navigateToPage(pagination.currentPage + 1)}
-                  disabled={!pagination.hasNext}
-                  className="flex items-center gap-1 px-3 py-1.5 text-sm bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 rounded disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-neutral-200 dark:disabled:hover:bg-neutral-800 transition-colors"
-                >
-                  Successiva
-                  <ArrowLeft size={14} className="rotate-180" />
-                </button>
-              </div>
-            )}
+            <PaginationBar />
           </div>
         )}
 

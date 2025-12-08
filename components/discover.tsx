@@ -20,7 +20,7 @@ export function DiscoverSections() {
     { label: "Doppiato ITA", href: "/search?dub=1" },
     { label: "Sub ITA", href: "/search?dub=0" },
     { label: "Novità 2024+", href: "/search?year=2024" },
-    { label: "In corso", href: "/search?status=1" },
+    { label: "In corso", href: "/search?status=0" },
   ]
 
   return (

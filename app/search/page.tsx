@@ -177,7 +177,7 @@ export default function SearchPage() {
     const allParams = Array.from(sp.entries())
     return allParams.some(([key, value]) => {
       if (key === "keyword" || key === "genre" || key === "tab" || key === "page") return false
-      return value && value.trim() !== "" && value !== "any" && value !== "0" && value !== "all"
+      return value && value.trim() !== "" && value !== "any" && value !== "all"
     })
   }
 

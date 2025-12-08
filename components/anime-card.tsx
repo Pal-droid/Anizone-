@@ -42,7 +42,8 @@ export function AnimeCard({ title, href, image, isDub, className, sources, has_m
   const hasAnimeWorld = sources?.some((s) => s.name === "AnimeWorld")
   const hasAnimeSaturn = sources?.some((s) => s.name === "AnimeSaturn")
   const hasAnimePahe = sources?.some((s) => s.name === "AnimePahe")
-  const showBadges = sources && sources.length > 0 && (hasAnimeWorld || hasAnimeSaturn || hasAnimePahe)
+  const hasUnity = sources?.some((s) => s.name === "Unity")
+  const showBadges = sources && sources.length > 0 && (hasAnimeWorld || hasAnimeSaturn || hasAnimePahe || hasUnity)
 
   const isAnimePaheImage = image.includes("animepahe.si") || image.includes("animepahe.com")
   const displayImage = isAnimePaheImage ? `/api/animepahe-image-proxy?url=${encodeURIComponent(image)}` : image
@@ -125,6 +126,15 @@ export function AnimeCard({ title, href, image, isDub, className, sources, has_m
                     <img
                       src="https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://animepahe.si&size=48"
                       alt="AnimePahe"
+                      className="w-full h-full object-cover rounded"
+                    />
+                  </div>
+                )}
+                {hasUnity && (
+                  <div className="w-7 h-7 rounded-lg overflow-hidden bg-background/90 p-1 shadow-lg backdrop-blur-sm">
+                    <img
+                      src="https://www.animeunity.so/apple-touch-icon.png"
+                      alt="Unity"
                       className="w-full h-full object-cover rounded"
                     />
                   </div>
