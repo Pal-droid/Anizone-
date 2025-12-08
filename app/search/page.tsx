@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useCallback } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { SearchForm } from "@/components/search-form"
+import { SearchForm, SERVER_LIST, ALL_SERVERS } from "@/components/search-form"
 import { MangaSearchForm } from "@/components/manga-search-form"
 import { AnimeCard } from "@/components/anime-card"
 import { MangaCard } from "@/components/manga-card"
@@ -65,6 +65,8 @@ export default function SearchPage() {
   const [showingDefaults, setShowingDefaults] = useState(false)
   const [pagination, setPagination] = useState<PaginationInfo | null>(null)
 
+  const [allowedServers, setAllowedServers] = useState<string[]>(ALL_SERVERS)
+
   const genreId = sp.get("genre")
   const keyword = sp.get("keyword")
   const queryString = useMemo(() => sp.toString(), [sp])
@@ -74,6 +76,22 @@ export default function SearchPage() {
     const g = GENRES.find((x) => String(x.id) === genreId)
     return g?.name || `Genere ${genreId}`
   }, [genreId])
+
+  const filteredAnimeItems = useMemo(() => {
+    if (allowedServers.length === 0) return []
+    if (allowedServers.length === ALL_SERVERS.length) return animeItems
+
+    return animeItems.filter((item) => {
+      if (!item.sources || item.sources.length === 0) {
+        return true
+      }
+      return item.sources.some((source) => allowedServers.includes(source.name))
+    })
+  }, [animeItems, allowedServers])
+
+  const handleServerFilterChange = useCallback((selectedServers: string[]) => {
+    setAllowedServers(selectedServers)
+  }, [])
 
   const loadDefaultRecommendations = async () => {
     setLoading(true)
@@ -176,7 +194,7 @@ export default function SearchPage() {
   const hasOtherFilters = () => {
     const allParams = Array.from(sp.entries())
     return allParams.some(([key, value]) => {
-      if (key === "keyword" || key === "genre" || key === "tab" || key === "page") return false
+      if (key === "keyword" || key === "genre" || key === "tab" || key === "page" || key === "servers") return false
       return value && value.trim() !== "" && value !== "any" && value !== "all"
     })
   }
@@ -185,6 +203,12 @@ export default function SearchPage() {
     const tabParam = sp.get("tab")
     if (tabParam === "manga" || tabParam === "anime") {
       setSearchType(tabParam)
+    }
+    const serversParam = sp.get("servers")
+    if (serversParam) {
+      const serverIds = serversParam.split(",").filter(Boolean)
+      const serverNames = serverIds.map((id) => SERVER_LIST.find((s) => s.id === id)?.name).filter(Boolean) as string[]
+      setAllowedServers(serverNames.length > 0 ? serverNames : ALL_SERVERS)
     }
   }, [sp])
 
@@ -362,7 +386,7 @@ export default function SearchPage() {
               )}
             </div>
 
-            <SearchForm />
+            <SearchForm onServerFilterChange={handleServerFilterChange} />
 
             {error && (
               <div className="surface-elevated p-4 border-l-4 border-destructive">
@@ -376,16 +400,27 @@ export default function SearchPage() {
                   <SkeletonCard key={i} />
                 ))}
               </div>
-            ) : animeItems.length === 0 && hasSearched ? (
+            ) : filteredAnimeItems.length === 0 && (hasSearched || allowedServers.length === 0) ? (
               <div className="surface-elevated p-8 text-center">
                 <Film size={48} className="mx-auto mb-4 text-muted-foreground" />
                 <h2 className="text-lg font-semibold text-foreground mb-2">Nessun risultato</h2>
-                <p className="text-muted-foreground text-sm">Prova a cambiare parola chiave o filtri</p>
+                <p className="text-muted-foreground text-sm">
+                  {allowedServers.length === 0
+                    ? "Seleziona almeno un server per vedere i risultati."
+                    : allowedServers.length < ALL_SERVERS.length
+                      ? "Nessun anime trovato con i server selezionati. Prova a selezionare altri server."
+                      : "Prova a cambiare parola chiave o filtri"}
+                </p>
               </div>
             ) : (
               <>
+                {allowedServers.length < ALL_SERVERS.length && filteredAnimeItems.length !== animeItems.length && (
+                  <div className="text-sm text-muted-foreground">
+                    Mostrando {filteredAnimeItems.length} di {animeItems.length} risultati (filtrati per server)
+                  </div>
+                )}
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                  {animeItems.map((it) => (
+                  {filteredAnimeItems.map((it) => (
                     <AnimeCard
                       key={it.href}
                       title={it.title}

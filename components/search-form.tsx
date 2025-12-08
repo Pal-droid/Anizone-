@@ -5,20 +5,18 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import {
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import { FilterIcon as FunnelIcon, SearchIcon, XIcon } from "lucide-react"
-import { useState } from "react"
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu"
+import { FuelIcon as FunnelIcon, SearchIcon, XIcon, ChevronDown, Server } from "lucide-react"
+import { useState, useEffect } from "react"
 import { GENRES, GENRE_BY_ID } from "@/lib/genre-map"
 
 const SEASON_LABELS: Record<string, string> = {
@@ -65,6 +63,17 @@ const SORT_LABELS: Record<string, string> = {
   "7": "Meglio valutati",
 }
 
+export const SERVER_LIST = [
+  { id: "world", name: "AnimeWorld", language: "italian" },
+  { id: "saturn", name: "AnimeSaturn", language: "italian" },
+  { id: "unity", name: "AnimeUnity", language: "italian" },
+  { id: "pahe", name: "AnimePahe", language: "english" },
+] as const
+
+export const ITALIAN_SERVERS = SERVER_LIST.filter((s) => s.language === "italian").map((s) => s.name)
+export const ENGLISH_SERVERS = SERVER_LIST.filter((s) => s.language === "english").map((s) => s.name)
+export const ALL_SERVERS = SERVER_LIST.map((s) => s.name)
+
 const QUICK_TOPICS: { label: string; genreId: string }[] = [
   { label: "Azione", genreId: "1" },
   { label: "Avventura", genreId: "2" },
@@ -99,7 +108,11 @@ function Chip({ label, onClear }: ChipProps) {
   )
 }
 
-export function SearchForm() {
+interface SearchFormProps {
+  onServerFilterChange?: (selectedServers: string[]) => void
+}
+
+export function SearchForm({ onServerFilterChange }: SearchFormProps) {
   const router = useRouter()
   const sp = useSearchParams()
 
@@ -111,13 +124,42 @@ export function SearchForm() {
   const [languages, setLanguages] = useState<string[]>(sp.getAll("language") || [])
   const [statuses, setStatuses] = useState<string[]>(sp.getAll("status") || [])
   const [genres, setGenres] = useState<string[]>(
-    sp.getAll("genre").map((g) => String(g)).filter(Boolean)
+    sp
+      .getAll("genre")
+      .map((g) => String(g))
+      .filter(Boolean),
   )
   const [yearsInput, setYearsInput] = useState(sp.getAll("year").join(","))
   const [studiosInput, setStudiosInput] = useState(sp.getAll("studio").join(","))
 
+  const [languageFilter, setLanguageFilter] = useState<"all" | "italian" | "english">("all")
+  const [selectedServers, setSelectedServers] = useState<string[]>(ALL_SERVERS)
+
   const toggleIn = <T extends string>(arr: T[], value: T) =>
     arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value]
+
+  useEffect(() => {
+    let newServers: string[]
+    if (languageFilter === "italian") {
+      newServers = ITALIAN_SERVERS
+    } else if (languageFilter === "english") {
+      newServers = ENGLISH_SERVERS
+    } else {
+      newServers = ALL_SERVERS
+    }
+    setSelectedServers(newServers)
+    onServerFilterChange?.(newServers)
+  }, [languageFilter])
+
+  const handleServerToggle = (serverName: string) => {
+    setSelectedServers((prev) => {
+      const newServers = prev.includes(serverName) ? prev.filter((s) => s !== serverName) : [...prev, serverName]
+
+      setLanguageFilter("all")
+      onServerFilterChange?.(newServers)
+      return newServers
+    })
+  }
 
   const buildSearchParams = () => {
     const params = new URLSearchParams()
@@ -167,6 +209,9 @@ export function SearchForm() {
     setYearsInput("")
     setStudiosInput("")
     setGenres([])
+    setLanguageFilter("all")
+    setSelectedServers(ALL_SERVERS)
+    onServerFilterChange?.(ALL_SERVERS)
     router.push("/search")
   }
 
@@ -180,9 +225,19 @@ export function SearchForm() {
     statuses.length > 0 ||
     yearsInput.trim().length > 0 ||
     studiosInput.trim().length > 0 ||
-    genres.length > 0
+    genres.length > 0 ||
+    selectedServers.length < ALL_SERVERS.length
 
   const genreLabels = genres.map((id) => GENRE_BY_ID[id]?.name || `Genere ${id}`)
+
+  const getServerFilterLabel = () => {
+    if (selectedServers.length === 0) return "Nessun server"
+    if (selectedServers.length === ALL_SERVERS.length) return "Tutti i server"
+    if (selectedServers.length === 1) {
+      return SERVER_LIST.find((s) => s.name === selectedServers[0])?.name.replace("Anime", "") || "1 server"
+    }
+    return `${selectedServers.length} server`
+  }
 
   return (
     <form onSubmit={onSubmit} className="w-full space-y-3">
@@ -217,10 +272,7 @@ export function SearchForm() {
         />
         <div className="flex gap-2 items-stretch justify-end min-w-0">
           <Select value={dub} onValueChange={setDub}>
-            <SelectTrigger
-              className="w-[140px] min-w-0 shrink-0"
-              aria-label="Doppiaggio"
-            >
+            <SelectTrigger className="w-[140px] min-w-0 shrink-0" aria-label="Doppiaggio">
               <SelectValue placeholder="Doppiaggio" />
             </SelectTrigger>
             <SelectContent>
@@ -229,41 +281,76 @@ export function SearchForm() {
               <SelectItem value="1">Doppiato ITA</SelectItem>
             </SelectContent>
           </Select>
-          <Button
-            type="submit"
-            className="shrink-0 whitespace-nowrap"
-            aria-label="Cerca"
-          >
+          <Button type="submit" className="shrink-0 whitespace-nowrap" aria-label="Cerca">
             <SearchIcon className="h-4 w-4 mr-2" />
             Cerca
           </Button>
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        <Select
+          value={languageFilter}
+          onValueChange={(value: "all" | "italian" | "english") => setLanguageFilter(value)}
+        >
+          <SelectTrigger className="w-[160px]" aria-label="Lingua server">
+            <SelectValue placeholder="Lingua server" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tutti i server</SelectItem>
+            <SelectItem value="italian">Server Italiani</SelectItem>
+            <SelectItem value="english">Server Inglesi</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="gap-2 bg-transparent">
+              <Server className="h-4 w-4" />
+              {getServerFilterLabel()}
+              <ChevronDown className="h-4 w-4 opacity-50" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48">
+            <DropdownMenuLabel>Server Italiani</DropdownMenuLabel>
+            {SERVER_LIST.filter((s) => s.language === "italian").map((server) => (
+              <DropdownMenuCheckboxItem
+                key={server.id}
+                checked={selectedServers.includes(server.name)}
+                onCheckedChange={() => handleServerToggle(server.name)}
+              >
+                {server.name.replace("Anime", "")}
+              </DropdownMenuCheckboxItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Server Inglesi</DropdownMenuLabel>
+            {SERVER_LIST.filter((s) => s.language === "english").map((server) => (
+              <DropdownMenuCheckboxItem
+                key={server.id}
+                checked={selectedServers.includes(server.name)}
+                onCheckedChange={() => handleServerToggle(server.name)}
+              >
+                {server.name.replace("Anime", "")}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
       {hasAnyFilter && (
         <div className="flex flex-wrap gap-2">
-          {keyword.trim() && (
+          {keyword.trim() && <Chip label={`Parola: ${keyword}`} onClear={() => setKeyword("")} />}
+          {dub !== "any" && <Chip label={dub === "1" ? "Doppiato ITA" : "Sub ITA"} onClear={() => setDub("any")} />}
+          {type !== "0" && <Chip label={`Tipo: ${TYPE_LABELS[type]}`} onClear={() => setType("0")} />}
+          {sort !== "0" && <Chip label={`Ordine: ${SORT_LABELS[sort]}`} onClear={() => setSort("0")} />}
+          {selectedServers.length < ALL_SERVERS.length && selectedServers.length > 0 && (
             <Chip
-              label={`Parola: ${keyword}`}
-              onClear={() => setKeyword("")}
-            />
-          )}
-          {dub !== "any" && (
-            <Chip
-              label={dub === "1" ? "Doppiato ITA" : "Sub ITA"}
-              onClear={() => setDub("any")}
-            />
-          )}
-          {type !== "0" && (
-            <Chip
-              label={`Tipo: ${TYPE_LABELS[type]}`}
-              onClear={() => setType("0")}
-            />
-          )}
-          {sort !== "0" && (
-            <Chip
-              label={`Ordine: ${SORT_LABELS[sort]}`}
-              onClear={() => setSort("0")}
+              label={`Server: ${getServerFilterLabel()}`}
+              onClear={() => {
+                setLanguageFilter("all")
+                setSelectedServers(ALL_SERVERS)
+                onServerFilterChange?.(ALL_SERVERS)
+              }}
             />
           )}
           {seasons.map((s) => (
@@ -302,7 +389,7 @@ export function SearchForm() {
                       .map((x) => x.trim())
                       .filter(Boolean)
                       .filter((p) => p !== y)
-                      .join(",")
+                      .join(","),
                   )
                 }
               />
@@ -322,23 +409,15 @@ export function SearchForm() {
                       .map((x) => x.trim())
                       .filter(Boolean)
                       .filter((p) => p !== s)
-                      .join(",")
+                      .join(","),
                   )
                 }
               />
             ))}
           {genreLabels.map((gl, i) => (
-            <Chip
-              key={`${gl}-${i}`}
-              label={gl}
-              onClear={() => setGenres((a) => a.filter((_, idx) => idx !== i))}
-            />
+            <Chip key={`${gl}-${i}`} label={gl} onClear={() => setGenres((a) => a.filter((_, idx) => idx !== i))} />
           ))}
-          <button
-            type="button"
-            className="text-xs underline text-muted-foreground"
-            onClick={clearAll}
-          >
+          <button type="button" className="text-xs underline text-muted-foreground" onClick={clearAll}>
             Pulisci tutto
           </button>
         </div>
@@ -346,11 +425,7 @@ export function SearchForm() {
 
       <Collapsible>
         <CollapsibleTrigger asChild>
-          <Button
-            variant="outline"
-            type="button"
-            className="w-full sm:w-auto bg-transparent"
-          >
+          <Button variant="outline" type="button" className="w-full sm:w-auto bg-transparent">
             <FunnelIcon className="h-4 w-4 mr-2" />
             Filtri avanzati
           </Button>
@@ -484,9 +559,7 @@ export function SearchForm() {
                       setGenres((a) => toggleIn(a, idStr))
                     }}
                     className={`text-left px-2 py-1 rounded border text-xs truncate ${
-                      selected
-                        ? "bg-neutral-200 text-black dark:bg-neutral-800 dark:text-white"
-                        : "bg-transparent"
+                      selected ? "bg-neutral-200 text-black dark:bg-neutral-800 dark:text-white" : "bg-transparent"
                     }`}
                   >
                     {g.name}
