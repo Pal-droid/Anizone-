@@ -21,6 +21,8 @@ export const GET = withCors(async (req: NextRequest) => {
     const { searchParams } = new URL(req.url)
 
     const keyword = searchParams.get("keyword")
+    const dubParam = searchParams.get("dub") // Get dub parameter for sub/dub/all filtering
+
     const hasFilters = Array.from(searchParams.entries()).some(([key, value]) => {
       if (key === "keyword") return false
       return value && value.trim() !== "" && value !== "any"
@@ -28,9 +30,19 @@ export const GET = withCors(async (req: NextRequest) => {
 
     const hasAnyParams = Array.from(searchParams.entries()).length > 0
 
-    if (!hasAnyParams) {
-      console.log("[v0] No parameters provided, loading default recommendations from base filter URL")
-      const target = "https://www.animeworld.ac/filter"
+    if (!keyword && !hasFilters && (!hasAnyParams || dubParam !== null)) {
+      console.log("[v0] No keyword, loading filter results with dub parameter:", dubParam)
+
+      let target = "https://www.animeworld.ac/filter"
+
+      if (dubParam === "0") {
+        // Sub only
+        target = "https://www.animeworld.ac/filter?dub=0&sort=0"
+      } else if (dubParam === "1") {
+        // Dub only
+        target = "https://www.animeworld.ac/filter?dub=1&sort=0"
+      }
+      // For "all" or no dub param, use base filter URL
 
       const res = await fetch(target, {
         headers: {
@@ -43,12 +55,12 @@ export const GET = withCors(async (req: NextRequest) => {
         next: { revalidate: 300 },
       })
 
-      console.log("[v0] Default recommendations response status:", res.status)
+      console.log("[v0] Filter response status:", res.status, "URL:", target)
 
       const html = await res.text()
       const result = parseSearch(html)
 
-      console.log("[v0] Default recommendations parsed items count:", result.items.length)
+      console.log("[v0] Filter parsed items count:", result.items.length)
 
       const enhancedItems = enhanceWithSources(result.items)
 

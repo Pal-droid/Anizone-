@@ -155,14 +155,14 @@ export function WatchInfo({ seriesPath }: { seriesPath: string }) {
   }, [path, animeWorldPath])
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-4 w-full overflow-hidden">
       {meta ? (
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader className="py-3">
             <CardTitle className="text-base">Informazioni</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="w-full max-w-[100vw] overflow-x-hidden">
+            <div className="w-full overflow-hidden">
               <div className="grid grid-cols-[120px_1fr] sm:grid-cols-[130px_1fr] gap-4 min-w-0">
                 <div className="sm:justify-self-start flex items-center">
                   <img
@@ -172,9 +172,11 @@ export function WatchInfo({ seriesPath }: { seriesPath: string }) {
                     loading="lazy"
                   />
                 </div>
-                <div className="min-w-0 flex flex-col justify-start">
-                  <div className="text-lg font-semibold">{meta.title}</div>
-                  {meta.jtitle ? <div className="text-sm text-muted-foreground mb-3">{meta.jtitle}</div> : null}
+                <div className="min-w-0 flex flex-col justify-start overflow-hidden">
+                  <div className="text-lg font-semibold truncate">{meta.title}</div>
+                  {meta.jtitle ? (
+                    <div className="text-sm text-muted-foreground mb-3 truncate">{meta.jtitle}</div>
+                  ) : null}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-muted-foreground">
                     {meta.rating ? (
                       <div>
@@ -241,12 +243,12 @@ export function WatchInfo({ seriesPath }: { seriesPath: string }) {
       ) : null}
 
       {loadingSimilar ? (
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader className="py-3">
             <CardTitle className="text-base">Serie simili</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-3">
+            <div className="flex gap-3 overflow-hidden">
               {[1, 2, 3].map((i) => (
                 <div key={i} className="shrink-0 w-[150px] h-[260px] bg-muted animate-pulse rounded-2xl" />
               ))}
@@ -254,26 +256,24 @@ export function WatchInfo({ seriesPath }: { seriesPath: string }) {
           </CardContent>
         </Card>
       ) : similar?.length ? (
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader className="py-3">
             <CardTitle className="text-base">Serie simili</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="relative -mx-6 sm:mx-0">
-              <div className="px-6 sm:px-0 w-full max-w-[100vw] min-w-0 overflow-x-auto no-scrollbar overscroll-x-contain">
-                <div className="flex gap-3 min-w-0">
-                  {similar.map((it) => (
-                    <div key={it.href} className="shrink-0 w-[150px] min-w-[150px]">
-                      <AnimeCard
-                        title={it.title}
-                        href={it.href}
-                        image={it.image || ""}
-                        sources={it.sources}
-                        has_multi_servers={it.has_multi_servers}
-                      />
-                    </div>
-                  ))}
-                </div>
+          <CardContent className="px-0">
+            <div className="w-full overflow-x-auto no-scrollbar overscroll-x-contain">
+              <div className="flex gap-3 px-6">
+                {similar.map((it) => (
+                  <div key={it.href} className="shrink-0 w-[150px] min-w-[150px]">
+                    <AnimeCard
+                      title={it.title}
+                      href={it.href}
+                      image={it.image || ""}
+                      sources={it.sources}
+                      has_multi_servers={it.has_multi_servers}
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           </CardContent>
@@ -281,12 +281,12 @@ export function WatchInfo({ seriesPath }: { seriesPath: string }) {
       ) : null}
 
       {loadingRelated ? (
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader className="py-3">
             <CardTitle className="text-base">Correlati</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-3">
+            <div className="flex gap-3 overflow-hidden">
               {[1, 2, 3].map((i) => (
                 <div key={i} className="shrink-0 w-[150px] h-[260px] bg-muted animate-pulse rounded-2xl" />
               ))}
@@ -294,26 +294,24 @@ export function WatchInfo({ seriesPath }: { seriesPath: string }) {
           </CardContent>
         </Card>
       ) : related?.length ? (
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader className="py-3">
             <CardTitle className="text-base">Correlati</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="relative -mx-6 sm:mx-0">
-              <div className="px-6 sm:px-0 w-full max-w-[100vw] min-w-0 overflow-x-auto no-scrollbar overscroll-x-contain">
-                <div className="flex gap-3 min-w-0">
-                  {related.map((it) => (
-                    <div key={it.href} className="shrink-0 w-[150px] min-w-[150px]">
-                      <AnimeCard
-                        title={it.title}
-                        href={it.href}
-                        image={it.image || ""}
-                        sources={it.sources}
-                        has_multi_servers={it.has_multi_servers}
-                      />
-                    </div>
-                  ))}
-                </div>
+          <CardContent className="px-0">
+            <div className="w-full overflow-x-auto no-scrollbar overscroll-x-contain">
+              <div className="flex gap-3 px-6">
+                {related.map((it) => (
+                  <div key={it.href} className="shrink-0 w-[150px] min-w-[150px]">
+                    <AnimeCard
+                      title={it.title}
+                      href={it.href}
+                      image={it.image || ""}
+                      sources={it.sources}
+                      has_multi_servers={it.has_multi_servers}
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           </CardContent>

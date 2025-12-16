@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,9 +8,20 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { QuickListManager } from "@/components/quick-list-manager"
-import { SlideOutMenu } from "@/components/slide-out-menu"
+import { SlideOutMenu, type SlideOutMenuHandle } from "@/components/slide-out-menu"
 import { deobfuscateId, obfuscateUrl } from "@/lib/utils"
-import { ArrowLeft, BookOpen, Calendar, User, Palette, Star, ChevronDown, ChevronUp, FileImage } from "lucide-react"
+import {
+  ArrowLeft,
+  BookOpen,
+  Calendar,
+  User,
+  Palette,
+  Star,
+  ChevronDown,
+  ChevronUp,
+  FileImage,
+  Menu,
+} from "lucide-react"
 
 type Chapter = {
   title: string
@@ -46,6 +57,7 @@ type MangaData = {
 export default function MangaMetadataPage() {
   const params = useParams()
   const router = useRouter()
+  const menuRef = useRef<SlideOutMenuHandle>(null)
   const [mangaData, setMangaData] = useState<MangaData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -80,9 +92,16 @@ export default function MangaMetadataPage() {
   if (loading) {
     return (
       <main className="min-h-screen pb-16 bg-background">
-        <SlideOutMenu currentPath={`/manga/${params.id}`} />
+        <SlideOutMenu ref={menuRef} currentPath={`/manga/${params.id}`} hideButton />
         <header className="border-b sticky top-0 bg-background/95 backdrop-blur z-10">
           <div className="px-4 py-3 flex items-center gap-3 max-w-7xl mx-auto">
+            <button
+              onClick={() => menuRef.current?.open()}
+              className="hover:text-primary transition-colors p-1"
+              aria-label="Menu"
+            >
+              <Menu size={20} />
+            </button>
             <Button variant="ghost" size="sm">
               <ArrowLeft size={16} />
             </Button>
@@ -134,9 +153,16 @@ export default function MangaMetadataPage() {
   if (error || !mangaData) {
     return (
       <main className="min-h-screen pb-16 bg-background">
-        <SlideOutMenu currentPath={`/manga/${params.id}`} />
+        <SlideOutMenu ref={menuRef} currentPath={`/manga/${params.id}`} hideButton />
         <header className="border-b sticky top-0 bg-background/95 backdrop-blur z-10">
           <div className="px-4 py-3 flex items-center gap-3 max-w-7xl mx-auto">
+            <button
+              onClick={() => menuRef.current?.open()}
+              className="hover:text-primary transition-colors p-1"
+              aria-label="Menu"
+            >
+              <Menu size={20} />
+            </button>
             <Button variant="ghost" size="sm" onClick={() => router.back()}>
               <ArrowLeft size={16} />
             </Button>
@@ -156,9 +182,16 @@ export default function MangaMetadataPage() {
 
   return (
     <main className="min-h-screen bg-background">
-      <SlideOutMenu currentPath={`/manga/${params.id}`} />
+      <SlideOutMenu ref={menuRef} currentPath={`/manga/${params.id}`} hideButton />
       <header className="border-b sticky top-0 bg-background/95 backdrop-blur z-10">
         <div className="px-4 py-3 flex items-center gap-3 max-w-7xl mx-auto">
+          <button
+            onClick={() => menuRef.current?.open()}
+            className="hover:text-primary transition-colors p-1"
+            aria-label="Menu"
+          >
+            <Menu size={20} />
+          </button>
           <Button variant="ghost" size="sm" onClick={() => router.back()}>
             <ArrowLeft size={16} />
           </Button>

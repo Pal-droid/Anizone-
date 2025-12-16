@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
-import { obfuscateId } from "@/lib/utils"
+import { obfuscateId, obfuscateUrl } from "@/lib/utils"
 import { useState, useEffect } from "react"
 
 interface MangaChapter {
@@ -119,7 +119,7 @@ export function LatestMangaChapters() {
                   {manga.chapters.map((chapter, index) => (
                     <div key={index} className="flex items-center justify-between gap-2 text-xs min-w-0">
                       <Link
-                        href={chapter.url}
+                        href={`/manga/${obfuscateId(manga.id)}/read?u=${obfuscateUrl(chapter.url)}&title=${encodeURIComponent(chapter.title)}`}
                         className="text-primary hover:underline flex items-center gap-1 truncate min-w-0"
                       >
                         <span className="truncate">{chapter.title}</span>

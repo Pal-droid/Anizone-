@@ -3,13 +3,13 @@
 import type React from "react"
 import { useState, useEffect, useRef, useCallback } from "react"
 import Link from "next/link"
-import { ArrowLeft, RotateCcw, ListIcon, BookOpen } from "lucide-react"
+import { ArrowLeft, RotateCcw, ListIcon, BookOpen, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { deobfuscateUrl } from "@/lib/utils"
-import { SlideOutMenu } from "@/components/slide-out-menu"
+import { SlideOutMenu, type SlideOutMenuHandle } from "@/components/slide-out-menu"
 
 interface MangaReaderProps {
   params: {
@@ -131,6 +131,7 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
   const [error, setError] = useState<string | null>(null)
   const [imageErrors, setImageErrors] = useState<Set<number>>(new Set())
   const [viewMode, setViewMode] = useState<"single" | "list">("list") // Default to list mode as per requirements
+  const menuRef = useRef<SlideOutMenuHandle>(null)
 
   const getImageUrl = (originalUrl: string) => {
     return originalUrl || "/placeholder.svg"
@@ -249,12 +250,19 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
   return (
     <main className="min-h-screen bg-black text-white pb-16">
       {/* Slide-out menu component */}
-      <SlideOutMenu currentPath={`/manga/${params.id}/read`} />
+      <SlideOutMenu ref={menuRef} currentPath={`/manga/${params.id}/read`} hideButton />
 
       {/* Header */}
       <header className="sticky top-0 bg-black/90 backdrop-blur z-20 border-b border-gray-800">
         <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => menuRef.current?.open()}
+              className="text-white hover:text-primary transition-colors p-1"
+              aria-label="Menu"
+            >
+              <Menu size={20} />
+            </button>
             <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10">
               <Link href={`/manga/${params.id}`}>
                 <ArrowLeft size={16} />
