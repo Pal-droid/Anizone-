@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect, useRef, useCallback } from "react"
-import Link from "next/link"
+import { useRouter } from "next/navigation" // Added useRouter import to use replace navigation instead of Link
 import { ArrowLeft, RotateCcw, ListIcon, BookOpen, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -132,6 +132,7 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
   const [imageErrors, setImageErrors] = useState<Set<number>>(new Set())
   const [viewMode, setViewMode] = useState<"single" | "list">("list") // Default to list mode as per requirements
   const menuRef = useRef<SlideOutMenuHandle>(null)
+  const router = useRouter() // Added router for replace navigation
 
   const getImageUrl = (originalUrl: string) => {
     return originalUrl || "/placeholder.svg"
@@ -216,6 +217,11 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
     return () => window.removeEventListener("keydown", handleKeyPress)
   }, [currentPage, pages.length, viewMode])
 
+  const handleGoBack = () => {
+    // Added function to go back using replace to avoid history loop
+    router.replace(`/manga/${params.id}`)
+  }
+
   if (isLoading) {
     return (
       <main className="min-h-screen bg-black text-white">
@@ -236,10 +242,8 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
           <div className="text-center">
             <h2 className="text-lg font-semibold mb-2">Errore nel caricamento</h2>
             <p className="text-gray-400 mb-4">Non è stato possibile caricare le pagine del manga.</p>
-            <Button asChild variant="outline">
-              <Link href={`/manga/${params.id}`}>
-                <ArrowLeft size={16} />
-              </Link>
+            <Button variant="outline" onClick={handleGoBack}>
+              <ArrowLeft size={16} />
             </Button>
           </div>
         </div>
@@ -263,10 +267,8 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
             >
               <Menu size={20} />
             </button>
-            <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10">
-              <Link href={`/manga/${params.id}`}>
-                <ArrowLeft size={16} />
-              </Link>
+            <Button variant="ghost" size="sm" onClick={handleGoBack} className="text-white hover:bg-white/10">
+              <ArrowLeft size={16} />
             </Button>
             <div>
               <h1 className="font-semibold text-sm">{searchParams.title || "Manga Reader"}</h1>
