@@ -65,6 +65,10 @@ export default function MangaMetadataPage() {
 
   const actualMangaId = deobfuscateId(params.id as string)
 
+  const handleGoBack = () => {
+    router.push("/manga")
+  }
+
   useEffect(() => {
     const fetchMangaData = async () => {
       try {
@@ -102,7 +106,7 @@ export default function MangaMetadataPage() {
             >
               <Menu size={20} />
             </button>
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" onClick={handleGoBack}>
               <ArrowLeft size={16} />
             </Button>
             <h1 className="text-lg font-bold">Caricamento...</h1>
@@ -163,7 +167,7 @@ export default function MangaMetadataPage() {
             >
               <Menu size={20} />
             </button>
-            <Button variant="ghost" size="sm" onClick={() => router.back()}>
+            <Button variant="ghost" size="sm" onClick={handleGoBack}>
               <ArrowLeft size={16} />
             </Button>
             <h1 className="text-lg font-bold">Errore</h1>
@@ -176,7 +180,7 @@ export default function MangaMetadataPage() {
     )
   }
 
-  // ✅ Pick the oldest chapter (last chapter of last volume)
+  // Pick the oldest chapter (last chapter of last volume)
   const lastVolume = mangaData.volumes[mangaData.volumes.length - 1]
   const oldestChapter = lastVolume.chapters[lastVolume.chapters.length - 1]
 
@@ -192,7 +196,7 @@ export default function MangaMetadataPage() {
           >
             <Menu size={20} />
           </button>
-          <Button variant="ghost" size="sm" onClick={() => router.back()}>
+          <Button variant="ghost" size="sm" onClick={handleGoBack}>
             <ArrowLeft size={16} />
           </Button>
           <h1 className="text-lg font-bold line-clamp-1">{mangaData?.title || "Caricamento..."}</h1>
