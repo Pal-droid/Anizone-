@@ -188,7 +188,7 @@ export default function WatchPage() {
             <div className="flex justify-center">
               <QuickListManager itemId={seriesKey} itemTitle={title} itemPath={path} />
             </div>
-            <WatchInfo seriesPath={path} />
+            <WatchInfo seriesPath={path} sources={sources} />
           </>
         )}
       </section>

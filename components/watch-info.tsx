@@ -30,7 +30,10 @@ type AnimeItem = {
   has_multi_servers?: boolean
 }
 
-export function WatchInfo({ seriesPath }: { seriesPath: string }) {
+export function WatchInfo({
+  seriesPath,
+  sources,
+}: { seriesPath: string; sources?: Array<{ name: string; id: string }> }) {
   const path = useMemo(() => {
     try {
       // Handle full URLs
@@ -57,6 +60,30 @@ export function WatchInfo({ seriesPath }: { seriesPath: string }) {
       return seriesPath.startsWith("/") ? seriesPath : `/${seriesPath}`
     }
   }, [seriesPath])
+
+  const unityId = useMemo(() => {
+    // First check passed sources prop
+    if (sources) {
+      const unitySource = sources.find((s) => s.name === "Unity")
+      if (unitySource?.id) {
+        return unitySource.id
+      }
+    }
+    // Fallback to sessionStorage
+    try {
+      const storedSources = sessionStorage.getItem(`anizone:sources:${path}`)
+      if (storedSources) {
+        const parsedSources = JSON.parse(storedSources)
+        const unitySource = parsedSources.find((s: any) => s.name === "Unity")
+        if (unitySource?.id) {
+          return unitySource.id
+        }
+      }
+    } catch (e) {
+      // Ignore
+    }
+    return null
+  }, [sources, path])
 
   const animeWorldPath = useMemo(() => {
     try {
@@ -98,13 +125,22 @@ export function WatchInfo({ seriesPath }: { seriesPath: string }) {
           // Ignore sessionStorage errors
         }
 
+        let metaUrl = `/api/anime-meta?path=${encodeURIComponent(metaPath)}`
+        if (unityId) {
+          metaUrl += `&unityId=${encodeURIComponent(unityId)}`
+        }
+        console.log("[v0] WatchInfo fetching metadata from:", metaUrl)
+
         // Fetch metadata
-        fetch(`/api/anime-meta?path=${encodeURIComponent(metaPath)}`)
+        fetch(metaUrl)
           .then((x) => x.json())
           .then((m) => {
+            console.log("[v0] WatchInfo metadata response:", m)
             if (alive && m?.ok) setMeta(m.meta)
           })
-          .catch(() => {})
+          .catch((err) => {
+            console.error("[v0] WatchInfo metadata error:", err)
+          })
 
         console.log("[v0] WatchInfo fetching related/similar with path:", animeWorldPath)
 
@@ -152,7 +188,7 @@ export function WatchInfo({ seriesPath }: { seriesPath: string }) {
     return () => {
       alive = false
     }
-  }, [path, animeWorldPath])
+  }, [path, animeWorldPath, unityId])
 
   return (
     <div className="grid gap-4 w-full overflow-hidden">
