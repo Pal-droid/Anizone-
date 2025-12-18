@@ -20,6 +20,22 @@ type Meta = {
   views?: string
   genres: { name: string; href?: string }[]
   description?: string
+  related?: Array<{
+    title: string
+    url?: string | null
+    image?: string
+    unityId?: string
+    info?: string
+  }>
+  similar?: Array<{
+    title: string
+    url?: string
+    image?: string
+    unityId?: string
+    type?: string
+    year?: string
+    status?: string
+  }>
 }
 
 type AnimeItem = {
@@ -106,6 +122,7 @@ export function WatchInfo({
   const [related, setRelated] = useState<AnimeItem[]>([])
   const [loadingSimilar, setLoadingSimilar] = useState(true)
   const [loadingRelated, setLoadingRelated] = useState(true)
+  const [usedUnityFallback, setUsedUnityFallback] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -129,54 +146,75 @@ export function WatchInfo({
         if (unityId) {
           metaUrl += `&unityId=${encodeURIComponent(unityId)}`
         }
-        console.log("[v0] WatchInfo fetching metadata from:", metaUrl)
 
-        // Fetch metadata
-        fetch(metaUrl)
-          .then((x) => x.json())
-          .then((m) => {
-            console.log("[v0] WatchInfo metadata response:", m)
-            if (alive && m?.ok) setMeta(m.meta)
-          })
-          .catch((err) => {
-            console.error("[v0] WatchInfo metadata error:", err)
-          })
+        const metaResponse = await fetch(metaUrl)
+        const metaData = await metaResponse.json()
 
-        console.log("[v0] WatchInfo fetching related/similar with path:", animeWorldPath)
+        if (!alive) return
 
-        // Fetch similar anime
-        fetch(`/api/anime-similar?path=${encodeURIComponent(animeWorldPath)}`)
-          .then((x) => x.json())
-          .then((s) => {
-            if (alive) {
-              console.log("[v0] WatchInfo similar response:", s)
-              if (s?.ok && s.items) {
-                setSimilar(s.items)
+        if (metaData?.ok) {
+          setMeta(metaData.meta)
+
+          if (metaData.fallback && metaData.meta?.related?.length) {
+            const unityRelated: AnimeItem[] = metaData.meta.related
+              .filter((r: any) => r.url)
+              .map((r: any) => ({
+                title: r.title,
+                href: r.url,
+                image: r.image,
+                sources: r.unityId ? [{ name: "Unity", url: r.url, id: r.unityId }] : undefined,
+                has_multi_servers: false,
+              }))
+            setRelated(unityRelated)
+            setLoadingRelated(false)
+            setUsedUnityFallback(true)
+          }
+
+          if (metaData.fallback && metaData.meta?.similar?.length) {
+            const unitySimilar: AnimeItem[] = metaData.meta.similar.map((s: any) => ({
+              title: s.title,
+              href: s.url,
+              image: s.image,
+              sources: s.unityId ? [{ name: "Unity", url: s.url, id: s.unityId }] : undefined,
+              has_multi_servers: false,
+            }))
+            setSimilar(unitySimilar)
+            setLoadingSimilar(false)
+            setUsedUnityFallback(true)
+          }
+        }
+
+        if (!metaData?.fallback) {
+          fetch(`/api/anime-similar?path=${encodeURIComponent(animeWorldPath)}`)
+            .then((x) => x.json())
+            .then((s) => {
+              if (alive) {
+                if (s?.ok && s.items) {
+                  setSimilar(s.items)
+                }
+                setLoadingSimilar(false)
               }
-              setLoadingSimilar(false)
-            }
-          })
-          .catch((err) => {
-            console.error("[v0] WatchInfo similar error:", err)
-            if (alive) setLoadingSimilar(false)
-          })
+            })
+            .catch((err) => {
+              console.error("[v0] WatchInfo similar error:", err)
+              if (alive) setLoadingSimilar(false)
+            })
 
-        // Fetch related anime
-        fetch(`/api/anime-related?path=${encodeURIComponent(animeWorldPath)}`)
-          .then((x) => x.json())
-          .then((r) => {
-            if (alive) {
-              console.log("[v0] WatchInfo related response:", r)
-              if (r?.ok && r.items) {
-                setRelated(r.items)
+          fetch(`/api/anime-related?path=${encodeURIComponent(animeWorldPath)}`)
+            .then((x) => x.json())
+            .then((r) => {
+              if (alive) {
+                if (r?.ok && r.items) {
+                  setRelated(r.items)
+                }
+                setLoadingRelated(false)
               }
-              setLoadingRelated(false)
-            }
-          })
-          .catch((err) => {
-            console.error("[v0] WatchInfo related error:", err)
-            if (alive) setLoadingRelated(false)
-          })
+            })
+            .catch((err) => {
+              console.error("[v0] WatchInfo related error:", err)
+              if (alive) setLoadingRelated(false)
+            })
+        }
       } catch (e) {
         console.error("[v0] WatchInfo error:", e)
         if (alive) {
