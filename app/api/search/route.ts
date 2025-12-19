@@ -24,7 +24,7 @@ export const GET = withCors(async (req: NextRequest) => {
     const dubParam = searchParams.get("dub") // Get dub parameter for sub/dub/all filtering
 
     const hasFilters = Array.from(searchParams.entries()).some(([key, value]) => {
-      if (key === "keyword" || key === "dub") return false
+      if (key === "keyword") return false
       return value && value.trim() !== "" && value !== "any"
     })
 
@@ -67,14 +67,11 @@ export const GET = withCors(async (req: NextRequest) => {
       return NextResponse.json({ ok: true, items: enhancedItems, pagination: result.pagination, source: target })
     }
 
+    // If only keyword and no filters, redirect to unified search
     if (keyword && !hasFilters) {
-      console.log("[v0] Pure keyword search (with optional dub filter), redirecting to unified API")
+      console.log("[v0] Pure keyword search, redirecting to unified API")
       const unifiedUrl = new URL("/api/unified-search", req.url)
       unifiedUrl.searchParams.set("keyword", keyword)
-      // Pass dub param to unified search for client-side filtering
-      if (dubParam && dubParam !== "any") {
-        unifiedUrl.searchParams.set("dub", dubParam)
-      }
 
       const response = await fetch(unifiedUrl.toString(), {
         headers: req.headers,

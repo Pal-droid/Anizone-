@@ -2,13 +2,23 @@
 
 import type React from "react"
 import { useState, useEffect, useRef, useCallback } from "react"
-import { useRouter } from "next/navigation" // Added useRouter import to use replace navigation instead of Link
-import { ArrowLeft, RotateCcw, ListIcon, BookOpen, Menu } from "lucide-react"
+import { useRouter } from "next/navigation"
+import {
+  ArrowLeft,
+  RotateCcw,
+  ListIcon,
+  BookOpen,
+  Menu,
+  Maximize,
+  Minimize,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { deobfuscateUrl } from "@/lib/utils"
+import { deobfuscateUrl, obfuscateUrl } from "@/lib/utils"
 import { SlideOutMenu, type SlideOutMenuHandle } from "@/components/slide-out-menu"
 
 interface MangaReaderProps {
@@ -20,7 +30,20 @@ interface MangaReaderProps {
     url?: string // legacy URL
     title?: string
     chapter?: string
+    chapterIndex?: string // Added chapterIndex to track position in chapter list
   }
+}
+
+type Chapter = {
+  title: string
+  url: string
+  date: string
+  isNew?: boolean
+}
+
+type Volume = {
+  name: string
+  chapters: Chapter[]
 }
 
 function useIntersectionObserver(
@@ -130,15 +153,120 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [imageErrors, setImageErrors] = useState<Set<number>>(new Set())
-  const [viewMode, setViewMode] = useState<"single" | "list">("list") // Default to list mode as per requirements
+  const [viewMode, setViewMode] = useState<"single" | "list">("list")
   const menuRef = useRef<SlideOutMenuHandle>(null)
-  const router = useRouter() // Added router for replace navigation
+  const router = useRouter()
 
-  const getImageUrl = (originalUrl: string) => {
-    return originalUrl || "/placeholder.svg"
-  }
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [allChapters, setAllChapters] = useState<Chapter[]>([])
+  const [currentChapterIndex, setCurrentChapterIndex] = useState<number>(-1)
+  const [showPrevChapterButton, setShowPrevChapterButton] = useState(true)
+  const [showNextChapterButton, setShowNextChapterButton] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const startSentinelRef = useRef<HTMLDivElement>(null)
+  const endSentinelRef = useRef<HTMLDivElement>(null)
 
   const chapterUrl = searchParams.u ? deobfuscateUrl(searchParams.u) : searchParams.url
+
+  useEffect(() => {
+    const fetchChapters = async () => {
+      try {
+        const response = await fetch(`/api/manga-info?id=${params.id}`)
+        if (!response.ok) return
+        const data = await response.json()
+
+        const chapters: Chapter[] = []
+        if (data.volumes) {
+          data.volumes.forEach((volume: Volume) => {
+            chapters.push(...volume.chapters)
+          })
+        }
+        setAllChapters(chapters)
+
+        if (chapterUrl) {
+          const index = chapters.findIndex((ch) => ch.url === chapterUrl)
+          setCurrentChapterIndex(index)
+        }
+      } catch (err) {
+        console.error("[v0] Error fetching chapters:", err)
+      }
+    }
+
+    fetchChapters()
+  }, [params.id, chapterUrl])
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange)
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange)
+  }, [])
+
+  const toggleFullscreen = async () => {
+    if (!containerRef.current) return
+
+    if (!document.fullscreenElement) {
+      await containerRef.current.requestFullscreen()
+    } else {
+      await document.exitFullscreen()
+    }
+  }
+
+  const navigateToChapter = (chapter: Chapter) => {
+    router.push(
+      `/manga/${params.id}/read?u=${obfuscateUrl(chapter.url)}&title=${encodeURIComponent(searchParams.title || "")}&chapter=${encodeURIComponent(chapter.title)}`,
+    )
+  }
+
+  const goToPrevChapter = () => {
+    if (currentChapterIndex < allChapters.length - 1) {
+      navigateToChapter(allChapters[currentChapterIndex + 1])
+    }
+  }
+
+  const goToNextChapter = () => {
+    if (currentChapterIndex > 0) {
+      navigateToChapter(allChapters[currentChapterIndex - 1])
+    }
+  }
+
+  const hasPrevChapter = currentChapterIndex < allChapters.length - 1 && currentChapterIndex !== -1
+  const hasNextChapter = currentChapterIndex > 0
+
+  useEffect(() => {
+    if (!isFullscreen || viewMode !== "list") return
+
+    const startObserver = new IntersectionObserver(
+      ([entry]) => {
+        setShowPrevChapterButton(entry.isIntersecting)
+      },
+      { threshold: 0.1 },
+    )
+
+    const endObserver = new IntersectionObserver(
+      ([entry]) => {
+        setShowNextChapterButton(entry.isIntersecting)
+      },
+      { threshold: 0.1 },
+    )
+
+    if (startSentinelRef.current) startObserver.observe(startSentinelRef.current)
+    if (endSentinelRef.current) endObserver.observe(endSentinelRef.current)
+
+    return () => {
+      startObserver.disconnect()
+      endObserver.disconnect()
+    }
+  }, [isFullscreen, viewMode])
+
+  useEffect(() => {
+    if (viewMode === "single") {
+      setShowPrevChapterButton(currentPage === 0)
+      setShowNextChapterButton(currentPage === pages.length - 1)
+    }
+  }, [currentPage, pages.length, viewMode])
 
   useEffect(() => {
     const fetchPages = async () => {
@@ -201,6 +329,12 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
   }
 
   const handleKeyPress = (e: KeyboardEvent) => {
+    if (e.key === "f" || e.key === "F") {
+      e.preventDefault()
+      toggleFullscreen()
+      return
+    }
+
     if (viewMode === "single") {
       if (e.key === "ArrowRight" || e.key === " ") {
         e.preventDefault()
@@ -218,7 +352,6 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
   }, [currentPage, pages.length, viewMode])
 
   const handleGoBack = () => {
-    // Added function to go back using replace to avoid history loop
     router.replace(`/manga/${params.id}`)
   }
 
@@ -252,21 +385,21 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
   }
 
   return (
-    <main className="min-h-screen bg-black text-white pb-16">
-      {/* Slide-out menu component */}
+    <main ref={containerRef} className="min-h-screen bg-black text-white pb-16">
       <SlideOutMenu ref={menuRef} currentPath={`/manga/${params.id}/read`} hideButton />
 
-      {/* Header */}
       <header className="sticky top-0 bg-black/90 backdrop-blur z-20 border-b border-gray-800">
         <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => menuRef.current?.open()}
-              className="text-white hover:text-primary transition-colors p-1"
-              aria-label="Menu"
-            >
-              <Menu size={20} />
-            </button>
+            {!isFullscreen && (
+              <button
+                onClick={() => menuRef.current?.open()}
+                className="text-white hover:text-primary transition-colors p-1"
+                aria-label="Menu"
+              >
+                <Menu size={20} />
+              </button>
+            )}
             <Button variant="ghost" size="sm" onClick={handleGoBack} className="text-white hover:bg-white/10">
               <ArrowLeft size={16} />
             </Button>
@@ -278,6 +411,30 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {!isFullscreen && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={goToPrevChapter}
+                  disabled={!hasPrevChapter}
+                  className="text-white hover:bg-white/10 disabled:opacity-30"
+                  title="Capitolo precedente"
+                >
+                  <ChevronLeft size={16} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={goToNextChapter}
+                  disabled={!hasNextChapter}
+                  className="text-white hover:bg-white/10 disabled:opacity-30"
+                  title="Capitolo successivo"
+                >
+                  <ChevronRight size={16} />
+                </Button>
+              </>
+            )}
             <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as "single" | "list")}>
               <TabsList className="bg-gray-800 border-gray-700">
                 <TabsTrigger value="single" className="text-white data-[state=active]:bg-gray-700">
@@ -288,6 +445,15 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
                 </TabsTrigger>
               </TabsList>
             </Tabs>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleFullscreen}
+              className="text-white hover:bg-white/10"
+              title={isFullscreen ? "Esci da schermo intero (F)" : "Schermo intero (F)"}
+            >
+              {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
+            </Button>
             {viewMode === "single" && (
               <Badge variant="outline" className="text-white border-white/20">
                 {Math.round(((currentPage + 1) / pages.length) * 100)}%
@@ -298,9 +464,23 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
       </header>
 
       {viewMode === "list" ? (
-        // List View - All pages displayed vertically
         <div className="px-4 py-4">
           <div className="max-w-2xl mx-auto space-y-4">
+            <div ref={startSentinelRef} className="h-1" />
+
+            {isFullscreen && hasPrevChapter && showPrevChapterButton && (
+              <div className="flex justify-center py-4">
+                <Button
+                  onClick={goToPrevChapter}
+                  variant="outline"
+                  className="text-white border-white/20 hover:bg-white/10 bg-transparent"
+                >
+                  <ChevronLeft size={16} className="mr-2" />
+                  Capitolo precedente
+                </Button>
+              </div>
+            )}
+
             {pages.map((pageUrl, index) => (
               <LazyImage
                 key={index}
@@ -311,10 +491,25 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
                 onLoad={() => console.log(`[v0] Successfully loaded image ${index + 1}`)}
               />
             ))}
+
+            <div ref={endSentinelRef} className="h-1" />
+
+            {isFullscreen && hasNextChapter && showNextChapterButton && (
+              <div className="flex justify-center py-8">
+                <Button
+                  onClick={goToNextChapter}
+                  variant="outline"
+                  size="lg"
+                  className="text-white border-white/20 hover:bg-white/10 bg-transparent"
+                >
+                  Capitolo successivo
+                  <ChevronRight size={16} className="ml-2" />
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       ) : (
-        // Single Page View - Original implementation
         <>
           <div className="pt-4 pb-20">
             <div className="flex items-center justify-center min-h-screen px-4">
@@ -340,7 +535,7 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
                   alt={`Pagina ${currentPage + 1}`}
                   style={{
                     maxWidth: "100%",
-                    maxHeight: "70vh",
+                    maxHeight: isFullscreen ? "90vh" : "70vh",
                     height: "auto",
                     objectFit: "contain",
                     display: "block",
@@ -353,9 +548,36 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
                 />
               )}
             </div>
+
+            {isFullscreen && showPrevChapterButton && hasPrevChapter && currentPage === 0 && (
+              <div className="fixed top-1/2 left-4 -translate-y-1/2 z-30">
+                <Button
+                  onClick={goToPrevChapter}
+                  variant="outline"
+                  size="lg"
+                  className="text-white border-white/20 hover:bg-white/10 bg-black/50"
+                >
+                  <ChevronLeft size={20} className="mr-2" />
+                  Capitolo precedente
+                </Button>
+              </div>
+            )}
+
+            {isFullscreen && showNextChapterButton && hasNextChapter && currentPage === pages.length - 1 && (
+              <div className="fixed top-1/2 right-4 -translate-y-1/2 z-30">
+                <Button
+                  onClick={goToNextChapter}
+                  variant="outline"
+                  size="lg"
+                  className="text-white border-white/20 hover:bg-white/10 bg-black/50"
+                >
+                  Capitolo successivo
+                  <ChevronRight size={20} className="ml-2" />
+                </Button>
+              </div>
+            )}
           </div>
 
-          {/* Navigation Controls - Only for single page mode */}
           <div className="fixed bottom-0 left-0 right-0 bg-black/80 backdrop-blur z-20 border-t border-gray-800">
             <div className="px-4 py-3 flex items-center justify-between">
               <Button
@@ -388,7 +610,6 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
             </div>
           </div>
 
-          {/* Click areas for navigation - Only for single page mode */}
           <div className="fixed inset-0 flex pt-16 pb-20 pointer-events-none z-10">
             <div className="flex-1 cursor-pointer pointer-events-auto" onClick={prevPage} />
             <div className="flex-1 cursor-pointer pointer-events-auto" onClick={nextPage} />

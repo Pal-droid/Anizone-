@@ -125,11 +125,16 @@ export default function SearchPage() {
     try {
       let r: Response
       const hasFilters = hasOtherFilters()
+      const dubParam = sp.get("dub")
 
       if (genreId && !keyword) {
         r = await fetch(`/api/search?${queryString}`)
       } else if (keyword && !hasFilters) {
-        r = await fetch(`/api/unified-search?keyword=${encodeURIComponent(keyword)}`)
+        let unifiedUrl = `/api/unified-search?keyword=${encodeURIComponent(keyword)}`
+        if (dubParam && dubParam !== "any") {
+          unifiedUrl += `&dub=${dubParam}`
+        }
+        r = await fetch(unifiedUrl)
         setIsUnified(true)
       } else {
         r = await fetch(`/api/search?${queryString}`)

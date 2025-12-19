@@ -104,23 +104,23 @@ export async function GET(req: NextRequest) {
             title: result.title,
             href: primaryUrl,
             image: result.images.poster || result.images.cover || "",
-            isDub: result.title.includes("(ITA)"), // Detect dub from title
+            isDub: result.title.includes("(ITA)"),
             sources: result.sources,
             has_multi_servers: result.has_multi_servers,
-            description: result.description, // Added description from new API
+            description: result.description,
           }
         })
 
         if (dubParam === "0") {
           // Sub only - exclude titles with "(ITA)"
-          console.log("Filtering for SUB only (excluding ITA dubs)")
+          console.log("Filtering for SUB only (excluding ITA)")
           items = items.filter((item) => !item.title.includes("(ITA)"))
         } else if (dubParam === "1") {
-          // Dub only - only show titles with "(ITA)"
-          console.log("Filtering for DUB only (only ITA dubs)")
+          // Dub only - only titles with "(ITA)"
+          console.log("Filtering for DUB only (ITA only)")
           items = items.filter((item) => item.title.includes("(ITA)"))
         }
-        // else: "any" or no dub param - show all results
+        // For "any"/tutti or no dub param, show all results
 
         console.log("Transformed items after dub filter:", items.length)
         return NextResponse.json({
