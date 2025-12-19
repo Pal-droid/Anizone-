@@ -194,7 +194,8 @@ export default function SearchPage() {
   const hasOtherFilters = () => {
     const allParams = Array.from(sp.entries())
     return allParams.some(([key, value]) => {
-      if (key === "keyword" || key === "genre" || key === "tab" || key === "page" || key === "servers") return false
+      if (key === "keyword" || key === "genre" || key === "tab" || key === "page" || key === "servers" || key === "dub")
+        return false
       return value && value.trim() !== "" && value !== "any" && value !== "all"
     })
   }

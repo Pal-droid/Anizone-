@@ -22,21 +22,22 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const keyword = searchParams.get("keyword")
+    const dubParam = searchParams.get("dub")
 
     if (!keyword) {
       return NextResponse.json({ ok: false, error: "Parametro 'keyword' mancante" }, { status: 400 })
     }
 
-    // Check if ANY filters are applied - only use unified search for pure keyword searches
     const allParams = Array.from(searchParams.entries())
     const hasFilters = allParams.some(([key, value]) => {
-      if (key === "keyword") return false
+      if (key === "keyword" || key === "dub") return false
       // Only consider it a filter if it has a meaningful value
       return value && value.trim() !== "" && value !== "any"
     })
 
     console.log("Search params:", Object.fromEntries(searchParams.entries()))
-    console.log("Has filters:", hasFilters)
+    console.log("Has filters (excluding dub):", hasFilters)
+    console.log("Dub param:", dubParam)
 
     if (hasFilters) {
       console.log("Using regular search due to filters")
@@ -69,8 +70,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: true, items, source: target, unified: false })
     }
 
-    // Try unified search for pure keyword searches
-    console.log("Trying unified search for keyword:", keyword)
+    // Try unified search for pure keyword searches (with optional dub filter)
+    console.log("Trying unified search for keyword:", keyword, "with dub filter:", dubParam)
     try {
       const unifiedRes = await fetch(`https://aw-au-as-api.vercel.app/api/search?q=${encodeURIComponent(keyword)}`, {
         headers: {
@@ -85,7 +86,7 @@ export async function GET(req: NextRequest) {
         console.log("Unified API response:", unifiedData.length, "results")
 
         // Transform unified results to our format
-        const items = unifiedData.map((result) => {
+        let items = unifiedData.map((result) => {
           // Find AnimeWorld source first, fallback to first available
           const animeWorldSource = result.sources.find((s) => s.name === "AnimeWorld")
           const primaryUrl = animeWorldSource?.url || result.sources[0]?.url || ""
@@ -103,14 +104,25 @@ export async function GET(req: NextRequest) {
             title: result.title,
             href: primaryUrl,
             image: result.images.poster || result.images.cover || "",
-            isDub: false, // We don't have this info from unified API
+            isDub: result.title.includes("(ITA)"), // Detect dub from title
             sources: result.sources,
             has_multi_servers: result.has_multi_servers,
             description: result.description, // Added description from new API
           }
         })
 
-        console.log("Transformed items:", items.length)
+        if (dubParam === "0") {
+          // Sub only - exclude titles with "(ITA)"
+          console.log("Filtering for SUB only (excluding ITA dubs)")
+          items = items.filter((item) => !item.title.includes("(ITA)"))
+        } else if (dubParam === "1") {
+          // Dub only - only show titles with "(ITA)"
+          console.log("Filtering for DUB only (only ITA dubs)")
+          items = items.filter((item) => item.title.includes("(ITA)"))
+        }
+        // else: "any" or no dub param - show all results
+
+        console.log("Transformed items after dub filter:", items.length)
         return NextResponse.json({
           ok: true,
           items,
