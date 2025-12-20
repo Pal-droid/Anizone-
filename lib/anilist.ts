@@ -1,11 +1,5 @@
 "use client"
 
-// AniList OAuth Configuration
-const ANILIST_CLIENT_ID = "26299"
-const ANILIST_CLIENT_SECRET = "oNrkyk6hLbuIxtwmJmOoe7FOtSLiG6180imZZRTj"
-
-const ANILIST_REDIRECT_URI = "https://anizonea.netlify.app/api/auth/anilist/callback"
-
 export interface AniListUser {
   id: number
   name: string
@@ -64,48 +58,27 @@ class AniListManager {
     this.notify()
   }
 
-  // Initiate OAuth flow
-  login() {
-    console.log("[v0] Starting AniList OAuth flow")
-    console.log("[v0] Redirect URI:", ANILIST_REDIRECT_URI)
-    const authUrl = `https://anilist.co/api/v2/oauth/authorize?client_id=${ANILIST_CLIENT_ID}&redirect_uri=${encodeURIComponent(ANILIST_REDIRECT_URI)}&response_type=code`
-    console.log("[v0] Auth URL:", authUrl)
-    window.location.href = authUrl
-  }
-
-  // Exchange code for token and fetch user data
-  async handleCallback(code: string): Promise<{ success: boolean; error?: string }> {
+  async loginWithToken(token: string): Promise<{ success: boolean; error?: string }> {
     try {
-      // Exchange code for access token
-      const tokenResponse = await fetch("/api/auth/anilist/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code }),
-      })
+      console.log("[v0] Attempting to login with provided token")
 
-      if (!tokenResponse.ok) {
-        const error = await tokenResponse.json()
-        return { success: false, error: error.error || "Failed to get access token" }
-      }
-
-      const { access_token } = await tokenResponse.json()
-
-      // Fetch user data from AniList
-      const userResponse = await this.fetchAniListUser(access_token)
+      // Fetch user data from AniList to validate token
+      const userResponse = await this.fetchAniListUser(token)
       if (!userResponse.success || !userResponse.user) {
-        return { success: false, error: "Failed to fetch user data" }
+        return { success: false, error: userResponse.error || "Failed to fetch user data" }
       }
 
       const user: AniListUser = {
         ...userResponse.user,
-        token: access_token,
+        token: token,
       }
 
       this.setUser(user)
+      console.log("[v0] Successfully logged in as:", user.name)
       return { success: true }
     } catch (error) {
-      console.error("[v0] AniList callback error:", error)
-      return { success: false, error: "Network error during authentication" }
+      console.error("[v0] Token login error:", error)
+      return { success: false, error: "Invalid token or network error" }
     }
   }
 
@@ -139,6 +112,11 @@ class AniListManager {
       }
 
       const data = await response.json()
+
+      if (data.errors) {
+        return { success: false, error: "Invalid access token" }
+      }
+
       return { success: true, user: data.data.Viewer }
     } catch (error) {
       console.error("[v0] Error fetching AniList user:", error)
@@ -372,9 +350,3 @@ class AniListManager {
 }
 
 export const aniListManager = new AniListManager()
-
-// AniList OAuth config for server-side
-export const ANILIST_CONFIG = {
-  CLIENT_ID: ANILIST_CLIENT_ID,
-  CLIENT_SECRET: ANILIST_CLIENT_SECRET,
-}

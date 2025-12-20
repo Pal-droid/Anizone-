@@ -7,7 +7,7 @@ import { aniListManager, type AniListUser } from "@/lib/anilist"
 interface AniListContextType {
   user: AniListUser | null
   isLoading: boolean
-  login: () => void
+  loginWithToken: (token: string) => Promise<{ success: boolean; error?: string }>
   logout: () => void
   refreshAuth: () => void
 }
@@ -26,21 +26,6 @@ function AniListProviderInternal({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      console.log("[v0] Received message:", event.data)
-
-      if (event.data.type === "anilist_success") {
-        console.log("[v0] OAuth success, user:", event.data.user.name)
-        aniListManager.setUser(event.data.user)
-        refreshAuth()
-      } else if (event.data.type === "anilist_error") {
-        console.error("[v0] OAuth error:", event.data.error)
-        setIsLoading(false)
-      }
-    }
-
-    window.addEventListener("message", handleMessage)
-
     // Initial auth check
     refreshAuth()
 
@@ -52,14 +37,17 @@ function AniListProviderInternal({ children }: { children: React.ReactNode }) {
     })
 
     return () => {
-      window.removeEventListener("message", handleMessage)
       unsubscribe()
     }
   }, [])
 
-  const login = () => {
-    console.log("[v0] Initiating login")
-    aniListManager.login()
+  const loginWithToken = async (token: string) => {
+    console.log("[v0] Initiating token login")
+    const result = await aniListManager.loginWithToken(token)
+    if (result.success) {
+      refreshAuth()
+    }
+    return result
   }
 
   const logout = () => {
@@ -69,7 +57,7 @@ function AniListProviderInternal({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AniListContext.Provider value={{ user, isLoading, login, logout, refreshAuth }}>
+    <AniListContext.Provider value={{ user, isLoading, loginWithToken, logout, refreshAuth }}>
       {children}
     </AniListContext.Provider>
   )
