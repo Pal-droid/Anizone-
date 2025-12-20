@@ -3,10 +3,8 @@
 // AniList OAuth Configuration
 const ANILIST_CLIENT_ID = "26299"
 const ANILIST_CLIENT_SECRET = "oNrkyk6hLbuIxtwmJmOoe7FOtSLiG6180imZZRTj"
-const ANILIST_REDIRECT_URI =
-  typeof window !== "undefined"
-    ? `${window.location.origin}/api/auth/anilist/callback`
-    : "http://localhost:3000/api/auth/anilist/callback"
+
+const ANILIST_REDIRECT_URI = "https://anizonea.netlify.app/api/auth/anilist/callback"
 
 export interface AniListUser {
   id: number
@@ -68,7 +66,10 @@ class AniListManager {
 
   // Initiate OAuth flow
   login() {
+    console.log("[v0] Starting AniList OAuth flow")
+    console.log("[v0] Redirect URI:", ANILIST_REDIRECT_URI)
     const authUrl = `https://anilist.co/api/v2/oauth/authorize?client_id=${ANILIST_CLIENT_ID}&redirect_uri=${encodeURIComponent(ANILIST_REDIRECT_URI)}&response_type=code`
+    console.log("[v0] Auth URL:", authUrl)
     window.location.href = authUrl
   }
 

@@ -3,7 +3,6 @@
 import type React from "react"
 import { createContext, useContext, useEffect, useState, Suspense } from "react"
 import { aniListManager, type AniListUser } from "@/lib/anilist"
-import { useSearchParams } from "next/navigation"
 
 interface AniListContextType {
   user: AniListUser | null
@@ -18,39 +17,32 @@ const AniListContext = createContext<AniListContextType | undefined>(undefined)
 function AniListProviderInternal({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AniListUser | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const searchParams = useSearchParams()
 
   const refreshAuth = () => {
     const currentUser = aniListManager.getUser()
+    console.log("[v0] Refreshing auth, current user:", currentUser?.name || "none")
     setUser(currentUser)
     setIsLoading(false)
   }
 
   useEffect(() => {
-    // Check for OAuth callback code
-    const code = searchParams.get("code")
-    if (code) {
-      setIsLoading(true)
-      aniListManager
-        .handleCallback(code)
-        .then((result) => {
-          if (result.success) {
-            // Remove code from URL
-            window.history.replaceState({}, document.title, window.location.pathname)
-            refreshAuth()
-          } else {
-            console.error("[v0] OAuth callback failed:", result.error)
-            setIsLoading(false)
-          }
-        })
-        .catch((error) => {
-          console.error("[v0] OAuth callback error:", error)
-          setIsLoading(false)
-        })
-    } else {
-      // Initial auth check
-      refreshAuth()
+    const handleMessage = (event: MessageEvent) => {
+      console.log("[v0] Received message:", event.data)
+
+      if (event.data.type === "anilist_success") {
+        console.log("[v0] OAuth success, user:", event.data.user.name)
+        aniListManager.setUser(event.data.user)
+        refreshAuth()
+      } else if (event.data.type === "anilist_error") {
+        console.error("[v0] OAuth error:", event.data.error)
+        setIsLoading(false)
+      }
     }
+
+    window.addEventListener("message", handleMessage)
+
+    // Initial auth check
+    refreshAuth()
 
     // Subscribe to auth changes
     const unsubscribe = aniListManager.subscribe((newUser) => {
@@ -59,14 +51,19 @@ function AniListProviderInternal({ children }: { children: React.ReactNode }) {
       setIsLoading(false)
     })
 
-    return unsubscribe
-  }, [searchParams])
+    return () => {
+      window.removeEventListener("message", handleMessage)
+      unsubscribe()
+    }
+  }, [])
 
   const login = () => {
+    console.log("[v0] Initiating login")
     aniListManager.login()
   }
 
   const logout = () => {
+    console.log("[v0] Logging out")
     aniListManager.logout()
     refreshAuth()
   }
