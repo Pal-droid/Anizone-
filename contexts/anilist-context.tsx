@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useEffect, useState, Suspense } from "react"
 import { aniListManager, type AniListUser } from "@/lib/anilist"
 import { useSearchParams } from "next/navigation"
 
@@ -15,7 +15,7 @@ interface AniListContextType {
 
 const AniListContext = createContext<AniListContextType | undefined>(undefined)
 
-export function AniListProvider({ children }: { children: React.ReactNode }) {
+function AniListProviderInternal({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AniListUser | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const searchParams = useSearchParams()
@@ -75,6 +75,14 @@ export function AniListProvider({ children }: { children: React.ReactNode }) {
     <AniListContext.Provider value={{ user, isLoading, login, logout, refreshAuth }}>
       {children}
     </AniListContext.Provider>
+  )
+}
+
+export function AniListProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AniListProviderInternal>{children}</AniListProviderInternal>
+    </Suspense>
   )
 }
 
