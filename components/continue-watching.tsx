@@ -6,9 +6,8 @@ import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { formatSeconds } from "@/lib/time"
-import { useAuth } from "@/contexts/auth-context"
-import { authManager } from "@/lib/auth"
+import { useAniList } from "@/contexts/anilist-context"
+import { aniListManager } from "@/lib/anilist"
 import { obfuscateUrl } from "@/lib/utils"
 
 type ContinueEntry = {
@@ -25,7 +24,7 @@ type ContinueEntry = {
 const metaCache = new Map<string, { title: string; image?: string; ts: number }>()
 
 export function ContinueWatching() {
-  const { user } = useAuth()
+  const { user } = useAniList()
   const [entries, setEntries] = useState<ContinueEntry[]>([])
   const [loading, setLoading] = useState(true)
   const initialized = useRef(false)
@@ -36,51 +35,30 @@ export function ContinueWatching() {
 
     async function fetchEntries() {
       try {
-        const token = await authManager.getIdToken()
-        const res = await fetch("/api/user-history", {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-        if (!res.ok) throw new Error("Failed to fetch history")
-        const data = await res.json()
-        const items = Array.isArray(data.items) ? data.items : []
-        const mapped: ContinueEntry[] = items.map((it) => {
-          const { animeId, episodeNumber, playbackPosition, updatedAt } = it
-          return {
-            seriesKey: animeId,
-            seriesPath: animeId,
-            title: animeId,
-            episode: { num: episodeNumber, href: `/anime/${animeId}/episode/${episodeNumber}` },
-            updatedAt: new Date(updatedAt).getTime(),
-            positionSeconds: playbackPosition
-          }
-        })
-        setEntries(mapped)
+        const animeList = await aniListManager.getUserAnimeList()
 
-        // fetch meta
-        mapped.forEach(async (entry) => {
-          const cache = metaCache.get(entry.seriesKey)
-          if (cache && Date.now() - cache.ts < 5 * 60 * 1000) {
-            setEntries((prev) =>
-              prev.map((p) => (p.seriesKey === entry.seriesKey ? { ...p, ...cache } : p))
-            )
-            return
-          }
-          try {
-            const r = await fetch(`/api/anime-meta?id=${encodeURIComponent(entry.seriesKey)}`)
-            if (r.ok) {
-              const d = await r.json()
-              const meta = { title: d.title, image: d.image, ts: Date.now() }
-              metaCache.set(entry.seriesKey, meta)
-              setEntries((prev) =>
-                prev.map((p) => (p.seriesKey === entry.seriesKey ? { ...p, ...meta } : p))
-              )
-            }
-          } catch (e) {
-            console.error("meta fetch err", e)
+        // Get CURRENT status entries
+        const currentList = animeList.lists?.find((list: any) => list.status === "CURRENT")
+        if (!currentList) {
+          setEntries([])
+          setLoading(false)
+          return
+        }
+
+        const mapped: ContinueEntry[] = currentList.entries.map((entry: any) => {
+          return {
+            seriesKey: entry.media.id.toString(),
+            seriesPath: entry.media.id.toString(),
+            title: entry.media.title.romaji || entry.media.title.english || "Unknown",
+            episode: { num: entry.progress || 1, href: `/anime/${entry.media.id}/episode/${entry.progress || 1}` },
+            updatedAt: Date.now(),
+            image: entry.media.coverImage.large || entry.media.coverImage.medium,
           }
         })
+
+        setEntries(mapped)
       } catch (e) {
-        console.error("err loading history", e)
+        console.error("[v0] Error loading continue watching:", e)
       } finally {
         setLoading(false)
       }
@@ -94,34 +72,28 @@ export function ContinueWatching() {
   async function handleClick(e: React.MouseEvent, entry: ContinueEntry) {
     e.preventDefault()
     try {
-      const token = await authManager.getIdToken()
-
-      // Restore old flow: fetch episodes + sources from your API
+      // Fetch episodes + sources from your API
       const [episodesRes, sourcesRes] = await Promise.all([
-        fetch(`/api/anime-episodes?path=${encodeURIComponent(entry.seriesKey)}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }),
-        fetch(`/api/unified-search?keyword=${encodeURIComponent(entry.seriesKey)}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
+        fetch(`/api/anime-episodes?path=${encodeURIComponent(entry.seriesKey)}`),
+        fetch(`/api/unified-search?keyword=${encodeURIComponent(entry.title)}`),
       ])
 
       const episodes = episodesRes.ok ? await episodesRes.json() : []
       const sources = sourcesRes.ok ? await sourcesRes.json() : []
 
-      // Save into sessionStorage like old component
+      // Save into sessionStorage
       sessionStorage.setItem(
         "animeData",
         JSON.stringify({
           episodes,
-          sources
-        })
+          sources,
+        }),
       )
 
       // Redirect to watch page
       window.location.href = `/watch?p=${obfuscateUrl(entry.seriesKey)}&ep=${entry.episode.num}`
     } catch (err) {
-      console.error("Error handling continue watching click:", err)
+      console.error("[v0] Error handling continue watching click:", err)
       window.location.href = `/watch?p=${obfuscateUrl(entry.seriesKey)}&ep=${entry.episode.num}`
     }
   }
@@ -132,14 +104,14 @@ export function ContinueWatching() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Continue Watching</CardTitle>
+        <CardTitle>Continua a guardare</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">
         {entries.map((entry) => (
           <div key={entry.seriesKey} className="flex items-center gap-4">
             {entry.image && (
               <img
-                src={entry.image}
+                src={entry.image || "/placeholder.svg"}
                 alt={entry.title}
                 className="w-16 h-24 object-cover rounded"
               />
@@ -152,24 +124,10 @@ export function ContinueWatching() {
               >
                 {entry.title}
               </Link>
-              <div className="text-sm text-muted-foreground">
-                Ep {entry.episode.num}
-                {entry.positionSeconds
-                  ? ` — at ${formatSeconds(entry.positionSeconds)}`
-                  : null}
-              </div>
+              <div className="text-sm text-muted-foreground">Ep {entry.episode.num}</div>
             </div>
-            <Button
-              asChild
-              onClick={(e) => handleClick(e, entry)}
-              variant="secondary"
-              size="sm"
-            >
-              <Link
-                href={`/watch?p=${obfuscateUrl(entry.seriesKey)}&ep=${entry.episode.num}`}
-              >
-                Resume
-              </Link>
+            <Button asChild onClick={(e) => handleClick(e, entry)} variant="secondary" size="sm">
+              <Link href={`/watch?p=${obfuscateUrl(entry.seriesKey)}&ep=${entry.episode.num}`}>Riprendi</Link>
             </Button>
           </div>
         ))}

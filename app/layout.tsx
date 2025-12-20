@@ -2,7 +2,7 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
 import "./globals.css"
-import { AuthProvider } from "@/contexts/auth-context"
+import { AniListProvider } from "@/contexts/anilist-context"
 import { SeasonalBackground } from "@/components/seasonal-background"
 
 const inter = Inter({
@@ -60,7 +60,7 @@ export default function RootLayout({
     <html lang="it" className={`dark ${inter.variable} ${jetbrainsMono.variable}`}>
       <body className="font-sans antialiased overscroll-none">
         <SeasonalBackground />
-        <AuthProvider>{children}</AuthProvider>
+        <AniListProvider>{children}</AniListProvider>
       </body>
     </html>
   )
