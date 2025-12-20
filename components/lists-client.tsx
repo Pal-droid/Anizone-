@@ -1,4 +1,5 @@
 "use client"
+
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
@@ -31,7 +32,7 @@ const MANGA_STATUS_MAP: Record<string, string> = {
   REPEATING: "In revisione",
 }
 
-export default function ListsPage() {
+export function ListsClient() {
   const { user, isLoading } = useAniList()
   const [activeMediaType, setActiveMediaType] = useState<MediaType>("anime")
   const [animeCollection, setAnimeCollection] = useState<any>(null)
