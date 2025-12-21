@@ -20,6 +20,7 @@ type Meta = {
   views?: string
   genres: { name: string; href?: string }[]
   description?: string
+  anilistId?: number
   related?: Array<{
     title: string
     url?: string | null
@@ -301,6 +302,13 @@ export function WatchInfo({
                           {g.name}
                         </span>
                       ))}
+                    </div>
+                  ) : null}
+                  {meta.anilistId ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="inline-flex text-xs border rounded px-2 py-0.5">
+                        AniList ID: {meta.anilistId}
+                      </span>
                     </div>
                   ) : null}
                 </div>

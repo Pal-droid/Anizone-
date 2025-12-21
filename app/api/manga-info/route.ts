@@ -214,7 +214,34 @@ export const GET = withCors(async (request: NextRequest) => {
       if (chapters.length > 0) volumes.push({ name: "Chapters", chapters })
     }
 
-    const mangaData = { title, image, type, status, author, artist, year, genres, trama, volumes, url: mangaUrl }
+    // Extract AniList manga ID
+    let anilistId: number | null = null
+    $("div.col-12.col-md-6.p-0.mt-1 a").each((_, el) => {
+      const href = $(el).attr("href")
+      if (href && href.includes("anilist.co/manga/")) {
+        const match = href.match(/anilist\.co\/manga\/(\d+)/)
+        if (match && match[1]) {
+          anilistId = Number.parseInt(match[1], 10)
+          console.log("[v0] Extracted AniList manga ID:", anilistId)
+          return false // break the loop
+        }
+      }
+    })
+
+    const mangaData = {
+      title,
+      image,
+      type,
+      status,
+      author,
+      artist,
+      year,
+      genres,
+      trama,
+      volumes,
+      url: mangaUrl,
+      anilistId,
+    }
     return NextResponse.json(mangaData)
   } catch (error) {
     console.error("[v0] Error fetching manga metadata:", error)

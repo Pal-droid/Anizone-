@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Play, Check, Pause, X, RotateCcw, BookOpen } from "lucide-react"
+import { Plus, Play, Check, Pause, X, RotateCcw, BookOpen, Edit } from "lucide-react"
 import { aniListManager } from "@/lib/anilist"
 import { useAniList } from "@/contexts/anilist-context"
 
@@ -56,13 +56,13 @@ export function QuickListManager({ itemId, itemTitle, itemImage, anilistMediaId 
   const [showProgressInput, setShowProgressInput] = useState(false)
   const [progressValue, setProgressValue] = useState("")
   const [mediaId, setMediaId] = useState<number | null>(anilistMediaId || null)
+  const [currentProgress, setCurrentProgress] = useState<number>(0)
 
-  // Search for AniList media ID if not provided
   useEffect(() => {
     if (!mediaId && user) {
       searchAniListMedia()
     }
-  }, [user, itemTitle])
+  }, [user, itemTitle, mediaId])
 
   const searchAniListMedia = async () => {
     try {
@@ -102,7 +102,7 @@ export function QuickListManager({ itemId, itemTitle, itemImage, anilistMediaId 
   const updateStatus = async (targetStatus: string) => {
     if (!user || !mediaId) return
 
-    if (targetStatus === "CURRENT" && currentStatus !== "CURRENT") {
+    if (targetStatus === "CURRENT") {
       setShowProgressInput(true)
       return
     }
@@ -120,6 +120,9 @@ export function QuickListManager({ itemId, itemTitle, itemImage, anilistMediaId 
 
       if (success) {
         setCurrentStatus(targetStatus === currentStatus ? null : targetStatus)
+        if (progress !== undefined) {
+          setCurrentProgress(progress)
+        }
       }
     } catch (error) {
       console.error("[v0] Failed to update status:", error)
@@ -180,7 +183,10 @@ export function QuickListManager({ itemId, itemTitle, itemImage, anilistMediaId 
   if (showProgressInput) {
     return (
       <div className="flex flex-col gap-2 p-3 border rounded-lg bg-background">
-        <p className="text-sm font-medium">{type === "anime" ? "Episodio attuale:" : "Capitolo attuale:"}</p>
+        <p className="text-sm font-medium">
+          {type === "anime" ? "Episodio attuale:" : "Capitolo attuale:"}
+          {currentProgress > 0 && <span className="text-muted-foreground ml-2">(attuale: {currentProgress})</span>}
+        </p>
         <div className="flex gap-2">
           <Input
             type="number"
@@ -227,6 +233,18 @@ export function QuickListManager({ itemId, itemTitle, itemImage, anilistMediaId 
           </Button>
         )
       })}
+      {currentStatus === "CURRENT" && currentProgress > 0 && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowProgressInput(true)}
+          className="gap-2"
+          disabled={loading}
+        >
+          <Edit className="h-4 w-4" />
+          <span className="hidden sm:inline">Modifica</span>
+        </Button>
+      )}
     </div>
   )
 }

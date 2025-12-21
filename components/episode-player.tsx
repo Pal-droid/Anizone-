@@ -114,6 +114,8 @@ export function EpisodePlayer({
   const lastSentAtRef = useRef<number>(0)
   const lastSentSecRef = useRef<number>(0)
   const restoreDoneRef = useRef<boolean>(false)
+  const hasNavigatedToNextRef = useRef<boolean>(false)
+  const videoEndedRef = useRef<boolean>(false)
 
   const seriesKeyForStore = useMemo(() => seriesBaseFromPath(path), [path])
 
@@ -539,7 +541,10 @@ export function EpisodePlayer({
     if (!v) return
     const onTime = () => sendProgress(v.currentTime)
     const onPause = () => sendProgress(v.currentTime, { immediate: true })
-    const onEnded = () => sendProgress(v.duration || v.currentTime || 0, { immediate: true })
+    const onEnded = () => {
+      videoEndedRef.current = true
+      sendProgress(v.duration || v.currentTime || 0, { immediate: true })
+    }
     const onVis = () => {
       if (document.visibilityState === "hidden") sendProgress(v.currentTime, { keepalive: true, immediate: true })
     }
@@ -627,6 +632,41 @@ export function EpisodePlayer({
     try {
       const seriesKey = seriesBaseFromPath(path)
       const seriesPath = seriesKey
+
+      // Check if video ended and user is navigating to next episode
+      if (videoEndedRef.current && selectedEpisode && ep.num > selectedEpisode.num) {
+        hasNavigatedToNextRef.current = true
+
+        // Update AniList progress if available
+        const meta = sessionStorage.getItem(`anizone:meta:${path}`)
+        if (meta) {
+          try {
+            const metaData = JSON.parse(meta)
+            if (metaData.anilistId) {
+              // Dynamic import to avoid circular dependencies
+              const { aniListManager } = await import("@/lib/anilist")
+              const user = aniListManager.getUser()
+
+              if (user) {
+                console.log(
+                  "[v0] Auto-updating AniList: episode",
+                  ep.num,
+                  "status CURRENT for anime",
+                  metaData.anilistId,
+                )
+                await aniListManager.updateAnimeEntry(Number(metaData.anilistId), "CURRENT", ep.num)
+              }
+            }
+          } catch (e) {
+            console.log("[v0] Could not auto-update AniList:", e)
+          }
+        }
+      }
+
+      // Reset flags for new episode
+      videoEndedRef.current = false
+      hasNavigatedToNextRef.current = false
+
       await fetch("/api/user-state", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -691,6 +731,7 @@ export function EpisodePlayer({
   }
 
   const onEnd = () => {
+    videoEndedRef.current = true
     if (!autoNext || !selectedEpisode) return
     const idx = episodes.findIndex((e) => epKey(e) === epKey(selectedEpisode))
     if (idx >= 0 && idx + 1 < episodes.length) {

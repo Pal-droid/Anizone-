@@ -115,6 +115,11 @@ export default function WatchPage() {
             setNextEpisodeDate(data.meta.nextEpisodeDate)
             setNextEpisodeTime(data.meta.nextEpisodeTime)
           }
+          if (data.meta.anilistId) {
+            const metaKey = `anizone:meta:${path}`
+            sessionStorage.setItem(metaKey, JSON.stringify({ anilistId: data.meta.anilistId }))
+            console.log("[v0] Stored AniList ID in sessionStorage:", data.meta.anilistId)
+          }
         }
       } catch (err) {
         console.log("[v0] WatchPage - Error fetching meta:", err)

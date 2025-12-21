@@ -1,14 +1,15 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
 import { AniListAuthPanel } from "@/components/anilist-auth-panel"
 import { SlideOutMenu } from "@/components/slide-out-menu"
-import { Film, BookOpen, Trash2 } from "lucide-react"
+import { Film, BookOpen, Trash2, RefreshCw, Star, ArrowRight } from "lucide-react"
 import { useAniList } from "@/contexts/anilist-context"
 import { aniListManager } from "@/lib/anilist"
 
@@ -32,12 +33,23 @@ const MANGA_STATUS_MAP: Record<string, string> = {
   REPEATING: "In revisione",
 }
 
+const STATUS_COLORS: Record<string, string> = {
+  CURRENT: "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20",
+  PLANNING: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
+  COMPLETED: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20",
+  PAUSED: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20",
+  DROPPED: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
+  REPEATING: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20",
+}
+
 export function ListsClient() {
   const { user, isLoading } = useAniList()
   const [activeMediaType, setActiveMediaType] = useState<MediaType>("anime")
   const [animeCollection, setAnimeCollection] = useState<any>(null)
   const [mangaCollection, setMangaCollection] = useState<any>(null)
   const [loading, setLoading] = useState(false)
+  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     if (user) {
@@ -75,23 +87,63 @@ export function ListsClient() {
     }
   }
 
+  const scrollToSection = (status: string) => {
+    const element = sectionRefs.current[status]
+    if (element) {
+      const yOffset = -140
+      const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset
+      window.scrollTo({ top: y, behavior: "smooth" })
+    }
+  }
+
+  const toggleSection = (status: string) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [status]: !prev[status],
+    }))
+  }
+
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="min-h-screen bg-background">
         <SlideOutMenu />
-        <div className="text-center">Caricamento...</div>
+        <div className="container mx-auto px-4 py-12">
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="text-center space-y-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary/30 border-t-primary mx-auto" />
+              <p className="text-muted-foreground">Caricamento...</p>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
 
   if (!user) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="min-h-screen bg-background">
         <SlideOutMenu />
-        <h1 className="text-3xl font-bold mb-6">Le Mie Liste</h1>
-        <AniListAuthPanel />
-        <div className="mt-6 text-center text-muted-foreground">
-          <p>Accedi con AniList per visualizzare e gestire le tue liste</p>
+        <div className="border-b border-border/50 bg-card/30 backdrop-blur-sm sticky top-0 z-10">
+          <div className="container mx-auto px-4 py-6 md:py-8">
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-balance">Le Mie Liste</h1>
+          </div>
+        </div>
+
+        <div className="container mx-auto px-4 py-12">
+          <div className="max-w-2xl mx-auto space-y-8">
+            <AniListAuthPanel />
+            <Card className="p-8 text-center space-y-4 border-dashed">
+              <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto">
+                <Film className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-xl font-semibold">Inizia a tracciare i tuoi anime</h3>
+                <p className="text-muted-foreground max-w-md mx-auto">
+                  Accedi con AniList per visualizzare e gestire le tue liste di anime e manga in un unico posto
+                </p>
+              </div>
+            </Card>
+          </div>
         </div>
       </div>
     )
@@ -101,94 +153,240 @@ export function ListsClient() {
   const statusMap = activeMediaType === "anime" ? ANIME_STATUS_MAP : MANGA_STATUS_MAP
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-background">
       <SlideOutMenu />
 
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Le Mie Liste</h1>
-        <Button onClick={loadLists} variant="outline" disabled={loading}>
-          {loading ? "Aggiornamento..." : "Aggiorna"}
-        </Button>
+      <div className="border-b border-border/50 bg-card/30 backdrop-blur-sm sticky top-0 z-40">
+        <div className="container mx-auto px-4 py-6 md:py-8">
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-1">
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Le Mie Liste</h1>
+              {user && (
+                <p className="text-sm text-muted-foreground">
+                  Gestisci la tua collezione di {activeMediaType === "anime" ? "anime" : "manga"}
+                </p>
+              )}
+            </div>
+            <Button
+              onClick={loadLists}
+              variant="outline"
+              disabled={loading}
+              className="gap-2 shrink-0 bg-transparent"
+              size="sm"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline">Aggiorna</span>
+            </Button>
+          </div>
+        </div>
       </div>
 
-      <AniListAuthPanel />
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-8">
+          <AniListAuthPanel />
+        </div>
 
-      <Tabs value={activeMediaType} onValueChange={(v) => setActiveMediaType(v as MediaType)} className="mt-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="anime" className="gap-2">
-            <Film className="h-4 w-4" />
-            Anime
-          </TabsTrigger>
-          <TabsTrigger value="manga" className="gap-2">
-            <BookOpen className="h-4 w-4" />
-            Manga
-          </TabsTrigger>
-        </TabsList>
+        <Tabs value={activeMediaType} onValueChange={(v) => setActiveMediaType(v as MediaType)}>
+          <TabsList className="grid w-full max-w-md grid-cols-2 mb-8">
+            <TabsTrigger value="anime" className="gap-2">
+              <Film className="h-4 w-4" />
+              Anime
+            </TabsTrigger>
+            <TabsTrigger value="manga" className="gap-2">
+              <BookOpen className="h-4 w-4" />
+              Manga
+            </TabsTrigger>
+          </TabsList>
 
-        <TabsContent value={activeMediaType} className="mt-6">
-          {loading ? (
-            <div className="text-center py-12">Caricamento liste...</div>
-          ) : !currentCollection ? (
-            <div className="text-center py-12 text-muted-foreground">Nessuna lista disponibile</div>
-          ) : (
-            <div className="space-y-8">
-              {currentCollection.lists?.map((list: any) => (
-                <Card key={list.name}>
-                  <CardHeader>
-                    <CardTitle>{statusMap[list.status] || list.name}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {list.entries.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">Nessun elemento in questa lista</p>
-                    ) : (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                        {list.entries.map((entry: any) => (
-                          <div key={entry.id} className="group relative">
-                            <Link href={`https://anilist.co/${activeMediaType}/${entry.media.id}`} target="_blank">
-                              <div className="relative aspect-[2/3] rounded-lg overflow-hidden">
-                                <Image
-                                  src={entry.media.coverImage.large || entry.media.coverImage.medium}
-                                  alt={entry.media.title.romaji}
-                                  fill
-                                  className="object-cover transition-transform group-hover:scale-105"
+          <TabsContent value={activeMediaType} className="mt-0">
+            {loading ? (
+              <div className="space-y-8">
+                {[...Array(3)].map((_, i) => (
+                  <Card key={i} className="p-6 space-y-4">
+                    <div className="h-6 w-32 bg-muted animate-pulse rounded" />
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                      {[...Array(6)].map((_, j) => (
+                        <div key={j} className="aspect-[2/3] bg-muted animate-pulse rounded-lg" />
+                      ))}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            ) : !currentCollection ? (
+              <Card className="p-12 text-center space-y-4 border-dashed">
+                <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto">
+                  {activeMediaType === "anime" ? (
+                    <Film className="h-8 w-8 text-muted-foreground" />
+                  ) : (
+                    <BookOpen className="h-8 w-8 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-semibold">Nessuna lista disponibile</h3>
+                  <p className="text-muted-foreground max-w-md mx-auto">
+                    Inizia ad aggiungere {activeMediaType === "anime" ? "anime" : "manga"} alla tua lista su AniList
+                  </p>
+                </div>
+              </Card>
+            ) : (
+              <>
+                <div className="sticky top-[105px] z-20 mb-6 bg-background/95 backdrop-blur-sm border-y border-border/50 -mx-4 px-4 py-3">
+                  <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+                    <span className="text-sm font-medium text-muted-foreground shrink-0">Salta a:</span>
+                    {currentCollection.lists?.map((list: any) => (
+                      <Button
+                        key={list.status}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => scrollToSection(list.status)}
+                        className={`shrink-0 gap-2 ${STATUS_COLORS[list.status]} hover:bg-opacity-20`}
+                      >
+                        {statusMap[list.status] || list.name}
+                        <Badge variant="secondary" className="bg-background/50 text-xs px-1.5">
+                          {list.entries.length}
+                        </Badge>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-8">
+                  {currentCollection.lists?.map((list: any) => {
+                    const isExpanded = expandedSections[list.status]
+                    const maxItemsToShow = 6
+                    const hasMore = list.entries.length > maxItemsToShow
+                    const displayedEntries = isExpanded ? list.entries : list.entries.slice(0, maxItemsToShow)
+
+                    return (
+                      <Card
+                        key={list.name}
+                        className="overflow-hidden"
+                        ref={(el) => {
+                          sectionRefs.current[list.status] = el
+                        }}
+                      >
+                        <div className="p-6 border-b border-border/50 bg-muted/20">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <h2 className="text-xl font-semibold">{statusMap[list.status] || list.name}</h2>
+                              <Badge variant="secondary" className={`${STATUS_COLORS[list.status]} border`}>
+                                {list.entries.length}
+                              </Badge>
+                            </div>
+                            {hasMore && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleSection(list.status)}
+                                className="gap-2 text-primary hover:text-primary/80"
+                              >
+                                {isExpanded ? "Mostra meno" : "Guarda tutti"}
+                                <ArrowRight
+                                  className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-90" : ""}`}
                                 />
-                              </div>
-                              <div className="mt-2">
-                                <p className="text-sm font-medium line-clamp-2">{entry.media.title.romaji}</p>
-                                {entry.progress > 0 && (
-                                  <p className="text-xs text-muted-foreground">
-                                    Progresso: {entry.progress}
-                                    {activeMediaType === "anime" && entry.media.episodes
-                                      ? `/${entry.media.episodes}`
-                                      : activeMediaType === "manga" && entry.media.chapters
-                                        ? `/${entry.media.chapters}`
-                                        : ""}
-                                  </p>
-                                )}
-                              </div>
-                            </Link>
-                            <Button
-                              size="icon"
-                              variant="destructive"
-                              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={(e) => {
-                                e.preventDefault()
-                                handleDeleteEntry(entry.id)
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                              </Button>
+                            )}
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+                        </div>
+                        <div className="p-6">
+                          {list.entries.length === 0 ? (
+                            <p className="text-center py-8 text-muted-foreground text-sm">
+                              Nessun elemento in questa lista
+                            </p>
+                          ) : (
+                            <>
+                              <div
+                                className={`${
+                                  isExpanded
+                                    ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"
+                                    : "flex gap-4 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory"
+                                }`}
+                              >
+                                {displayedEntries.map((entry: any) => (
+                                  <div
+                                    key={entry.id}
+                                    className={`group relative ${!isExpanded ? "shrink-0 w-[160px] snap-start" : ""}`}
+                                  >
+                                    <Link
+                                      href={`https://anilist.co/${activeMediaType}/${entry.media.id}`}
+                                      target="_blank"
+                                      className="block"
+                                    >
+                                      <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-muted ring-1 ring-border/50 transition-all duration-300 group-hover:ring-2 group-hover:ring-primary/50 group-hover:shadow-lg group-hover:shadow-primary/10">
+                                        <Image
+                                          src={entry.media.coverImage.large || entry.media.coverImage.medium}
+                                          alt={entry.media.title.romaji}
+                                          fill
+                                          className="object-cover transition-transform duration-500 group-hover:scale-110"
+                                        />
+                                        {entry.score > 0 && (
+                                          <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/80 backdrop-blur-sm px-2 py-1 rounded-full">
+                                            <Star className="h-3 w-3 text-yellow-400 fill-yellow-400" />
+                                            <span className="text-xs font-medium text-white">{entry.score}</span>
+                                          </div>
+                                        )}
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                      </div>
+
+                                      <div className="mt-3 space-y-2 h-[60px] flex flex-col">
+                                        <h3 className="text-sm font-medium line-clamp-2 leading-snug group-hover:text-primary transition-colors flex-1">
+                                          {entry.media.title.romaji}
+                                        </h3>
+                                        {entry.progress > 0 && (
+                                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                            <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                                              <div
+                                                className="bg-primary h-full rounded-full transition-all duration-300"
+                                                style={{
+                                                  width: `${
+                                                    activeMediaType === "anime" && entry.media.episodes
+                                                      ? (entry.progress / entry.media.episodes) * 100
+                                                      : activeMediaType === "manga" && entry.media.chapters
+                                                        ? (entry.progress / entry.media.chapters) * 100
+                                                        : 0
+                                                  }%`,
+                                                }}
+                                              />
+                                            </div>
+                                            <span className="shrink-0">
+                                              {entry.progress}
+                                              {activeMediaType === "anime" && entry.media.episodes
+                                                ? `/${entry.media.episodes}`
+                                                : activeMediaType === "manga" && entry.media.chapters
+                                                  ? `/${entry.media.chapters}`
+                                                  : ""}
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </Link>
+
+                                    <Button
+                                      size="icon"
+                                      variant="destructive"
+                                      className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg hover:scale-110"
+                                      onClick={(e) => {
+                                        e.preventDefault()
+                                        handleDeleteEntry(entry.id)
+                                      }}
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </Card>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   )
 }
