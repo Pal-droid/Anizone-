@@ -11,6 +11,13 @@ import { AniListTokenDialog } from "@/components/anilist-token-dialog"
 export function AniListAuthPanel() {
   const { user, loginWithToken, logout, isLoading } = useAniList()
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+    await logout()
+    setIsLoggingOut(false)
+  }
 
   if (isLoading) {
     return (
@@ -50,8 +57,8 @@ export function AniListAuthPanel() {
               </div>
 
               <div className="flex justify-end">
-                <Button variant="outline" onClick={logout}>
-                  Logout
+                <Button variant="outline" onClick={handleLogout} disabled={isLoggingOut}>
+                  {isLoggingOut ? "Uscendo..." : "Logout"}
                 </Button>
               </div>
             </div>

@@ -9,7 +9,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { AniListAuthPanel } from "@/components/anilist-auth-panel"
 import { SlideOutMenu } from "@/components/slide-out-menu"
-import { Film, BookOpen, Trash2, RefreshCw, Star, ArrowRight } from "lucide-react"
+import { EditListEntryDialog } from "@/components/edit-list-entry-dialog"
+import { Film, BookOpen, Trash2, RefreshCw, Star, ArrowRight, Edit } from "lucide-react"
 import { useAniList } from "@/contexts/anilist-context"
 import { aniListManager } from "@/lib/anilist"
 
@@ -50,6 +51,8 @@ export function ListsClient() {
   const [loading, setLoading] = useState(false)
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
+  const [editingEntry, setEditingEntry] = useState<any>(null)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -63,10 +66,13 @@ export function ListsClient() {
   const loadLists = async () => {
     setLoading(true)
     try {
+      console.log("[v0] Loading lists for user:", user?.name)
       const [animeData, mangaData] = await Promise.all([
         aniListManager.getUserAnimeList(),
         aniListManager.getUserMangaList(),
       ])
+      console.log("[v0] Anime collection:", animeData)
+      console.log("[v0] Manga collection:", mangaData)
       setAnimeCollection(animeData)
       setMangaCollection(mangaData)
     } catch (error) {
@@ -84,6 +90,60 @@ export function ListsClient() {
       loadLists()
     } else {
       alert("Errore durante la rimozione dell'elemento")
+    }
+  }
+
+  const handleEditEntry = (entry: any) => {
+    setEditingEntry(entry)
+    setEditDialogOpen(true)
+  }
+
+  const handleSaveEntry = async (updates: { status?: string; progress?: number; score?: number }) => {
+    if (!editingEntry) return
+
+    console.log("[v0] Saving entry updates:", updates)
+
+    const updateMethod =
+      activeMediaType === "anime"
+        ? aniListManager.updateAnimeEntry.bind(aniListManager)
+        : aniListManager.updateMangaEntry.bind(aniListManager)
+
+    // Build mutation variables
+    const variables: any = { mediaId: editingEntry.media.id }
+    if (updates.status) variables.status = updates.status
+    if (updates.progress !== undefined) variables.progress = updates.progress
+    if (updates.score !== undefined) variables.score = updates.score
+
+    // Use GraphQL mutation directly for full update support
+    try {
+      const mutation = `
+        mutation ($mediaId: Int, $status: MediaListStatus, $progress: Int, $score: Float) {
+          SaveMediaListEntry(mediaId: $mediaId, status: $status, progress: $progress, score: $score) {
+            id
+            status
+            progress
+            score
+          }
+        }
+      `
+
+      const response = await fetch("/api/anilist/graphql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: mutation, variables }),
+      })
+
+      const data = await response.json()
+
+      if (data.errors) {
+        throw new Error("GraphQL error")
+      }
+
+      console.log("[v0] Entry updated successfully:", data)
+      await loadLists()
+    } catch (error) {
+      console.error("[v0] Error updating entry:", error)
+      throw error
     }
   }
 
@@ -123,11 +183,6 @@ export function ListsClient() {
     return (
       <div className="min-h-screen bg-background">
         <SlideOutMenu />
-        <div className="border-b border-border/50 bg-card/30 backdrop-blur-sm sticky top-0 z-10">
-          <div className="container mx-auto px-4 py-6 md:py-8">
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-balance">Le Mie Liste</h1>
-          </div>
-        </div>
 
         <div className="container mx-auto px-4 py-12">
           <div className="max-w-2xl mx-auto space-y-8">
@@ -156,34 +211,23 @@ export function ListsClient() {
     <div className="min-h-screen bg-background">
       <SlideOutMenu />
 
-      <div className="border-b border-border/50 bg-card/30 backdrop-blur-sm sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-6 md:py-8">
-          <div className="flex items-center justify-between gap-4">
-            <div className="space-y-1">
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Le Mie Liste</h1>
-              {user && (
-                <p className="text-sm text-muted-foreground">
-                  Gestisci la tua collezione di {activeMediaType === "anime" ? "anime" : "manga"}
-                </p>
-              )}
-            </div>
-            <Button
-              onClick={loadLists}
-              variant="outline"
-              disabled={loading}
-              className="gap-2 shrink-0 bg-transparent"
-              size="sm"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-              <span className="hidden sm:inline">Aggiorna</span>
-            </Button>
-          </div>
-        </div>
-      </div>
-
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <AniListAuthPanel />
+        </div>
+
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold">Le Mie Liste</h1>
+          <Button
+            onClick={loadLists}
+            variant="outline"
+            disabled={loading}
+            className="gap-2 shrink-0 bg-transparent"
+            size="sm"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            <span className="hidden sm:inline">Aggiorna</span>
+          </Button>
         </div>
 
         <Tabs value={activeMediaType} onValueChange={(v) => setActiveMediaType(v as MediaType)}>
@@ -361,17 +405,30 @@ export function ListsClient() {
                                       </div>
                                     </Link>
 
-                                    <Button
-                                      size="icon"
-                                      variant="destructive"
-                                      className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg hover:scale-110"
-                                      onClick={(e) => {
-                                        e.preventDefault()
-                                        handleDeleteEntry(entry.id)
-                                      }}
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
+                                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                                      <Button
+                                        size="icon"
+                                        variant="secondary"
+                                        className="h-8 w-8 shadow-lg hover:scale-110 bg-background/90 backdrop-blur-sm"
+                                        onClick={(e) => {
+                                          e.preventDefault()
+                                          handleEditEntry(entry)
+                                        }}
+                                      >
+                                        <Edit className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button
+                                        size="icon"
+                                        variant="destructive"
+                                        className="h-8 w-8 shadow-lg hover:scale-110"
+                                        onClick={(e) => {
+                                          e.preventDefault()
+                                          handleDeleteEntry(entry.id)
+                                        }}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
                                   </div>
                                 ))}
                               </div>
@@ -386,6 +443,16 @@ export function ListsClient() {
             )}
           </TabsContent>
         </Tabs>
+
+        {editingEntry && (
+          <EditListEntryDialog
+            open={editDialogOpen}
+            onOpenChange={setEditDialogOpen}
+            entry={editingEntry}
+            mediaType={activeMediaType}
+            onSave={handleSaveEntry}
+          />
+        )}
       </div>
     </div>
   )

@@ -5,7 +5,6 @@ import { MangaGenres } from "@/components/manga-genres"
 import { TrendingChapters } from "@/components/trending-chapters"
 import { MangaOfMonth } from "@/components/manga-of-month"
 import { LatestMangaAdditions } from "@/components/latest-manga-additions"
-import { ContinueReading } from "@/components/continue-reading"
 import { SlideOutMenu } from "@/components/slide-out-menu"
 
 export default function MangaPage() {
@@ -25,8 +24,6 @@ export default function MangaPage() {
 
       <section className="px-4 py-4 space-y-6">
         <MangaHero />
-
-        <ContinueReading />
 
         <TrendingChapters />
 

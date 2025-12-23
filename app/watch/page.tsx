@@ -82,8 +82,18 @@ export default function WatchPage() {
           const parsedSources = JSON.parse(stored)
           console.log("[v0] WatchPage - Parsed sources:", parsedSources)
           if (Array.isArray(parsedSources) && parsedSources.length > 0) {
-            mappedSources = parsedSources
-            console.log("[v0] WatchPage - Using sources from sessionStorage:", mappedSources)
+            mappedSources = parsedSources.map((s) => {
+              if (s.name === "AnimeWorld" && s.id) {
+                const normalizedId = s.id.endsWith("-") ? s.id.slice(0, -1) : s.id
+                return {
+                  ...s,
+                  id: normalizedId,
+                  url: s.url || `https://www.animeworld.ac/play/${normalizedId}`,
+                }
+              }
+              return s
+            })
+            console.log("[v0] WatchPage - Using normalized sources:", mappedSources)
           }
         }
 
@@ -106,7 +116,15 @@ export default function WatchPage() {
     // Fetch metadata
     const fetchMeta = async () => {
       try {
-        const response = await fetch(`/api/anime-meta?path=${encodeURIComponent(path)}`)
+        const animepaheSource = sources.find((s) => s.name === "AnimePahe")
+        let metaUrl = `/api/anime-meta?path=${encodeURIComponent(path)}`
+
+        if (animepaheSource?.id) {
+          metaUrl += `&animepaheId=${encodeURIComponent(animepaheSource.id)}`
+          console.log("[v0] WatchPage - Including AnimePahe ID in metadata request:", animepaheSource.id)
+        }
+
+        const response = await fetch(metaUrl)
         if (!response.ok) return
         const data = await response.json()
         if (data.ok && data.meta) {

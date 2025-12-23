@@ -118,6 +118,28 @@ export function WatchInfo({
     return path
   }, [path])
 
+  const animepaheId = useMemo(() => {
+    if (sources) {
+      const animepaheSource = sources.find((s) => s.name === "AnimePahe")
+      if (animepaheSource?.id) {
+        return animepaheSource.id
+      }
+    }
+    try {
+      const storedSources = sessionStorage.getItem(`anizone:sources:${path}`)
+      if (storedSources) {
+        const parsedSources = JSON.parse(storedSources)
+        const animepaheSource = parsedSources.find((s: any) => s.name === "AnimePahe")
+        if (animepaheSource?.id) {
+          return animepaheSource.id
+        }
+      }
+    } catch (e) {
+      // Ignore
+    }
+    return null
+  }, [sources, path])
+
   const [meta, setMeta] = useState<Meta | null>(null)
   const [similar, setSimilar] = useState<AnimeItem[]>([])
   const [related, setRelated] = useState<AnimeItem[]>([])
@@ -144,6 +166,10 @@ export function WatchInfo({
         }
 
         let metaUrl = `/api/anime-meta?path=${encodeURIComponent(metaPath)}`
+        if (animepaheId) {
+          metaUrl += `&animepaheId=${encodeURIComponent(animepaheId)}`
+          console.log("[v0] WatchInfo - Including AnimePahe ID:", animepaheId)
+        }
         if (unityId) {
           metaUrl += `&unityId=${encodeURIComponent(unityId)}`
         }
@@ -155,6 +181,16 @@ export function WatchInfo({
 
         if (metaData?.ok) {
           setMeta(metaData.meta)
+
+          if (metaData.meta?.anilistId) {
+            const metaKey = `anizone:meta:${path}`
+            try {
+              sessionStorage.setItem(metaKey, JSON.stringify({ anilistId: metaData.meta.anilistId }))
+              console.log("[v0] Stored AniList ID in sessionStorage:", metaData.meta.anilistId)
+            } catch (e) {
+              console.error("[v0] Failed to store AniList ID:", e)
+            }
+          }
 
           if (metaData.fallback && metaData.meta?.related?.length) {
             const unityRelated: AnimeItem[] = metaData.meta.related
@@ -227,7 +263,7 @@ export function WatchInfo({
     return () => {
       alive = false
     }
-  }, [path, animeWorldPath, unityId])
+  }, [path, animeWorldPath, unityId, animepaheId])
 
   return (
     <div className="grid gap-4 w-full overflow-hidden">

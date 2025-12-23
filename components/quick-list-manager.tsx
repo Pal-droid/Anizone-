@@ -34,9 +34,10 @@ interface QuickListManagerProps {
   itemTitle: string
   itemImage?: string
   anilistMediaId?: number // AniList media ID if available
+  itemPath?: string // Path of the item if available
 }
 
-export function QuickListManager({ itemId, itemTitle, itemImage, anilistMediaId }: QuickListManagerProps) {
+export function QuickListManager({ itemId, itemTitle, itemImage, anilistMediaId, itemPath }: QuickListManagerProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const { user } = useAniList()
@@ -64,7 +65,71 @@ export function QuickListManager({ itemId, itemTitle, itemImage, anilistMediaId 
     }
   }, [user, itemTitle, mediaId])
 
+  useEffect(() => {
+    if (mediaId && user) {
+      fetchCurrentStatus()
+    }
+  }, [mediaId, user])
+
+  useEffect(() => {
+    const handleStatusUpdate = (event: CustomEvent) => {
+      if (event.detail.mediaId === mediaId) {
+        console.log("[v0] QuickListManager received status update:", event.detail)
+        setCurrentStatus(event.detail.status)
+        setCurrentProgress(event.detail.progress)
+      }
+    }
+
+    window.addEventListener("anizone:status-updated" as any, handleStatusUpdate)
+    return () => {
+      window.removeEventListener("anizone:status-updated" as any, handleStatusUpdate)
+    }
+  }, [mediaId])
+
+  const fetchCurrentStatus = async () => {
+    if (!mediaId || !user) return
+
+    console.log("[v0] Current anime AniList ID:", mediaId)
+
+    try {
+      const result = await aniListManager.getMediaListStatus(mediaId, type === "anime" ? "ANIME" : "MANGA")
+
+      console.log("[v0] Current list status for media", mediaId, ":", result)
+
+      if (result.status) {
+        setCurrentStatus(result.status)
+        setCurrentProgress(result.progress)
+      } else {
+        setCurrentStatus(null)
+        setCurrentProgress(0)
+      }
+    } catch (error) {
+      console.error("[v0] Failed to fetch current status:", error)
+    }
+  }
+
   const searchAniListMedia = async () => {
+    await new Promise((resolve) => setTimeout(resolve, 500))
+
+    if (itemPath) {
+      const metaKey = `anizone:meta:${itemPath}`
+      const storedMeta = sessionStorage.getItem(metaKey)
+      if (storedMeta) {
+        try {
+          const parsed = JSON.parse(storedMeta)
+          if (parsed.anilistId) {
+            console.log("[v0] Found AniList ID in sessionStorage:", parsed.anilistId)
+            setMediaId(parsed.anilistId)
+            return
+          }
+        } catch (e) {
+          console.error("[v0] Error parsing stored meta:", e)
+        }
+      }
+    }
+
+    console.log("[v0] No AniList ID found in metadata, searching by title:", itemTitle)
+
     try {
       const query = `
         query ($search: String, $type: MediaType) {
@@ -119,7 +184,8 @@ export function QuickListManager({ itemId, itemTitle, itemImage, anilistMediaId 
           : await aniListManager.updateMangaEntry(mediaId!, targetStatus, progress)
 
       if (success) {
-        setCurrentStatus(targetStatus === currentStatus ? null : targetStatus)
+        const newStatus = targetStatus === currentStatus ? null : targetStatus
+        setCurrentStatus(newStatus)
         if (progress !== undefined) {
           setCurrentProgress(progress)
         }
@@ -150,7 +216,7 @@ export function QuickListManager({ itemId, itemTitle, itemImage, anilistMediaId 
         <Button
           variant="outline"
           size="sm"
-          onClick={() => (window.location.href = "/")}
+          onClick={() => (window.location.href = "/lists")}
           className="flex items-center justify-center gap-2 whitespace-nowrap"
         >
           <BookOpen className="h-4 w-4" />

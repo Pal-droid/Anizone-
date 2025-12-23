@@ -23,20 +23,39 @@ type Props = {
 
 export function AnimeCard({ title, href, image, isDub, className, sources, has_multi_servers }: Props) {
   const path = (() => {
+    // First try to construct path from AnimeWorld source if available
+    if (sources && sources.length > 0) {
+      const awSource = sources.find((s) => s.name === "AnimeWorld")
+      if (awSource?.id) {
+        const normalizedId = awSource.id.endsWith("-") ? awSource.id.slice(0, -1) : awSource.id
+        return `/play/${normalizedId}`
+      }
+    }
+
+    // Fallback to href parsing
     try {
       const u = new URL(href, "https://dummy.local")
       const parts = u.pathname.split("/").filter(Boolean)
       if (parts.length >= 2 && parts[0] === "play") {
         return `/${parts[0]}/${parts[1]}`
       }
-      return u.pathname
+      // Avoid returning bare "/" - at least try to extract something meaningful
+      if (u.pathname && u.pathname !== "/") {
+        return u.pathname
+      }
     } catch {
       const parts = href.split("/").filter(Boolean)
       if (parts.length >= 2 && parts[0] === "play") {
         return `/${parts[0]}/${parts[1]}`
       }
-      return href.startsWith("/") ? href : `/${href}`
+      if (parts.length > 0) {
+        // If we have any parts, construct a /play/ path
+        return `/play/${parts[parts.length - 1]}`
+      }
     }
+
+    // Last resort: return href as-is if it's not just "/"
+    return href && href !== "/" ? (href.startsWith("/") ? href : `/${href}`) : "/play/unknown"
   })()
 
   const hasAnimeWorld = sources?.some((s) => s.name === "AnimeWorld")
@@ -51,16 +70,28 @@ export function AnimeCard({ title, href, image, isDub, className, sources, has_m
   const handleClick = () => {
     if (sources && sources.length > 0) {
       try {
+        const normalizedSources = sources.map((s) => {
+          if (s.name === "AnimeWorld" && s.id) {
+            const normalizedId = s.id.endsWith("-") ? s.id.slice(0, -1) : s.id
+            return {
+              ...s,
+              id: normalizedId,
+              url: s.url || `https://www.animeworld.ac/play/${normalizedId}`,
+            }
+          }
+          return s
+        })
+
         const storageKey = `anizone:sources:${path}`
-        console.log("[v0] AnimeCard storing sources with key:", storageKey, "sources:", sources)
-        sessionStorage.setItem(storageKey, JSON.stringify(sources))
+        console.log("[v0] AnimeCard storing sources with key:", storageKey, "sources:", normalizedSources)
+        sessionStorage.setItem(storageKey, JSON.stringify(normalizedSources))
       } catch (e) {
         console.error("Failed to store sources:", e)
       }
     } else {
       try {
         const animeId = path.split("/").pop() || ""
-        if (animeId) {
+        if (animeId && animeId !== "unknown") {
           const defaultSources = [
             {
               name: "AnimeWorld",

@@ -338,14 +338,47 @@ export function parseWatchMeta(html: string): WatchMeta | null {
   const description = root.find(".desc").text().trim()
 
   let anilistId: number | undefined
-  const anilistLink = $("a.watchlist-edit-anilist").attr("href")
-  if (anilistLink) {
-    // Extract ID from URL like https://anilist.co/anime/153800
-    const anilistMatch = anilistLink.match(/anilist\.co\/anime\/(\d+)/)
-    if (anilistMatch) {
-      anilistId = Number.parseInt(anilistMatch[1], 10)
+
+  // Log all AniList links found on the page for debugging
+  console.log("[v0] Searching for AniList links in HTML...")
+  const allAnilistLinks: string[] = []
+  $("a[href*='anilist.co']").each((_, el) => {
+    const href = $(el).attr("href")
+    const classes = $(el).attr("class")
+    if (href) {
+      allAnilistLinks.push(`${href} (classes: ${classes || "none"})`)
+    }
+  })
+  console.log("[v0] All AniList links found:", allAnilistLinks)
+
+  // First try: Look for the watchlist-edit-anilist link (the correct one with class d-flex)
+  const watchlistLink = $("a.watchlist-edit-anilist").attr("href")
+  console.log("[v0] Watchlist AniList link (a.watchlist-edit-anilist):", watchlistLink)
+
+  if (watchlistLink) {
+    const match = watchlistLink.match(/anilist\.co\/anime\/(\d+)/)
+    if (match) {
+      anilistId = Number.parseInt(match[1], 10)
+      console.log("[v0] ✓ Extracted AniList ID from watchlist link:", anilistId)
     }
   }
+
+  // If not found, try to find any AniList anime link
+  if (!anilistId) {
+    console.log("[v0] No watchlist link found, trying alternative methods...")
+    $("a[href*='anilist.co/anime/']").each((_, el) => {
+      const href = $(el).attr("href")
+      if (href && !anilistId) {
+        const match = href.match(/anilist\.co\/anime\/(\d+)/)
+        if (match) {
+          anilistId = Number.parseInt(match[1], 10)
+          console.log("[v0] ✓ Extracted AniList ID from alternative link:", anilistId, "from", href)
+        }
+      }
+    })
+  }
+
+  console.log("[v0] Final AniList ID for", title, ":", anilistId || "NOT FOUND")
 
   return {
     title,
@@ -564,7 +597,7 @@ export function parseSchedule(html: string): DaySchedule[] {
 
       const $imgDiv = $item.find(".img-anime")
       const bgStyle = $imgDiv.attr("style") || ""
-      const imageMatch = bgStyle.match(/url$$['"]?([^'"]+)['"]?$$/)
+      const imageMatch = bgStyle.match(/url$$['"]?([^'"]+?)['"]?$$/)
       let image = ""
       if (imageMatch) {
         image = imageMatch[1]
@@ -681,6 +714,7 @@ export type AnimeSaturnMeta = {
   genres: { name: string; href?: string }[]
   description?: string
   related?: { title: string; href: string; image?: string }[]
+  anilistId?: number
 }
 
 export function parseAnimeSaturnMeta(html: string): AnimeSaturnMeta | null {
@@ -733,6 +767,18 @@ export function parseAnimeSaturnMeta(html: string): AnimeSaturnMeta | null {
   const fullTrama = $("#full-trama").text().trim()
   const description = fullTrama || shownTrama
 
+  let anilistId: number | undefined
+  const anilistLink = $("a[href*='anilist.co/anime/']").attr("href")
+  console.log("[v0] AnimeSaturn AniList link:", anilistLink)
+
+  if (anilistLink) {
+    const match = anilistLink.match(/anilist\.co\/anime\/(\d+)/)
+    if (match) {
+      anilistId = Number.parseInt(match[1], 10)
+      console.log("[v0] ✓ Extracted AniList ID from AnimeSaturn:", anilistId)
+    }
+  }
+
   const related: { title: string; href: string; image?: string }[] = []
   const $carouselItems = $("#carousel .slick-track .owl-item.anime-card-newanime.main-anime-card:not(.slick-cloned)")
 
@@ -766,5 +812,6 @@ export function parseAnimeSaturnMeta(html: string): AnimeSaturnMeta | null {
     genres,
     description,
     related,
+    anilistId,
   }
 }

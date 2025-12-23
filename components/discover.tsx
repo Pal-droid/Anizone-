@@ -9,7 +9,6 @@ export function DiscoverSections() {
     { label: "Commedia", genreId: "4" },
     { label: "Romance", genreId: "46" },
     { label: "Fantasy", genreId: "9" },
-    { label: "Isekai", genreId: "9" }, // Fantasy is closest to Isekai
     { label: "Slice of Life", genreId: "34" },
     { label: "Mecha", genreId: "18" },
     { label: "Sport", genreId: "36" },

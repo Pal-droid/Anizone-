@@ -187,14 +187,104 @@ async function fetchAnimeUnityMeta(unityId: string) {
   return { html, finalUrl: unityUrl }
 }
 
+function extractAniListIdFromAnimePahe(data: any): number | undefined {
+  // First try to get from ids.anilist
+  if (data.ids?.anilist) {
+    const id = Number(data.ids.anilist)
+    if (!isNaN(id)) return id
+  }
+
+  // Fallback: parse from external_links
+  if (data.external_links) {
+    const anilistLink = data.external_links.find((link: any) => link.name === "AniList")
+    if (anilistLink?.url) {
+      // Extract ID from URL like "https://anilist.co/anime/16498"
+      const match = anilistLink.url.match(/anilist\.co\/anime\/(\d+)/)
+      if (match) {
+        const id = Number(match[1])
+        if (!isNaN(id)) return id
+      }
+    }
+  }
+
+  return undefined
+}
+
+async function fetchAnimePaheMetadata(animepaheId: string) {
+  try {
+    console.log("[v0] Fetching AnimePahe metadata for ID:", animepaheId)
+
+    const response = await fetch(`https://animepahe-two.vercel.app/api/${animepaheId}`, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) AnizoneBot/1.0 Safari/537.36",
+      },
+      next: { revalidate: 3600 },
+    })
+
+    if (!response.ok) {
+      console.error("[v0] AnimePahe API error:", response.status)
+      return null
+    }
+
+    const data = await response.json()
+    const anilistId = extractAniListIdFromAnimePahe(data)
+    console.log("[v0] AnimePahe metadata fetched:", data.title, "AniList ID:", anilistId)
+
+    // Transform AnimePahe data to our WatchMeta format
+    return {
+      title: data.title,
+      image: data.image,
+      description: data.synopsis,
+      jtitle: data.japanese,
+      rating: undefined,
+      votesCount: undefined,
+      episodesCount: data.episodes,
+      status: data.status,
+      audio: undefined,
+      releaseDate: data.aired,
+      season: data.season,
+      seasonHref: undefined,
+      studio: data.studio,
+      duration: data.duration,
+      views: undefined,
+      genres: data.genre?.map((g: string) => ({ name: g })) || [],
+      anilistId,
+      animepaheId: data.ids?.animepahe_id,
+      externalIds: data.ids,
+    }
+  } catch (error) {
+    console.error("[v0] Error fetching AnimePahe metadata:", error)
+    return null
+  }
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const path = searchParams.get("path")
-    const unityId = searchParams.get("unityId") // Accept unityId parameter
+    const unityId = searchParams.get("unityId")
+    const animepaheId = searchParams.get("animepaheId")
 
-    if (!path && !unityId) {
-      return NextResponse.json({ ok: false, error: "Parametro 'path' o 'unityId' mancante" }, { status: 400 })
+    if (!path && !unityId && !animepaheId) {
+      return NextResponse.json(
+        { ok: false, error: "Parametro 'path', 'unityId' o 'animepaheId' mancante" },
+        { status: 400 },
+      )
+    }
+
+    if (animepaheId) {
+      console.log("[v0] Prioritizing AnimePahe metadata for ID:", animepaheId)
+      const animePaheMeta = await fetchAnimePaheMetadata(animepaheId)
+      if (animePaheMeta) {
+        console.log("[v0] Using AnimePahe metadata with AniList ID:", animePaheMeta.anilistId)
+        return NextResponse.json({
+          ok: true,
+          meta: animePaheMeta,
+          source: `https://animepahe-two.vercel.app/api/${animepaheId}`,
+          provider: "animepahe",
+        })
+      }
     }
 
     if (!path && unityId) {
@@ -229,7 +319,10 @@ export async function GET(req: NextRequest) {
       let animePath = path!.replace(/\/+/g, "/")
       if (animePath.includes("/play/")) {
         const playMatch = animePath.match(/\/play\/([^/?]+)/)
-        if (playMatch) animePath = `/play/${playMatch[1]}`
+        if (playMatch) {
+          const worldId = playMatch[1].endsWith("-") ? playMatch[1].slice(0, -1) : playMatch[1]
+          animePath = `/play/${worldId}`
+        }
       } else if (!animePath.startsWith("/")) {
         animePath = `/play/${animePath}`
       } else if (!animePath.startsWith("/play/") && !animePath.includes(".")) {
@@ -238,9 +331,10 @@ export async function GET(req: NextRequest) {
       url = `${ANIMEWORLD_BASE}${animePath}`.replace(/([^:]\/)\/+/g, "$1")
     }
 
+    console.log("[v0] anime-meta fetching URL:", url)
+
     let html: string
     let finalUrl: string
-    const usedUnityFallback = false
 
     try {
       const result = await fetchHtml(url)
@@ -249,7 +343,20 @@ export async function GET(req: NextRequest) {
     } catch (primaryError: any) {
       console.warn("[v0] Primary metadata fetch failed:", primaryError?.message)
 
-      // If primary fetch fails and we have a unityId, try AnimeUnity as fallback
+      if (animepaheId) {
+        console.log("[v0] Attempting AnimePahe fallback with id:", animepaheId)
+        const animePaheMeta = await fetchAnimePaheMetadata(animepaheId)
+        if (animePaheMeta) {
+          return NextResponse.json({
+            ok: true,
+            meta: animePaheMeta,
+            source: `https://animepahe-two.vercel.app/api/${animepaheId}`,
+            provider: "animepahe",
+            fallback: true,
+          })
+        }
+      }
+
       if (unityId) {
         console.log("[v0] Attempting AnimeUnity fallback with id:", unityId)
         try {
@@ -270,7 +377,6 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      // If both fail, throw the original error
       throw primaryError
     }
 
@@ -283,6 +389,20 @@ export async function GET(req: NextRequest) {
 
     const countdownData = parseNextEpisodeCountdown(html)
     if (!meta) {
+      if (animepaheId) {
+        console.log("[v0] Meta parsing failed, attempting AnimePahe fallback with id:", animepaheId)
+        const animePaheMeta = await fetchAnimePaheMetadata(animepaheId)
+        if (animePaheMeta) {
+          return NextResponse.json({
+            ok: true,
+            meta: animePaheMeta,
+            source: `https://animepahe-two.vercel.app/api/${animepaheId}`,
+            provider: "animepahe",
+            fallback: true,
+          })
+        }
+      }
+
       if (unityId) {
         console.log("[v0] Meta parsing failed, attempting AnimeUnity fallback with id:", unityId)
         try {
@@ -310,6 +430,7 @@ export async function GET(req: NextRequest) {
       ok: true,
       meta: { ...meta, ...countdownData },
       source: finalUrl,
+      provider: finalUrl.includes("animesaturn") ? "animesaturn" : "animeworld",
     })
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "Errore meta" }, { status: 500 })

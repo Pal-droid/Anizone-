@@ -106,6 +106,7 @@ export function EpisodePlayer({
   const [episodesError, setEpisodesError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [autoNext, setAutoNext] = useState<boolean>(true)
+  const [autoUpdateProgress, setAutoUpdateProgress] = useState<boolean>(true)
   const [availableResolutions, setAvailableResolutions] = useState<string[]>(["1080", "720", "480", "360"])
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
@@ -189,6 +190,20 @@ export function EpisodePlayer({
       localStorage.setItem("anizone:autoNext", autoNext ? "1" : "0")
     } catch {}
   }, [autoNext])
+
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem("anizone:autoUpdateProgress")
+      if (v === "0") setAutoUpdateProgress(false)
+      else setAutoUpdateProgress(true)
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("anizone:autoUpdateProgress", autoUpdateProgress ? "1" : "0")
+    } catch {}
+  }, [autoUpdateProgress])
 
   useEffect(() => {
     if (availableServers.length > 0 && !availableServers.includes(selectedServer)) {
@@ -454,13 +469,10 @@ export function EpisodePlayer({
           setStreamUrl(direct)
           setEpisodeRefUrl(selectedEpisode.href)
 
-          // Create proxy URL for playback
-          const stamp = Math.floor(Date.now() / 60000)
-          const proxy = `/api/proxy-stream?src=${encodeURIComponent(direct)}&ref=${encodeURIComponent(selectedEpisode.href)}&ts=${stamp}`
-          setProxyUrl(proxy)
+          setProxyUrl(direct)
 
           // Cache the result
-          localStorage.setItem(cacheKey, JSON.stringify({ streamUrl: direct, proxyUrl: proxy }))
+          localStorage.setItem(cacheKey, JSON.stringify({ streamUrl: direct, proxyUrl: direct }))
         } else {
           throw new Error(`Invalid stream data format for ${selectedServer}`)
         }
@@ -589,6 +601,11 @@ export function EpisodePlayer({
 
       if (e.data.type === "saturn-video-ended") {
         console.log("[v0] Saturn video ended detected! autoNext:", autoNext, "selectedEpisode:", selectedEpisode?.num)
+
+        if (autoUpdateProgress && selectedEpisode) {
+          updateAniListProgress(selectedEpisode.num)
+        }
+
         if (!autoNext || !selectedEpisode) {
           console.log("[v0] Saturn auto-next skipped - autoNext:", autoNext, "selectedEpisode:", selectedEpisode)
           return
@@ -626,9 +643,55 @@ export function EpisodePlayer({
       window.removeEventListener("message", handleMessage)
       iframe.removeEventListener("load", sendResume)
     }
-  }, [isEmbedServer, selectedEpisode, path, autoNext, episodes])
+  }, [isEmbedServer, selectedEpisode, path, autoNext, autoUpdateProgress, episodes])
 
-  async function saveContinueForClick(ep: Episode) {
+  const updateAniListProgress = async (episodeNum: number) => {
+    try {
+      const meta = sessionStorage.getItem(`anizone:meta:${path}`)
+      if (!meta) {
+        console.log("[v0] No metadata available for AniList update")
+        return
+      }
+
+      const metaData = JSON.parse(meta)
+      if (!metaData.anilistId) {
+        console.log("[v0] No AniList ID in metadata")
+        return
+      }
+
+      const { aniListManager } = await import("@/lib/anilist")
+      const user = aniListManager.getUser()
+
+      if (!user) {
+        console.log("[v0] User not logged in to AniList")
+        return
+      }
+
+      // Get current status
+      const currentStatus = await aniListManager.getMediaListStatus(Number(metaData.anilistId), "ANIME")
+
+      console.log("[v0] Auto-updating AniList: episode", episodeNum, "for anime", metaData.anilistId)
+      console.log("[v0] Current status:", currentStatus)
+
+      // If status is PLANNING, change it to CURRENT
+      const newStatus = currentStatus.status === "PLANNING" ? "CURRENT" : currentStatus.status || "CURRENT"
+
+      await aniListManager.updateAnimeEntry(Number(metaData.anilistId), newStatus, episodeNum)
+
+      console.log("[v0] Successfully updated AniList progress")
+
+      // Broadcast status change event so QuickListManager can update
+      window.dispatchEvent(
+        new CustomEvent("anizone:status-updated", {
+          detail: { mediaId: metaData.anilistId, status: newStatus, progress: episodeNum },
+        }),
+      )
+    } catch (e) {
+      console.error("[v0] Could not auto-update AniList:", e)
+    }
+  }
+
+  const saveContinueForClick = async (ep: Episode) => {
     try {
       const seriesKey = seriesBaseFromPath(path)
       const seriesPath = seriesKey
@@ -732,6 +795,11 @@ export function EpisodePlayer({
 
   const onEnd = () => {
     videoEndedRef.current = true
+
+    if (autoUpdateProgress && selectedEpisode) {
+      updateAniListProgress(selectedEpisode.num)
+    }
+
     if (!autoNext || !selectedEpisode) return
     const idx = episodes.findIndex((e) => epKey(e) === epKey(selectedEpisode))
     if (idx >= 0 && idx + 1 < episodes.length) {
@@ -794,6 +862,13 @@ export function EpisodePlayer({
               <Switch id="auto-next" checked={autoNext} onCheckedChange={setAutoNext} />
               <Label htmlFor="auto-next" className="text-xs text-muted-foreground cursor-pointer">
                 Auto-next
+              </Label>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Switch id="auto-update" checked={autoUpdateProgress} onCheckedChange={setAutoUpdateProgress} />
+              <Label htmlFor="auto-update" className="text-xs text-muted-foreground cursor-pointer">
+                Auto-aggiorna
               </Label>
             </div>
           </div>

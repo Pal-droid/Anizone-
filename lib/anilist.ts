@@ -7,7 +7,6 @@ export interface AniListUser {
     large?: string
     medium?: string
   }
-  token: string
 }
 
 class AniListManager {
@@ -15,22 +14,7 @@ class AniListManager {
   private listeners: ((user: AniListUser | null) => void)[] = []
 
   constructor() {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("anilist_user")
-      if (stored) {
-        try {
-          const parsedUser = JSON.parse(stored)
-          if (parsedUser && parsedUser.token && parsedUser.id) {
-            this.user = parsedUser
-            console.log("[v0] Restored AniList user from localStorage:", parsedUser.name)
-          } else {
-            localStorage.removeItem("anilist_user")
-          }
-        } catch {
-          localStorage.removeItem("anilist_user")
-        }
-      }
-    }
+    // Auth state will be fetched from server on mount via context
   }
 
   subscribe(listener: (user: AniListUser | null) => void) {
@@ -50,11 +34,6 @@ class AniListManager {
 
   setUser(user: AniListUser | null) {
     this.user = user
-    if (user) {
-      localStorage.setItem("anilist_user", JSON.stringify(user))
-    } else {
-      localStorage.removeItem("anilist_user")
-    }
     this.notify()
   }
 
@@ -62,19 +41,22 @@ class AniListManager {
     try {
       console.log("[v0] Attempting to login with provided token")
 
-      // Fetch user data from AniList to validate token
-      const userResponse = await this.fetchAniListUser(token)
-      if (!userResponse.success || !userResponse.user) {
-        return { success: false, error: userResponse.error || "Failed to fetch user data" }
+      const response = await fetch("/api/anilist/auth", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ token }),
+      })
+
+      const data = await response.json()
+
+      if (!data.success || !data.user) {
+        return { success: false, error: data.error || "Failed to authenticate" }
       }
 
-      const user: AniListUser = {
-        ...userResponse.user,
-        token: token,
-      }
-
-      this.setUser(user)
-      console.log("[v0] Successfully logged in as:", user.name)
+      this.setUser(data.user)
+      console.log("[v0] Successfully logged in as:", data.user.name)
       return { success: true }
     } catch (error) {
       console.error("[v0] Token login error:", error)
@@ -82,52 +64,58 @@ class AniListManager {
     }
   }
 
-  // Fetch current user from AniList API
-  async fetchAniListUser(token: string): Promise<{ success: boolean; user?: any; error?: string }> {
+  async checkAuth(): Promise<void> {
     try {
-      const query = `
-        query {
-          Viewer {
-            id
-            name
-            avatar {
-              large
-              medium
-            }
-          }
-        }
-      `
-
-      const response = await fetch("https://graphql.anilist.co", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ query }),
+      const response = await fetch("/api/anilist/auth", {
+        method: "GET",
       })
-
-      if (!response.ok) {
-        return { success: false, error: "Failed to fetch user from AniList" }
-      }
 
       const data = await response.json()
 
-      if (data.errors) {
-        return { success: false, error: "Invalid access token" }
+      if (data.success && data.authenticated && data.user) {
+        this.setUser(data.user)
+        console.log("[v0] Restored session for:", data.user.name)
+      } else {
+        this.setUser(null)
       }
-
-      return { success: true, user: data.data.Viewer }
     } catch (error) {
-      console.error("[v0] Error fetching AniList user:", error)
-      return { success: false, error: "Network error" }
+      console.error("[v0] Error checking auth:", error)
+      this.setUser(null)
     }
   }
 
-  logout() {
-    this.user = null
-    localStorage.removeItem("anilist_user")
-    this.notify()
+  async logout() {
+    try {
+      await fetch("/api/anilist/auth", {
+        method: "DELETE",
+      })
+    } catch (error) {
+      console.error("[v0] Error during logout:", error)
+    }
+
+    this.setUser(null)
+  }
+
+  private async makeGraphQLRequest(query: string, variables?: any): Promise<any> {
+    const response = await fetch("/api/anilist/graphql", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ query, variables }),
+    })
+
+    if (!response.ok) {
+      throw new Error("Failed to make GraphQL request")
+    }
+
+    const data = await response.json()
+
+    if (data.errors) {
+      throw new Error("AniList API error")
+    }
+
+    return data
   }
 
   // Fetch user's anime list from AniList
@@ -145,6 +133,7 @@ class AniListManager {
               mediaId
               status
               progress
+              score
               media {
                 id
                 title {
@@ -163,25 +152,10 @@ class AniListManager {
         }
       }
     `
-
     try {
-      const response = await fetch("https://graphql.anilist.co", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.user.token}`,
-        },
-        body: JSON.stringify({
-          query,
-          variables: { userId: this.user.id },
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch anime list")
-      }
-
-      const data = await response.json()
+      console.log("[v0] Fetching anime list for user:", this.user.id)
+      const data = await this.makeGraphQLRequest(query, { userId: this.user.id })
+      console.log("[v0] Anime list response:", data)
       return data.data.MediaListCollection
     } catch (error) {
       console.error("[v0] Error fetching anime list:", error)
@@ -204,6 +178,7 @@ class AniListManager {
               mediaId
               status
               progress
+              score
               media {
                 id
                 title {
@@ -222,25 +197,10 @@ class AniListManager {
         }
       }
     `
-
     try {
-      const response = await fetch("https://graphql.anilist.co", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.user.token}`,
-        },
-        body: JSON.stringify({
-          query,
-          variables: { userId: this.user.id },
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch manga list")
-      }
-
-      const data = await response.json()
+      console.log("[v0] Fetching manga list for user:", this.user.id)
+      const data = await this.makeGraphQLRequest(query, { userId: this.user.id })
+      console.log("[v0] Manga list response:", data)
       return data.data.MediaListCollection
     } catch (error) {
       console.error("[v0] Error fetching manga list:", error)
@@ -263,19 +223,8 @@ class AniListManager {
     `
 
     try {
-      const response = await fetch("https://graphql.anilist.co", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.user.token}`,
-        },
-        body: JSON.stringify({
-          query: mutation,
-          variables: { mediaId, status, progress },
-        }),
-      })
-
-      return response.ok
+      await this.makeGraphQLRequest(mutation, { mediaId, status, progress })
+      return true
     } catch (error) {
       console.error("[v0] Error updating anime entry:", error)
       return false
@@ -297,19 +246,8 @@ class AniListManager {
     `
 
     try {
-      const response = await fetch("https://graphql.anilist.co", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.user.token}`,
-        },
-        body: JSON.stringify({
-          query: mutation,
-          variables: { mediaId, status, progress },
-        }),
-      })
-
-      return response.ok
+      await this.makeGraphQLRequest(mutation, { mediaId, status, progress })
+      return true
     } catch (error) {
       console.error("[v0] Error updating manga entry:", error)
       return false
@@ -329,22 +267,48 @@ class AniListManager {
     `
 
     try {
-      const response = await fetch("https://graphql.anilist.co", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.user.token}`,
-        },
-        body: JSON.stringify({
-          query: mutation,
-          variables: { id: entryId },
-        }),
-      })
-
-      return response.ok
+      await this.makeGraphQLRequest(mutation, { id: entryId })
+      return true
     } catch (error) {
       console.error("[v0] Error deleting anime entry:", error)
       return false
+    }
+  }
+
+  async getMediaListStatus(
+    mediaId: number,
+    type: "ANIME" | "MANGA",
+  ): Promise<{ status: string | null; progress: number }> {
+    if (!this.user) return { status: null, progress: 0 }
+
+    console.log("[v0] Fetching list status for mediaId:", mediaId, "userId:", this.user.id, "type:", type)
+
+    const query = `
+      query ($mediaId: Int, $userId: Int, $type: MediaType) {
+        MediaList(mediaId: $mediaId, userId: $userId, type: $type) {
+          status
+          progress
+        }
+      }
+    `
+
+    try {
+      const data = await this.makeGraphQLRequest(query, { mediaId, userId: this.user.id, type })
+      console.log("[v0] MediaList API response:", data)
+
+      if (data.data?.MediaList) {
+        console.log("[v0] Found MediaList entry:", data.data.MediaList)
+        return {
+          status: data.data.MediaList.status,
+          progress: data.data.MediaList.progress || 0,
+        }
+      }
+
+      console.log("[v0] No MediaList entry found for this media")
+      return { status: null, progress: 0 }
+    } catch (error) {
+      console.error("[v0] Error fetching media list status:", error)
+      return { status: null, progress: 0 }
     }
   }
 }

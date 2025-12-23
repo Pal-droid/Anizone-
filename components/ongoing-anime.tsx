@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { useEffect, useState } from "react"
 import { Play } from "lucide-react"
 import Link from "next/link"
+import { obfuscateUrl } from "@/lib/utils"
 
 type OngoingAnimeItem = {
   title: string
@@ -79,7 +80,7 @@ export function OngoingAnime() {
               return (
                 <Link
                   key={`${item.href}-${index}`}
-                  href={`/watch?path=${encodeURIComponent(animePath)}`}
+                  href={`/watch?p=${obfuscateUrl(animePath)}`}
                   className="relative flex-shrink-0 w-32 group cursor-pointer"
                   onClick={() => {
                     try {

@@ -18,6 +18,53 @@ type UnifiedResult = {
   has_multi_servers: boolean
 }
 
+async function enrichWithAnimePaheMetadata(results: UnifiedResult[]) {
+  const enrichedResults = await Promise.all(
+    results.map(async (result) => {
+      // Find AnimePahe source if available
+      const animePaheSource = result.sources.find((s) => s.name === "AnimePahe")
+
+      if (animePaheSource && animePaheSource.id) {
+        try {
+          console.log("[v0] Fetching AnimePahe metadata for:", result.title, "ID:", animePaheSource.id)
+
+          const response = await fetch(
+            `${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000"}/api/animepahe-metadata?id=${animePaheSource.id}`,
+            {
+              next: { revalidate: 3600 },
+            },
+          )
+
+          if (response.ok) {
+            const metaData = await response.json()
+            if (metaData.ok && metaData.data) {
+              console.log("[v0] Successfully enriched", result.title, "with AniList ID:", metaData.data.ids.anilist)
+              return {
+                ...result,
+                anilistId: metaData.data.ids.anilist ? Number(metaData.data.ids.anilist) : undefined,
+                animepaheId: metaData.data.ids.animepahe_id,
+                metadata: {
+                  episodes: metaData.data.episodes,
+                  status: metaData.data.status,
+                  season: metaData.data.season,
+                  studio: metaData.data.studio,
+                  synopsis: metaData.data.synopsis,
+                },
+              }
+            }
+          }
+        } catch (error) {
+          console.warn("[v0] Failed to fetch AnimePahe metadata for:", result.title, error)
+        }
+      }
+
+      return result
+    }),
+  )
+
+  return enrichedResults
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
@@ -31,7 +78,6 @@ export async function GET(req: NextRequest) {
     const allParams = Array.from(searchParams.entries())
     const hasFilters = allParams.some(([key, value]) => {
       if (key === "keyword" || key === "dub") return false
-      // Only consider it a filter if it has a meaningful value
       return value && value.trim() !== "" && value !== "any"
     })
 
@@ -85,9 +131,10 @@ export async function GET(req: NextRequest) {
         const unifiedData: UnifiedResult[] = await unifiedRes.json()
         console.log("Unified API response:", unifiedData.length, "results")
 
+        const enrichedData = await enrichWithAnimePaheMetadata(unifiedData)
+
         // Transform unified results to our format
-        let items = unifiedData.map((result) => {
-          // Find AnimeWorld source first, fallback to first available
+        let items = enrichedData.map((result) => {
           const animeWorldSource = result.sources.find((s) => s.name === "AnimeWorld")
           const primaryUrl = animeWorldSource?.url || result.sources[0]?.url || ""
 
@@ -108,6 +155,9 @@ export async function GET(req: NextRequest) {
             sources: result.sources,
             has_multi_servers: result.has_multi_servers,
             description: result.description,
+            anilistId: result.anilistId,
+            animepaheId: result.animepaheId,
+            metadata: result.metadata,
           }
         })
 

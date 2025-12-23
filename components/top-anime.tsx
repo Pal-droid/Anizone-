@@ -2,10 +2,10 @@
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { AnimeCard } from "./anime-card"
 import { useEffect, useState } from "react"
 import { Eye, Star } from "lucide-react"
 import Link from "next/link"
+import { obfuscateUrl } from "@/lib/utils"
 
 type TopItem = {
   rank: number
@@ -57,7 +57,7 @@ export function TopAnime() {
         {/* Featured #1 banner */}
         {featured && (
           <Link
-            href={`/watch?path=${encodeURIComponent(
+            href={`/watch?p=${obfuscateUrl(
               (() => {
                 try {
                   const u = new URL(featured.href)
@@ -77,9 +77,7 @@ export function TopAnime() {
                     return featured.href
                   }
                 })()
-                const sources = [
-                  { name: "AnimeWorld", url: featured.href, id: featured.href.split("/").pop() || "" },
-                ]
+                const sources = [{ name: "AnimeWorld", url: featured.href, id: featured.href.split("/").pop() || "" }]
                 sessionStorage.setItem(`anizone:sources:${path}`, JSON.stringify(sources))
               } catch {}
             }}
@@ -136,7 +134,7 @@ export function TopAnime() {
               </div>
               <div className="flex-1 min-w-0">
                 <Link
-                  href={`/watch?path=${encodeURIComponent(
+                  href={`/watch?p=${obfuscateUrl(
                     (() => {
                       try {
                         const u = new URL(item.href)

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Plus } from "lucide-react"
 import Link from "next/link"
+import { obfuscateUrl } from "@/lib/utils"
 
 type NewAdditionItem = {
   title: string
@@ -85,7 +86,7 @@ export function NewAdditions() {
               return (
                 <Link
                   key={`${item.href}-${index}`}
-                  href={`/watch?path=${encodeURIComponent(animePath)}`}
+                  href={`/watch?p=${obfuscateUrl(animePath)}`}
                   className="group shrink-0 w-32"
                   onClick={() => {
                     try {

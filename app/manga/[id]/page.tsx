@@ -52,6 +52,7 @@ type MangaData = {
   totalVolumes?: string
   totalChapters?: string
   views?: string
+  anilistId?: string // Added anilistId to MangaData type
 }
 
 export default function MangaMetadataPage() {
@@ -263,7 +264,8 @@ export default function MangaMetadataPage() {
                     itemId={actualMangaId}
                     itemTitle={mangaData.title}
                     itemImage={mangaData.image}
-                    type="manga"
+                    anilistMediaId={mangaData.anilistId}
+                    itemPath={`/manga/${params.id}`}
                   />
                 </div>
                 {mangaData.volumes.length > 0 && lastVolume.chapters.length > 0 && (

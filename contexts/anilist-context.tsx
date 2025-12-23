@@ -8,8 +8,8 @@ interface AniListContextType {
   user: AniListUser | null
   isLoading: boolean
   loginWithToken: (token: string) => Promise<{ success: boolean; error?: string }>
-  logout: () => void
-  refreshAuth: () => void
+  logout: () => Promise<void>
+  refreshAuth: () => Promise<void>
 }
 
 const AniListContext = createContext<AniListContextType | undefined>(undefined)
@@ -18,15 +18,17 @@ function AniListProviderInternal({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AniListUser | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  const refreshAuth = () => {
+  const refreshAuth = async () => {
+    console.log("[v0] Checking authentication status from server")
+    await aniListManager.checkAuth()
     const currentUser = aniListManager.getUser()
-    console.log("[v0] Refreshing auth, current user:", currentUser?.name || "none")
+    console.log("[v0] Current user after check:", currentUser?.name || "none")
     setUser(currentUser)
     setIsLoading(false)
   }
 
   useEffect(() => {
-    // Initial auth check
+    // Initial auth check from server
     refreshAuth()
 
     // Subscribe to auth changes
@@ -45,15 +47,15 @@ function AniListProviderInternal({ children }: { children: React.ReactNode }) {
     console.log("[v0] Initiating token login")
     const result = await aniListManager.loginWithToken(token)
     if (result.success) {
-      refreshAuth()
+      await refreshAuth()
     }
     return result
   }
 
-  const logout = () => {
+  const logout = async () => {
     console.log("[v0] Logging out")
-    aniListManager.logout()
-    refreshAuth()
+    await aniListManager.logout()
+    await refreshAuth()
   }
 
   return (

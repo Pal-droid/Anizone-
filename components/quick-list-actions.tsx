@@ -14,50 +14,50 @@ type Props = {
   className?: string
 }
 
-type ListKey =
-  | "planning"
-  | "completed"
-  | "current"
-  | "dropped"
-  | "repeating"
-  | "paused"
+type ListKey = "planning" | "completed" | "current" | "dropped" | "repeating" | "paused"
 
 const LIST_ACTIONS = [
   {
     key: "planning" as ListKey,
     icon: Plus,
     label: "Da guardare",
-    color: "text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950",
+    color: "text-blue-500",
+    bg: "bg-blue-500",
   },
   {
     key: "current" as ListKey,
     icon: Play,
     label: "In corso",
-    color: "text-green-500 hover:bg-green-50 dark:hover:bg-green-950",
+    color: "text-green-500",
+    bg: "bg-green-500",
   },
   {
     key: "completed" as ListKey,
     icon: Check,
     label: "Completato",
-    color: "text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950",
+    color: "text-emerald-500",
+    bg: "bg-emerald-500",
   },
   {
     key: "paused" as ListKey,
     icon: Pause,
     label: "In pausa",
-    color: "text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-950",
+    color: "text-yellow-500",
+    bg: "bg-yellow-500",
   },
   {
     key: "dropped" as ListKey,
     icon: X,
     label: "Abbandonato",
-    color: "text-red-500 hover:bg-red-50 dark:hover:bg-red-950",
+    color: "text-red-500",
+    bg: "bg-red-500",
   },
   {
     key: "repeating" as ListKey,
     icon: RotateCcw,
     label: "In revisione",
-    color: "text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-950",
+    color: "text-purple-500",
+    bg: "bg-purple-500",
   },
 ]
 
@@ -70,13 +70,7 @@ function normalizeSeriesKey(path: string): string {
   }
 }
 
-export function QuickListActions({
-  seriesKey,
-  seriesPath,
-  title,
-  image,
-  className,
-}: Props) {
+export function QuickListActions({ seriesKey, seriesPath, title, image, className }: Props) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
@@ -94,9 +88,7 @@ export function QuickListActions({
   } else if (pathname.startsWith("/watch")) {
     type = "anime"
     const queryPath = searchParams.get("path")
-    keyToUse = queryPath
-      ? normalizeSeriesKey(decodeURIComponent(queryPath))
-      : normalizeSeriesKey(seriesKey)
+    keyToUse = queryPath ? normalizeSeriesKey(decodeURIComponent(queryPath)) : normalizeSeriesKey(seriesKey)
   } else {
     type = "anime" // fallback
     keyToUse = normalizeSeriesKey(seriesKey)
@@ -130,10 +122,7 @@ export function QuickListActions({
           }
         }
       } catch (error) {
-        console.error(
-          "[QuickListActions] Failed to check list status:",
-          error
-        )
+        console.error("[QuickListActions] Failed to check list status:", error)
       }
     }
 
@@ -148,7 +137,6 @@ export function QuickListActions({
 
     try {
       if (currentList === listKey) {
-        // Remove from current list
         const response = await fetch("/api/user-state", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -162,7 +150,6 @@ export function QuickListActions({
 
         if (response.ok) setCurrentList(null)
       } else {
-        // Remove from current list if exists
         if (currentList) {
           await fetch("/api/user-state", {
             method: "POST",
@@ -176,7 +163,6 @@ export function QuickListActions({
           })
         }
 
-        // Add to new list
         const response = await fetch("/api/user-state", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -202,17 +188,11 @@ export function QuickListActions({
 
   if (!isHydrated) {
     return (
-      <div className={cn("flex gap-1", className)}>
+      <div className={cn("flex gap-2", className)}>
         {LIST_ACTIONS.slice(0, 3).map((action) => {
           const Icon = action.icon
           return (
-            <Button
-              key={action.key}
-              variant="ghost"
-              size="sm"
-              disabled
-              className="h-8 w-8 p-0"
-            >
+            <Button key={action.key} variant="ghost" size="sm" disabled className="h-9 w-9 rounded-lg p-0 opacity-50">
               <Icon className="h-4 w-4" />
             </Button>
           )
@@ -222,7 +202,7 @@ export function QuickListActions({
   }
 
   return (
-    <div className={cn("flex gap-1", className)}>
+    <div className={cn("inline-flex items-center gap-1.5 p-1 rounded-xl bg-muted/50 backdrop-blur-sm", className)}>
       {LIST_ACTIONS.map((action) => {
         const Icon = action.icon
         const isActive = currentList === action.key
@@ -230,7 +210,7 @@ export function QuickListActions({
         return (
           <Button
             key={action.key}
-            variant="ghost"
+            variant={isActive ? "default" : "ghost"}
             size="sm"
             onClick={(e) => {
               e.preventDefault()
@@ -239,13 +219,14 @@ export function QuickListActions({
             }}
             disabled={isLoading}
             className={cn(
-              "h-8 w-8 p-0 transition-all duration-200",
-              action.color,
-              isActive && "bg-current/10 text-current"
+              "h-9 w-9 rounded-lg p-0 transition-all duration-200 hover:scale-105",
+              !isActive && ["hover:bg-background/80 hover:shadow-sm", action.color],
+              isActive && [action.bg, "text-white shadow-md hover:shadow-lg"],
+              isLoading && "opacity-50 cursor-not-allowed",
             )}
             title={action.label}
           >
-            <Icon className={cn("h-4 w-4", isActive && "fill-current")} />
+            <Icon className={cn("h-4 w-4 transition-all", isActive && "fill-white scale-110")} />
           </Button>
         )
       })}
