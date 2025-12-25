@@ -91,6 +91,25 @@ export function MangaSearchClient() {
     setCurrentQuery(params.keyword || params.genre || "filtri applicati")
 
     try {
+      const hasFilters =
+        (params.type && params.type !== "all") ||
+        params.author ||
+        params.year ||
+        params.genre ||
+        params.artist ||
+        (params.sort && params.sort !== "default")
+
+      if (params.keyword && !hasFilters) {
+        // Use unified API for pure keyword search
+        console.log("[v0] Using unified manga API for keyword search:", params.keyword)
+        const response = await fetch(`/api/manga-unified-search?q=${encodeURIComponent(params.keyword)}`)
+        const data = await response.json()
+        setSearchResults(data.results || [])
+        setPagination(null) // Unified API doesn't support pagination
+        return
+      }
+
+      // Use regular manga-search API with filters
       const searchParams = new URLSearchParams()
       if (params.keyword) searchParams.set("keyword", params.keyword)
       if (params.type && params.type !== "all") searchParams.set("type", params.type)

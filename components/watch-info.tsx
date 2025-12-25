@@ -277,7 +277,11 @@ export function WatchInfo({
               <div className="grid grid-cols-[120px_1fr] sm:grid-cols-[130px_1fr] gap-4 min-w-0">
                 <div className="sm:justify-self-start flex items-center">
                   <img
-                    src={meta.image || "/placeholder.svg?height=195&width=130&query=anime%20poster"}
+                    src={
+                      meta.image?.includes("animepahe")
+                        ? `/api/animepahe-image-proxy?url=${encodeURIComponent(meta.image)}`
+                        : meta.image || "/anime-poster.png"
+                    }
                     alt={meta.title}
                     className="sm:w-[130px] w-[120px] sm:h-[195px] h-[180px] object-cover rounded max-w-full"
                     loading="lazy"

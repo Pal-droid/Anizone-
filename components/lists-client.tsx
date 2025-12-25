@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge"
 import { AniListAuthPanel } from "@/components/anilist-auth-panel"
 import { SlideOutMenu } from "@/components/slide-out-menu"
 import { EditListEntryDialog } from "@/components/edit-list-entry-dialog"
-import { Film, BookOpen, Trash2, RefreshCw, Star, ArrowRight, Edit } from "lucide-react"
+import { ListsImportExport } from "@/components/lists-import-export"
+import { Film, BookOpen, Trash2, RefreshCw, Star, ArrowRight, Edit, Search } from "lucide-react"
 import { useAniList } from "@/contexts/anilist-context"
 import { aniListManager } from "@/lib/anilist"
 
@@ -53,6 +54,7 @@ export function ListsClient() {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
   const [editingEntry, setEditingEntry] = useState<any>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
 
   useEffect(() => {
     if (user) {
@@ -163,6 +165,17 @@ export function ListsClient() {
     }))
   }
 
+  const filterBySearch = (entry: any) => {
+    if (!searchQuery.trim()) return true
+
+    const query = searchQuery.toLowerCase()
+    const romajiTitle = entry.media.title.romaji?.toLowerCase() || ""
+    const englishTitle = entry.media.title.english?.toLowerCase() || ""
+    const nativeTitle = entry.media.title.native?.toLowerCase() || ""
+
+    return romajiTitle.includes(query) || englishTitle.includes(query) || nativeTitle.includes(query)
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
@@ -211,24 +224,72 @@ export function ListsClient() {
     <div className="min-h-screen bg-background">
       <SlideOutMenu />
 
+      {user?.bannerImage && (
+        <div className="relative w-full h-48 md:h-64 overflow-hidden">
+          <Image
+            src={user.bannerImage || "/placeholder.svg"}
+            alt={`${user.name}'s banner`}
+            fill
+            className="object-cover"
+            priority
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
+          <div className="absolute bottom-4 left-4 md:left-8 flex items-end gap-4">
+            {user.avatar?.large && (
+              <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden ring-4 ring-background shadow-xl">
+                <Image src={user.avatar.large || "/placeholder.svg"} alt={user.name} fill className="object-cover" />
+              </div>
+            )}
+            <div className="pb-1">
+              <h1 className="text-2xl md:text-3xl font-bold text-white drop-shadow-lg">{user.name}</h1>
+              <p className="text-sm text-white/80 drop-shadow">Le tue liste AniList</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <AniListAuthPanel />
+        {!user?.bannerImage && (
+          <div className="mb-8">
+            <AniListAuthPanel />
+          </div>
+        )}
+
+        <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+          {!user?.bannerImage && <h1 className="text-2xl font-bold">Le Mie Liste</h1>}
+          {user?.bannerImage && <div />}
+          <div className="flex items-center gap-2">
+            <ListsImportExport
+              animeCollection={animeCollection}
+              mangaCollection={mangaCollection}
+              user={user}
+              onImportComplete={loadLists}
+            />
+            <Button
+              onClick={loadLists}
+              variant="outline"
+              disabled={loading}
+              className="gap-2 shrink-0 bg-transparent"
+              size="sm"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline">Aggiorna</span>
+            </Button>
+          </div>
         </div>
 
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold">Le Mie Liste</h1>
-          <Button
-            onClick={loadLists}
-            variant="outline"
-            disabled={loading}
-            className="gap-2 shrink-0 bg-transparent"
-            size="sm"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            <span className="hidden sm:inline">Aggiorna</span>
-          </Button>
-        </div>
+        {currentCollection && (
+          <div className="mb-6 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder={`Cerca ${activeMediaType === "anime" ? "anime" : "manga"} per titolo...`}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+          </div>
+        )}
 
         <Tabs value={activeMediaType} onValueChange={(v) => setActiveMediaType(v as MediaType)}>
           <TabsList className="grid w-full max-w-md grid-cols-2 mb-8">
@@ -296,10 +357,11 @@ export function ListsClient() {
 
                 <div className="space-y-8">
                   {currentCollection.lists?.map((list: any) => {
+                    const filteredEntries = list.entries.filter(filterBySearch)
                     const isExpanded = expandedSections[list.status]
                     const maxItemsToShow = 6
-                    const hasMore = list.entries.length > maxItemsToShow
-                    const displayedEntries = isExpanded ? list.entries : list.entries.slice(0, maxItemsToShow)
+                    const hasMore = filteredEntries.length > maxItemsToShow
+                    const displayedEntries = isExpanded ? filteredEntries : filteredEntries.slice(0, maxItemsToShow)
 
                     return (
                       <Card
@@ -314,7 +376,7 @@ export function ListsClient() {
                             <div className="flex items-center gap-3">
                               <h2 className="text-xl font-semibold">{statusMap[list.status] || list.name}</h2>
                               <Badge variant="secondary" className={`${STATUS_COLORS[list.status]} border`}>
-                                {list.entries.length}
+                                {filteredEntries.length}
                               </Badge>
                             </div>
                             {hasMore && (
@@ -333,9 +395,11 @@ export function ListsClient() {
                           </div>
                         </div>
                         <div className="p-6">
-                          {list.entries.length === 0 ? (
+                          {filteredEntries.length === 0 ? (
                             <p className="text-center py-8 text-muted-foreground text-sm">
-                              Nessun elemento in questa lista
+                              {searchQuery
+                                ? "Nessun risultato trovato per la ricerca"
+                                : "Nessun elemento in questa lista"}
                             </p>
                           ) : (
                             <>

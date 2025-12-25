@@ -14,6 +14,7 @@ async function verifyAniListToken(token: string) {
           large
           medium
         }
+        bannerImage
       }
     }
   `

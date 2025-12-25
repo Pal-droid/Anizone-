@@ -102,7 +102,7 @@ function LazyImage({
   }, [onError])
 
   return (
-    <div ref={imgRef} className="text-center min-h-[400px] flex items-center justify-center">
+    <div ref={imgRef} className="text-center flex items-center justify-center">
       {entry?.isIntersecting ? (
         hasError ? (
           <Card className="bg-gray-900 border-gray-700 mx-auto max-w-md">
@@ -139,7 +139,10 @@ function LazyImage({
           />
         )
       ) : (
-        <div className="w-full h-96 bg-gray-800 rounded flex items-center justify-center">
+        <div
+          className="w-full bg-gray-800 rounded flex items-center justify-center"
+          style={{ aspectRatio: "2/3", minHeight: "400px" }}
+        >
           <div className="animate-pulse text-gray-400">Caricamento...</div>
         </div>
       )}
@@ -277,8 +280,34 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
       }
 
       try {
-        const fetchUrl = `/api/manga-pages?url=${encodeURIComponent(chapterUrl)}`
-        console.log("[v0] Fetching manga pages with URL:", chapterUrl)
+        const urlObj = new URL(chapterUrl, "https://example.com")
+        const isUnified = urlObj.searchParams.get("_unified") === "true"
+        const source = urlObj.searchParams.get("_source")
+
+        let fetchUrl: string
+
+        if (isUnified && source) {
+          console.log("[v0] Using unified pages API for source:", source)
+
+          if (source === "Comix") {
+            const hashId = urlObj.searchParams.get("_hash_id")
+            const slug = urlObj.searchParams.get("_slug")
+            const chapterId = urlObj.searchParams.get("_chapter_id")
+            const chapterNum = urlObj.searchParams.get("_chapter_num")
+
+            fetchUrl = `/api/manga-unified-pages?source=Comix&hash_id=${hashId}&slug=${slug}&chapter_id=${chapterId}&chapter_num=${chapterNum}`
+          } else if (source === "World") {
+            const chapterUrlParam = urlObj.searchParams.get("_chapter_url")
+            fetchUrl = `/api/manga-unified-pages?source=World&chapter_url=${encodeURIComponent(chapterUrlParam || "")}`
+          } else {
+            throw new Error("Unknown unified source")
+          }
+        } else {
+          // Use old scraping API
+          fetchUrl = `/api/manga-pages?url=${encodeURIComponent(chapterUrl)}`
+        }
+
+        console.log("[v0] Fetching manga pages from:", fetchUrl)
         const response = await fetch(fetchUrl)
 
         if (!response.ok) {
@@ -404,10 +433,12 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
               <ArrowLeft size={16} />
             </Button>
             <div>
-              <h1 className="font-semibold text-sm">{searchParams.title || "Manga Reader"}</h1>
-              <p className="text-xs text-gray-400">
-                {viewMode === "single" ? `Pagina ${currentPage + 1} di ${pages.length}` : `${pages.length} pagine`}
-              </p>
+              <h1 className="font-semibold text-sm line-clamp-1">{searchParams.title || "Manga Reader"}</h1>
+              {viewMode === "single" && (
+                <p className="text-xs text-gray-400">
+                  {currentPage + 1}/{pages.length}
+                </p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">

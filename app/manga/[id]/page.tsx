@@ -22,12 +22,23 @@ import {
   FileImage,
   Menu,
 } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 type Chapter = {
   title: string
   url: string
   date: string
   isNew?: boolean
+}
+
+type ChapterSource = {
+  available: boolean
+  id: string
+  url: string
+  title: string
+  date: string | number
+  hash_id?: string
+  slug?: string
 }
 
 type Volume = {
@@ -52,7 +63,13 @@ type MangaData = {
   totalVolumes?: string
   totalChapters?: string
   views?: string
-  anilistId?: string // Added anilistId to MangaData type
+  anilistId?: string
+  sources?: Array<{
+    name: string
+    slug: string
+    id: string
+    hash_id?: string
+  }>
 }
 
 export default function MangaMetadataPage() {
@@ -63,6 +80,9 @@ export default function MangaMetadataPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [expandedVolumes, setExpandedVolumes] = useState<Set<number>>(new Set([0]))
+  const [selectedSource, setSelectedSource] = useState<string>("")
+  const [unifiedChapters, setUnifiedChapters] = useState<any[]>([])
+  const [fetchingUnifiedChapters, setFetchingUnifiedChapters] = useState(false)
 
   const actualMangaId = deobfuscateId(params.id as string)
 
@@ -77,6 +97,9 @@ export default function MangaMetadataPage() {
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
         const data = await response.json()
         setMangaData(data)
+        if (data.sources && data.sources.length > 0) {
+          setSelectedSource(data.sources[0].name)
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load manga data")
       } finally {
@@ -87,12 +110,54 @@ export default function MangaMetadataPage() {
     if (actualMangaId) fetchMangaData()
   }, [actualMangaId])
 
+  useEffect(() => {
+    const fetchUnifiedChapters = async () => {
+      if (!mangaData || !selectedSource || !mangaData.sources) return
+
+      const sourceInfo = mangaData.sources.find((s) => s.name === selectedSource)
+      if (!sourceInfo) return
+
+      setFetchingUnifiedChapters(true)
+      try {
+        const params = new URLSearchParams({
+          source: selectedSource,
+          slug: sourceInfo.slug,
+        })
+
+        if (selectedSource === "Comix" && sourceInfo.hash_id) {
+          params.append("hash_id", sourceInfo.hash_id)
+        } else if (selectedSource === "World") {
+          params.append("manga_id", sourceInfo.id)
+        }
+
+        const response = await fetch(`/api/manga-unified-chapters?${params}`)
+        if (!response.ok) throw new Error("Failed to fetch chapters")
+
+        const chapters = await response.json()
+        console.log("[v0] Unified chapters fetched:", chapters.length)
+        setUnifiedChapters(chapters)
+      } catch (err) {
+        console.error("[v0] Error fetching unified chapters:", err)
+        setUnifiedChapters([])
+      } finally {
+        setFetchingUnifiedChapters(false)
+      }
+    }
+
+    fetchUnifiedChapters()
+  }, [selectedSource, mangaData])
+
   const toggleVolume = (index: number) => {
     const newExpanded = new Set(expandedVolumes)
     if (newExpanded.has(index)) newExpanded.delete(index)
     else newExpanded.add(index)
     setExpandedVolumes(newExpanded)
   }
+
+  const displayVolumes =
+    unifiedChapters.length > 0
+      ? transformUnifiedChaptersToVolumes(unifiedChapters, selectedSource, mangaData?.sources)
+      : mangaData?.volumes || []
 
   if (loading) {
     return (
@@ -114,7 +179,6 @@ export default function MangaMetadataPage() {
           </div>
         </header>
         <div className="px-4 py-6 space-y-6 animate-pulse max-w-5xl mx-auto">
-          {/* Skeleton placeholders */}
           <div className="w-full flex justify-center">
             <div className="w-28 h-40 md:w-48 md:h-64 bg-muted rounded-lg shadow-md"></div>
           </div>
@@ -181,7 +245,6 @@ export default function MangaMetadataPage() {
     )
   }
 
-  // Pick the oldest chapter (last chapter of last volume)
   const lastVolume = mangaData.volumes[mangaData.volumes.length - 1]
   const oldestChapter = lastVolume.chapters[lastVolume.chapters.length - 1]
 
@@ -206,7 +269,6 @@ export default function MangaMetadataPage() {
 
       <div className="px-4 py-6 space-y-6 max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Manga Info Card */}
           <div className="lg:col-span-1">
             <Card className="overflow-hidden sticky top-20">
               <CardContent className="p-6 flex flex-col gap-3 items-center text-center">
@@ -272,7 +334,7 @@ export default function MangaMetadataPage() {
                   <Link
                     href={`/manga/${params.id}/read?u=${obfuscateUrl(
                       oldestChapter.url,
-                    )}&title=${encodeURIComponent(mangaData.title)}&chapter=${encodeURIComponent(oldestChapter.title)}`}
+                    )}&title=${encodeURIComponent(mangaData.title)}&chapter=${encodeURIComponent(oldestChapter.title)}&source=${selectedSource}`}
                     className="w-full flex justify-center"
                   >
                     <Button size="sm" variant="outline" className="mt-2 w-full bg-transparent">
@@ -285,9 +347,7 @@ export default function MangaMetadataPage() {
             </Card>
           </div>
 
-          {/* Trama and Chapters */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Trama */}
             {mangaData.trama && (
               <Card>
                 <CardHeader className="pb-3">
@@ -299,102 +359,121 @@ export default function MangaMetadataPage() {
               </Card>
             )}
 
-            {/* Volumes / Chapters */}
-            {mangaData.volumes.length > 0 && (
+            {displayVolumes.length > 0 && (
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-lg flex items-center justify-between">
-                    Capitoli
-                    <Badge variant="secondary" className="text-xs">
-                      {mangaData.volumes.reduce((total, vol) => total + vol.chapters.length, 0)} capitoli
-                    </Badge>
-                  </CardTitle>
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      Capitoli
+                      <Badge variant="secondary" className="text-xs">
+                        {displayVolumes.reduce((total, vol) => total + vol.chapters.length, 0)} capitoli
+                      </Badge>
+                    </CardTitle>
+                    {mangaData?.sources && mangaData.sources.length > 1 && (
+                      <Select value={selectedSource} onValueChange={setSelectedSource}>
+                        <SelectTrigger className="w-[140px]">
+                          <SelectValue placeholder="Fonte" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {mangaData.sources.map((source) => (
+                            <SelectItem key={source.name} value={source.name}>
+                              {source.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {mangaData.volumes.map((volume, volumeIndex) => (
-                    <div key={volumeIndex} className="border rounded-lg overflow-hidden">
-                      {mangaData.volumes.length === 1 && volume.name === "Chapters" ? (
-                        <div className="p-3 space-y-1">
-                          {volume.chapters.map((chapter, chapterIndex) => (
-                            <div
-                              key={chapterIndex}
-                              className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-md transition-colors group"
-                            >
-                              <Link
-                                href={`/manga/${params.id}/read?u=${obfuscateUrl(chapter.url)}&title=${encodeURIComponent(
-                                  mangaData.title,
-                                )}&chapter=${encodeURIComponent(chapter.title)}`}
-                                className="flex-1 text-sm hover:text-primary transition-colors group-hover:text-primary"
+                  {fetchingUnifiedChapters ? (
+                    <div className="text-center py-8 text-muted-foreground">Caricamento capitoli...</div>
+                  ) : (
+                    displayVolumes.map((volume, volumeIndex) => (
+                      <div key={volumeIndex} className="border rounded-lg overflow-hidden">
+                        {displayVolumes.length === 1 && volume.name === "Chapters" ? (
+                          <div className="p-3 space-y-1">
+                            {volume.chapters.map((chapter, chapterIndex) => (
+                              <div
+                                key={chapterIndex}
+                                className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-md transition-colors group"
                               >
-                                {chapter.title
-                                  .replace(/\s*-\s*\d{1,2}\/\d{1,2}\/\d{4}.*$/, "")
-                                  .replace(/\s*$$\d{1,2}\/\d{1,2}\/\d{4}$$.*$/, "")}
-                              </Link>
-                              <div className="flex items-center gap-2">
-                                {chapter.isNew && (
-                                  <Badge variant="destructive" className="text-xs px-2 py-0">
-                                    NUOVO
-                                  </Badge>
-                                )}
-                                <span className="text-xs text-muted-foreground">{chapter.date}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <Collapsible
-                          open={expandedVolumes.has(volumeIndex)}
-                          onOpenChange={() => toggleVolume(volumeIndex)}
-                        >
-                          <CollapsibleTrigger asChild>
-                            <Button variant="ghost" className="w-full justify-between p-4 h-auto hover:bg-muted/50">
-                              <div className="flex items-center gap-3">
-                                <FileImage size={18} className="text-muted-foreground" />
-                                <div className="text-left">
-                                  <span className="font-medium">{volume.name}</span>
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    {volume.chapters.length} capitoli
-                                  </p>
+                                <Link
+                                  href={`/manga/${params.id}/read?u=${obfuscateUrl(chapter.url)}&title=${encodeURIComponent(
+                                    mangaData.title,
+                                  )}&chapter=${encodeURIComponent(chapter.title)}&source=${selectedSource}`}
+                                  className="flex-1 text-sm hover:text-primary transition-colors group-hover:text-primary"
+                                >
+                                  {chapter.title
+                                    .replace(/\s*-\s*\d{1,2}\/\d{1,2}\/\d{4}.*$/, "")
+                                    .replace(/\s*$$\d{1,2}\/\d{1,2}\/\d{4}$$.*$/, "")}
+                                </Link>
+                                <div className="flex items-center gap-2">
+                                  {chapter.isNew && (
+                                    <Badge variant="destructive" className="text-xs px-2 py-0">
+                                      NUOVO
+                                    </Badge>
+                                  )}
+                                  <span className="text-xs text-muted-foreground">{chapter.date}</span>
                                 </div>
                               </div>
-                              {expandedVolumes.has(volumeIndex) ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                            </Button>
-                          </CollapsibleTrigger>
-                          <CollapsibleContent>
-                            <div className="border-t bg-muted/20">
-                              <div className="p-3 space-y-1">
-                                {volume.chapters.map((chapter, chapterIndex) => (
-                                  <div
-                                    key={chapterIndex}
-                                    className="flex items-center justify-between p-3 hover:bg-background rounded-md transition-colors group"
-                                  >
-                                    <Link
-                                      href={`/manga/${params.id}/read?u=${obfuscateUrl(chapter.url)}&title=${encodeURIComponent(
-                                        mangaData.title,
-                                      )}&chapter=${encodeURIComponent(chapter.title)}`}
-                                      className="flex-1 text-sm hover:text-primary transition-colors group-hover:text-primary"
-                                    >
-                                      {chapter.title
-                                        .replace(/\s*-\s*\d{1,2}\/\d{1,2}\/\d{4}.*$/, "")
-                                        .replace(/\s*$$\d{1,2}\/\d{1,2}\/\d{4}$$.*$/, "")}
-                                    </Link>
-                                    <div className="flex items-center gap-2">
-                                      {chapter.isNew && (
-                                        <Badge variant="destructive" className="text-xs px-2 py-0">
-                                          NUOVO
-                                        </Badge>
-                                      )}
-                                      <span className="text-xs text-muted-foreground">{chapter.date}</span>
-                                    </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <Collapsible
+                            open={expandedVolumes.has(volumeIndex)}
+                            onOpenChange={() => toggleVolume(volumeIndex)}
+                          >
+                            <CollapsibleTrigger asChild>
+                              <Button variant="ghost" className="w-full justify-between p-4 h-auto hover:bg-muted/50">
+                                <div className="flex items-center gap-3">
+                                  <FileImage size={18} className="text-muted-foreground" />
+                                  <div className="text-left">
+                                    <span className="font-medium">{volume.name}</span>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      {volume.chapters.length} capitoli
+                                    </p>
                                   </div>
-                                ))}
+                                </div>
+                                {expandedVolumes.has(volumeIndex) ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                              </Button>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              <div className="border-t bg-muted/20">
+                                <div className="p-3 space-y-1">
+                                  {volume.chapters.map((chapter, chapterIndex) => (
+                                    <div
+                                      key={chapterIndex}
+                                      className="flex items-center justify-between p-3 hover:bg-background rounded-md transition-colors group"
+                                    >
+                                      <Link
+                                        href={`/manga/${params.id}/read?u=${obfuscateUrl(chapter.url)}&title=${encodeURIComponent(
+                                          mangaData.title,
+                                        )}&chapter=${encodeURIComponent(chapter.title)}&source=${selectedSource}`}
+                                        className="flex-1 text-sm hover:text-primary transition-colors group-hover:text-primary"
+                                      >
+                                        {chapter.title
+                                          .replace(/\s*-\s*\d{1,2}\/\d{1,2}\/\d{4}.*$/, "")
+                                          .replace(/\s*$$\d{1,2}\/\d{1,2}\/\d{4}$$.*$/, "")}
+                                      </Link>
+                                      <div className="flex items-center gap-2">
+                                        {chapter.isNew && (
+                                          <Badge variant="destructive" className="text-xs px-2 py-0">
+                                            NUOVO
+                                          </Badge>
+                                        )}
+                                        <span className="text-xs text-muted-foreground">{chapter.date}</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
-                            </div>
-                          </CollapsibleContent>
-                        </Collapsible>
-                      )}
-                    </div>
-                  ))}
+                            </CollapsibleContent>
+                          </Collapsible>
+                        )}
+                      </div>
+                    ))
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -403,4 +482,66 @@ export default function MangaMetadataPage() {
       </div>
     </main>
   )
+}
+
+function transformUnifiedChaptersToVolumes(
+  unifiedChapters: any[],
+  source: string,
+  sources?: Array<{ name: string; slug: string; id: string; hash_id?: string }>,
+): Volume[] {
+  const sourceInfo = sources?.find((s) => s.name === source)
+
+  const chapters = unifiedChapters
+    .map((ch) => {
+      const sourceData = ch.sources?.[source]
+      if (!sourceData || !sourceData.available) return null
+
+      // Format date
+      let formattedDate = ""
+      if (typeof sourceData.date === "number") {
+        formattedDate = new Date(sourceData.date * 1000).toLocaleDateString("it-IT")
+      } else {
+        formattedDate = sourceData.date || ""
+      }
+
+      // Build chapter URL with all necessary data
+      let chapterUrl = sourceData.url || ""
+
+      // Store metadata in URL params for unified pages API
+      if (source === "Comix" && sourceInfo) {
+        const params = new URLSearchParams({
+          _unified: "true",
+          _source: source,
+          _hash_id: sourceInfo.hash_id || sourceData.hash_id || "",
+          _slug: sourceInfo.slug || sourceData.slug || "",
+          _chapter_id: sourceData.id || "",
+          _chapter_num: String(ch),
+        })
+        chapterUrl += `?${params}`
+      } else if (source === "World") {
+        const params = new URLSearchParams({
+          _unified: "true",
+          _source: source,
+          _manga_id: sourceInfo.id || "",
+          _chapter_id: sourceData.id || "",
+          _chapter_num: String(ch),
+        })
+        chapterUrl += `?${params}`
+      }
+
+      return {
+        title: sourceData.title,
+        url: chapterUrl,
+        date: formattedDate,
+        isNew: sourceData.isNew,
+      }
+    })
+    .filter((ch) => ch !== null) as Chapter[]
+
+  return [
+    {
+      name: "Chapters",
+      chapters: chapters,
+    },
+  ]
 }

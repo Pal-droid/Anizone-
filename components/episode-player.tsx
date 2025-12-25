@@ -37,7 +37,8 @@ function extractAnimeIdFromUrl(url: string): string {
   try {
     const urlObj = new URL(url)
     const pathParts = urlObj.pathname.split("/").filter(Boolean)
-    if (pathParts.length >= 2 && pathParts[0] === "play") {
+    const parts = pathParts // Declare parts variable here
+    if (parts.length >= 2 && pathParts[0] === "play") {
       return pathParts[1]
     }
     const pathMatch = url.match(/\/play\/([^/?#]+)/)
@@ -108,6 +109,8 @@ export function EpisodePlayer({
   const [autoNext, setAutoNext] = useState<boolean>(true)
   const [autoUpdateProgress, setAutoUpdateProgress] = useState<boolean>(true)
   const [availableResolutions, setAvailableResolutions] = useState<string[]>(["1080", "720", "480", "360"])
+  const [userProgress, setUserProgress] = useState<number>(0)
+  const [isInWatchingList, setIsInWatchingList] = useState<boolean>(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
   const hlsRef = useRef<any>(null)
@@ -314,6 +317,81 @@ export function EpisodePlayer({
     loadEpisodes()
   }, [path, sources, selectedServer])
 
+  useEffect(() => {
+    async function fetchAniListProgress() {
+      try {
+        const metaKey = `anizone:meta:${path}`
+        const storedMeta = sessionStorage.getItem(metaKey)
+
+        if (!storedMeta) {
+          console.log("[v0] No AniList metadata found for progress check")
+          return
+        }
+
+        const metaData = JSON.parse(storedMeta)
+        if (!metaData.anilistId) {
+          console.log("[v0] No AniList ID in metadata")
+          return
+        }
+
+        const { aniListManager } = await import("@/lib/anilist")
+        const user = aniListManager.getUser()
+
+        if (!user) {
+          console.log("[v0] User not logged into AniList")
+          return
+        }
+
+        console.log("[v0] Fetching AniList progress for anime:", metaData.anilistId)
+        const result = await aniListManager.getMediaListStatus(Number(metaData.anilistId), "ANIME")
+
+        console.log("[v0] AniList progress result:", result)
+
+        if (result.status === "CURRENT") {
+          setIsInWatchingList(true)
+          setUserProgress(result.progress || 0)
+          console.log("[v0] User is watching this anime, progress:", result.progress)
+        } else {
+          setIsInWatchingList(false)
+          setUserProgress(0)
+        }
+      } catch (error) {
+        console.error("[v0] Error fetching AniList progress:", error)
+      }
+    }
+
+    fetchAniListProgress()
+  }, [path])
+
+  useEffect(() => {
+    if (episodes.length === 0 || selectedKey !== null) {
+      return
+    }
+
+    console.log("[v0] Auto-selecting episode - userProgress:", userProgress, "isInWatchingList:", isInWatchingList)
+
+    // If user is watching and has progress, select next unwatched episode
+    if (isInWatchingList && userProgress > 0) {
+      const nextEpisode = episodes.find((ep) => ep.num === userProgress + 1)
+      if (nextEpisode) {
+        console.log("[v0] Auto-selecting next episode:", nextEpisode.num)
+        setSelectedKey(epKey(nextEpisode))
+        return
+      }
+    }
+
+    // Otherwise, select episode 1 by default
+    const firstEpisode = episodes.find((ep) => ep.num === 1)
+    if (firstEpisode) {
+      console.log("[v0] Auto-selecting episode 1")
+      setSelectedKey(epKey(firstEpisode))
+    } else if (episodes.length > 0) {
+      // Fallback to first available episode
+      console.log("[v0] Auto-selecting first available episode:", episodes[0].num)
+      setSelectedKey(epKey(episodes[0]))
+    }
+  }, [episodes, userProgress, isInWatchingList, selectedKey])
+
   const selectedEpisode = useMemo(
     () => (selectedKey ? (episodes.find((e) => epKey(e) === selectedKey) ?? null) : null),
     [selectedKey, episodes],
@@ -388,7 +466,7 @@ export function EpisodePlayer({
 
         if (selectedServer === "AnimeWorld" && unifiedEp.sources.AnimeWorld?.id) {
           params.set("AW", unifiedEp.sources.AnimeWorld.id)
-          console.log("[v0] Using AnimeWorld episode ID for stream:", unifiedEp.sources.AnimeWorld.id)
+          console.log("[v0] Using AnimeWorld episode ID for direct stream:", unifiedEp.sources.AnimeWorld.id)
         } else if (selectedServer === "AnimeSaturn" && unifiedEp.sources.AnimeSaturn?.id) {
           params.set("AS", unifiedEp.sources.AnimeSaturn.id)
           console.log("[v0] Using AnimeSaturn episode ID for stream:", unifiedEp.sources.AnimeSaturn.id)
@@ -465,7 +543,7 @@ export function EpisodePlayer({
           localStorage.setItem(cacheKey, JSON.stringify({ streamUrl: direct, proxyUrl: direct }))
         } else if (selectedServer === "AnimeWorld" && serverData.stream_url) {
           const direct = serverData.stream_url
-          console.log("[v0] Got AnimeWorld stream URL:", direct)
+          console.log("[v0] Got AnimeWorld direct stream URL (no proxy):", direct)
           setStreamUrl(direct)
           setEpisodeRefUrl(selectedEpisode.href)
 
@@ -885,6 +963,8 @@ export function EpisodePlayer({
             episodes.map((e) => {
               const key = epKey(e)
               const active = selectedKey === key
+              const isWatched = isInWatchingList && userProgress > 0 && e.num <= userProgress
+
               return (
                 <button
                   key={key}
@@ -895,9 +975,12 @@ export function EpisodePlayer({
                   className={`shrink-0 snap-start px-3 h-9 rounded-full text-sm border ${
                     active
                       ? "bg-neutral-100 text-black border-neutral-100 dark:bg-neutral-900 dark:text-white dark:border-neutral-900"
-                      : "bg-white text-black dark:bg-neutral-800 dark:text-white/90"
+                      : isWatched
+                        ? "bg-neutral-300 text-neutral-500 dark:bg-neutral-700 dark:text-neutral-500 opacity-60"
+                        : "bg-white text-black dark:bg-neutral-800 dark:text-white/90"
                   }`}
                   aria-pressed={active}
+                  title={isWatched ? `Episodio ${e.num} (già visto)` : `Episodio ${e.num}`}
                 >
                   {"E" + e.num}
                 </button>
@@ -953,9 +1036,7 @@ export function EpisodePlayer({
             }}
           />
         ) : !selectedEpisode ? (
-          <div className="text-sm text-neutral-200 p-4 text-center">
-            Seleziona un episodio per iniziare la riproduzione.
-          </div>
+          <div className="text-sm text-neutral-200 p-4 text-center">Caricamento episodio...</div>
         ) : (
           <div className="text-sm text-neutral-200 p-4 text-center">{error || "Caricamento in corso..."}</div>
         )}

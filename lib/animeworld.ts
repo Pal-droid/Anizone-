@@ -430,7 +430,7 @@ export function parseRelated(html: string): SimpleEntry[] {
       const title = a.text().trim()
       const href = a.attr("href") || ""
       const img = e.find("img.thumb").attr("src") || ""
-      if (href && title) out.push({ title, href: absolutize(href), image: img })
+      if (href && title) out.push({ title, href: absolutize(href, ANIMESATURN_BASE), image: img })
     })
   return out
 }
@@ -505,11 +505,10 @@ export function parseLatestEpisodes(html: string): { [key: string]: SearchItem[]
 }
 
 export type ScheduleItem = {
-  id: string
-  time: string
   title: string
-  episode: string
   href: string
+  episode: string
+  time: string
   image?: string
 }
 
@@ -597,10 +596,18 @@ export function parseSchedule(html: string): DaySchedule[] {
 
       const $imgDiv = $item.find(".img-anime")
       const bgStyle = $imgDiv.attr("style") || ""
-      const imageMatch = bgStyle.match(/url$$['"]?([^'"]+?)['"]?$$/)
       let image = ""
-      if (imageMatch) {
-        image = imageMatch[1]
+      const urlStart = bgStyle.indexOf("url(")
+      if (urlStart !== -1) {
+        const urlContentStart = urlStart + 4
+        const urlEnd = bgStyle.indexOf(")", urlContentStart)
+        if (urlEnd !== -1) {
+          image = bgStyle.substring(urlContentStart, urlEnd).trim()
+          // Remove quotes if present
+          if ((image.startsWith("'") && image.endsWith("'")) || (image.startsWith('"') && image.endsWith('"'))) {
+            image = image.slice(1, -1)
+          }
+        }
       }
 
       if (title && href && episode && time) {
@@ -610,11 +617,10 @@ export function parseSchedule(html: string): DaySchedule[] {
         }
 
         items.push({
-          id: `${dayName}-${time}-${title}`,
-          time,
           title,
-          episode,
           href: absolutize(watchPath),
+          episode,
+          time,
           image,
         })
       }
@@ -813,5 +819,85 @@ export function parseAnimeSaturnMeta(html: string): AnimeSaturnMeta | null {
     description,
     related,
     anilistId,
+  }
+}
+
+export type ScheduleDay = {
+  day: string
+  animes: ScheduleAnime[]
+}
+
+export type ScheduleAnime = {
+  title: string
+  href: string
+  episode: string
+  time: string
+  image?: string
+}
+
+export async function scrapeSchedule(): Promise<ScheduleDay[]> {
+  try {
+    const response = await fetch("https://animeworld.ac/schedule", {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) AnizoneBot/1.0 Safari/537.36",
+        "Accept-Language": "it-IT,it;q=0.9",
+      },
+    })
+    const html = await response.text()
+    const $ = load(html)
+
+    const days: ScheduleDay[] = []
+
+    $(".calendario-giorno").each((_, dayEl) => {
+      const $day = $(dayEl)
+      const dayName = $day.find(".boxcalendario-label").text().trim() || ""
+
+      const animes: ScheduleAnime[] = []
+
+      $day.find(".boxcalendario").each((_, animeEl) => {
+        const $item = $(animeEl)
+        const $link = $item.find("a[title]").first()
+        const href = $link.attr("href") || ""
+        const title = $link.attr("title") || ""
+        const episode = $item.find(".episodio-calendario").text().trim()
+        const time = $item.find(".hour").text().replace("Trasmesso alle ", "").trim()
+
+        const $imgDiv = $item.find(".img-anime")
+        const bgStyle = $imgDiv.attr("style") || ""
+        let image = ""
+        const urlStart = bgStyle.indexOf("url(")
+        if (urlStart !== -1) {
+          const urlContentStart = urlStart + 4
+          const urlEnd = bgStyle.indexOf(")", urlContentStart)
+          if (urlEnd !== -1) {
+            image = bgStyle.substring(urlContentStart, urlEnd).trim()
+            // Remove quotes if present
+            if ((image.startsWith("'") && image.endsWith("'")) || (image.startsWith('"') && image.endsWith('"'))) {
+              image = image.slice(1, -1)
+            }
+          }
+        }
+
+        if (title && href && episode && time) {
+          animes.push({
+            title,
+            href,
+            episode,
+            time,
+            image,
+          })
+        }
+      })
+
+      if (dayName && animes.length > 0) {
+        days.push({ day: dayName, animes })
+      }
+    })
+
+    return days
+  } catch (error) {
+    console.error("Error scraping schedule:", error)
+    return []
   }
 }

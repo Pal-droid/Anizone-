@@ -7,6 +7,7 @@ export interface AniListUser {
     large?: string
     medium?: string
   }
+  bannerImage?: string
 }
 
 class AniListManager {
