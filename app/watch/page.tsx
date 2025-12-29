@@ -8,6 +8,7 @@ import { ArrowLeft } from "lucide-react"
 import { QuickListManager } from "@/components/quick-list-manager"
 import { WatchInfo } from "@/components/watch-info"
 import { deobfuscateUrl } from "@/lib/utils"
+import { FavoriteButton } from "@/components/favorite-button"
 
 type Source = { name: string; url: string; id: string }
 
@@ -37,6 +38,7 @@ export default function WatchPage() {
   const [nextEpisodeTime, setNextEpisodeTime] = useState<string>()
   const [loadingMeta, setLoadingMeta] = useState(true)
   const [loadingSources, setLoadingSources] = useState(true)
+  const [anilistId, setAnilistId] = useState<number | undefined>()
 
   useEffect(() => {
     if (!path) {
@@ -48,16 +50,15 @@ export default function WatchPage() {
 
     console.log("[v0] WatchPage - Loading with path:", path)
 
-    // Reset state for new anime
     setTitle("Anime")
     setSources([])
     setNextEpisodeDate(undefined)
     setNextEpisodeTime(undefined)
+    setAnilistId(undefined)
     setLoadingMeta(true)
     setLoadingSources(true)
     window.scrollTo({ top: 0, behavior: "smooth" })
 
-    // Fallback title from slug
     const slug = path.split("/").pop() || ""
     const namePart = path.split("/").at(2) || slug
     const name = namePart.replace(/\.([A-Za-z0-9_-]+)$/, "").replace(/-/g, " ")
@@ -71,7 +72,6 @@ export default function WatchPage() {
       try {
         let mappedSources: Source[] = []
 
-        // Try to get sources from sessionStorage (stored when clicking anime card from search)
         const storageKey = `anizone:sources:${path}`
         console.log("[v0] WatchPage - Looking for sources with key:", storageKey)
 
@@ -97,8 +97,6 @@ export default function WatchPage() {
           }
         }
 
-        // If no sources in sessionStorage, we can't proceed without proper source IDs
-        // The user needs to navigate from search to get proper sources
         if (mappedSources.length === 0) {
           console.log("[v0] WatchPage - No sources in sessionStorage - user should navigate from search")
         }
@@ -113,7 +111,6 @@ export default function WatchPage() {
 
     fetchSources()
 
-    // Fetch metadata
     const fetchMeta = async () => {
       try {
         const animepaheSource = sources.find((s) => s.name === "AnimePahe")
@@ -134,6 +131,7 @@ export default function WatchPage() {
             setNextEpisodeTime(data.meta.nextEpisodeTime)
           }
           if (data.meta.anilistId) {
+            setAnilistId(data.meta.anilistId)
             const metaKey = `anizone:meta:${path}`
             sessionStorage.setItem(metaKey, JSON.stringify({ anilistId: data.meta.anilistId }))
             console.log("[v0] Stored AniList ID in sessionStorage:", data.meta.anilistId)
@@ -177,6 +175,7 @@ export default function WatchPage() {
             </Link>
             <h1 className="text-lg font-bold truncate">{title}</h1>
           </div>
+          {anilistId && <FavoriteButton mediaId={anilistId} itemTitle={title} itemPath={path} size="md" />}
         </div>
       </header>
       <section className="px-4 py-4 md:py-6 space-y-6 overflow-x-hidden max-w-7xl mx-auto">

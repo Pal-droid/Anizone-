@@ -34,12 +34,38 @@ export const GET = withCors(async (request: NextRequest) => {
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get("id")
+    const comixHashId = searchParams.get("comix_hash_id")
+    const comixSlug = searchParams.get("comix_slug")
+    const worldId = searchParams.get("world_id")
+    const worldSlug = searchParams.get("world_slug")
 
     if (!id) {
       return NextResponse.json({ error: "Missing manga ID" }, { status: 400 })
     }
 
-    const decodedId = decodeURIComponent(id)
+    // Metadata is ONLY from MangaWorld scraping
+    const metadataId = worldId || id
+
+    const sources = []
+    if (comixHashId && comixSlug) {
+      sources.push({
+        name: "Comix",
+        slug: comixSlug,
+        id: "",
+        hash_id: comixHashId,
+      })
+    }
+    if (worldId && worldSlug) {
+      sources.push({
+        name: "World",
+        slug: worldSlug,
+        id: worldId,
+      })
+    }
+
+    console.log("[v0] Fetching metadata from MangaWorld scraping for ID:", metadataId)
+
+    const decodedId = decodeURIComponent(metadataId)
       .replace(/[^\w\s-]/g, "")
       .trim()
     if (!decodedId) {
@@ -241,6 +267,7 @@ export const GET = withCors(async (request: NextRequest) => {
       volumes,
       url: mangaUrl,
       anilistId,
+      ...(sources.length > 0 && { sources }),
     }
     return NextResponse.json(mangaData)
   } catch (error) {

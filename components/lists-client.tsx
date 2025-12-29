@@ -11,9 +11,10 @@ import { AniListAuthPanel } from "@/components/anilist-auth-panel"
 import { SlideOutMenu } from "@/components/slide-out-menu"
 import { EditListEntryDialog } from "@/components/edit-list-entry-dialog"
 import { ListsImportExport } from "@/components/lists-import-export"
-import { Film, BookOpen, Trash2, RefreshCw, Star, ArrowRight, Edit, Search } from "lucide-react"
+import { Film, BookOpen, Trash2, RefreshCw, Star, ArrowRight, Edit, Search, LogOut, Heart } from "lucide-react"
 import { useAniList } from "@/contexts/anilist-context"
 import { aniListManager } from "@/lib/anilist"
+import { FavoriteButton } from "@/components/favorite-button"
 
 type MediaType = "anime" | "manga"
 
@@ -45,16 +46,19 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export function ListsClient() {
-  const { user, isLoading } = useAniList()
+  const { user, isLoading, logout } = useAniList()
   const [activeMediaType, setActiveMediaType] = useState<MediaType>("anime")
   const [animeCollection, setAnimeCollection] = useState<any>(null)
   const [mangaCollection, setMangaCollection] = useState<any>(null)
+  const [favorites, setFavorites] = useState<{ anime: any[]; manga: any[] }>({ anime: [], manga: [] })
+  const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set())
   const [loading, setLoading] = useState(false)
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
   const [editingEntry, setEditingEntry] = useState<any>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -62,25 +66,99 @@ export function ListsClient() {
     } else {
       setAnimeCollection(null)
       setMangaCollection(null)
+      setFavorites({ anime: [], manga: [] })
+      setFavoriteIds(new Set())
     }
   }, [user])
 
   const loadLists = async () => {
     setLoading(true)
     try {
-      console.log("[v0] Loading lists for user:", user?.name)
-      const [animeData, mangaData] = await Promise.all([
+      const [animeData, mangaData, favoritesData] = await Promise.all([
         aniListManager.getUserAnimeList(),
         aniListManager.getUserMangaList(),
+        aniListManager.getUserFavorites(),
       ])
-      console.log("[v0] Anime collection:", animeData)
-      console.log("[v0] Manga collection:", mangaData)
+
       setAnimeCollection(animeData)
       setMangaCollection(mangaData)
+      setFavorites(favoritesData)
+
+      const allFavoriteIds = new Set<number>([
+        ...(favoritesData.anime || []).map((item: any) => item.id),
+        ...(favoritesData.manga || []).map((item: any) => item.id),
+      ])
+      setFavoriteIds(allFavoriteIds)
     } catch (error) {
-      console.error("[v0] Error loading lists:", error)
+      console.error("Error loading lists:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleFavoriteToggle = async (mediaId: number, isFavorite: boolean) => {
+    // Optimistic update
+    const newFavoriteIds = new Set(favoriteIds)
+    if (isFavorite) {
+      newFavoriteIds.add(mediaId)
+    } else {
+      newFavoriteIds.delete(mediaId)
+    }
+    setFavoriteIds(newFavoriteIds)
+
+    // Update favorites list optimistically
+    setFavorites((prev) => {
+      // Find the media in collections
+      let media = null
+      let type: "anime" | "manga" = "anime"
+
+      // Search in anime collection
+      if (animeCollection?.lists) {
+        for (const list of animeCollection.lists) {
+          const found = list.entries?.find((e: any) => e.media?.id === mediaId)
+          if (found) {
+            media = found.media
+            break
+          }
+        }
+      }
+
+      // Search in manga collection if not found
+      if (!media && mangaCollection?.lists) {
+        type = "manga"
+        for (const list of mangaCollection.lists) {
+          const found = list.entries?.find((e: any) => e.media?.id === mediaId)
+          if (found) {
+            media = found.media
+            break
+          }
+        }
+      }
+
+      if (!media) return prev
+
+      if (isFavorite) {
+        // Add to favorites
+        return {
+          ...prev,
+          [type]: [...(prev[type] || []), media],
+        }
+      } else {
+        // Remove from favorites
+        return {
+          ...prev,
+          [type]: prev[type].filter((item: any) => item.id !== mediaId),
+        }
+      }
+    })
+  }
+
+  const handleRemoveEntry = async (entryId: number) => {
+    const success = await aniListManager.deleteMediaListEntry(entryId)
+    if (success) {
+      loadLists()
+    } else {
+      alert("Errore durante la rimozione dell'elemento")
     }
   }
 
@@ -110,13 +188,11 @@ export function ListsClient() {
         ? aniListManager.updateAnimeEntry.bind(aniListManager)
         : aniListManager.updateMangaEntry.bind(aniListManager)
 
-    // Build mutation variables
     const variables: any = { mediaId: editingEntry.media.id }
     if (updates.status) variables.status = updates.status
     if (updates.progress !== undefined) variables.progress = updates.progress
     if (updates.score !== undefined) variables.score = updates.score
 
-    // Use GraphQL mutation directly for full update support
     try {
       const mutation = `
         mutation ($mediaId: Int, $status: MediaListStatus, $progress: Int, $score: Float) {
@@ -132,7 +208,7 @@ export function ListsClient() {
       const response = await fetch("/api/anilist/graphql", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: mutation, variables }),
+        body: JSON.JSON.stringify({ query: mutation, variables }),
       })
 
       const data = await response.json()
@@ -166,14 +242,29 @@ export function ListsClient() {
   }
 
   const filterBySearch = (entry: any) => {
-    if (!searchQuery.trim()) return true
+    if (!searchQuery) return true
+    const searchLower = searchQuery.toLowerCase()
+    return (
+      entry.media?.title?.romaji?.toLowerCase().includes(searchLower) ||
+      entry.media?.title?.english?.toLowerCase().includes(searchLower) ||
+      entry.media?.title?.native?.toLowerCase().includes(searchLower)
+    )
+  }
 
-    const query = searchQuery.toLowerCase()
-    const romajiTitle = entry.media.title.romaji?.toLowerCase() || ""
-    const englishTitle = entry.media.title.english?.toLowerCase() || ""
-    const nativeTitle = entry.media.title.native?.toLowerCase() || ""
+  const filterFavoritesBySearch = (item: any) => {
+    if (!searchQuery) return true
+    const searchLower = searchQuery.toLowerCase()
+    return (
+      item.title?.romaji?.toLowerCase().includes(searchLower) ||
+      item.title?.english?.toLowerCase().includes(searchLower) ||
+      item.title?.native?.toLowerCase().includes(searchLower)
+    )
+  }
 
-    return romajiTitle.includes(query) || englishTitle.includes(query) || nativeTitle.includes(query)
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+    await logout()
+    setIsLoggingOut(false)
   }
 
   if (isLoading) {
@@ -219,6 +310,8 @@ export function ListsClient() {
 
   const currentCollection = activeMediaType === "anime" ? animeCollection : mangaCollection
   const statusMap = activeMediaType === "anime" ? ANIME_STATUS_MAP : MANGA_STATUS_MAP
+  const currentFavorites = activeMediaType === "anime" ? favorites.anime : favorites.manga
+  const filteredFavorites = currentFavorites.filter(filterFavoritesBySearch)
 
   return (
     <div className="min-h-screen bg-background">
@@ -234,6 +327,16 @@ export function ListsClient() {
             priority
           />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
+          <Button
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            variant="secondary"
+            size="sm"
+            className="absolute top-4 right-4 gap-2 shadow-lg bg-background/80 backdrop-blur-sm hover:bg-background/90"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline">{isLoggingOut ? "Uscendo..." : "Logout"}</span>
+          </Button>
           <div className="absolute bottom-4 left-4 md:left-8 flex items-end gap-4">
             {user.avatar?.large && (
               <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden ring-4 ring-background shadow-xl">
@@ -259,6 +362,18 @@ export function ListsClient() {
           {!user?.bannerImage && <h1 className="text-2xl font-bold">Le Mie Liste</h1>}
           {user?.bannerImage && <div />}
           <div className="flex items-center gap-2">
+            {!user?.bannerImage && (
+              <Button
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                variant="outline"
+                size="sm"
+                className="gap-2 shrink-0 bg-transparent"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline">{isLoggingOut ? "Uscendo..." : "Logout"}</span>
+              </Button>
+            )}
             <ListsImportExport
               animeCollection={animeCollection}
               mangaCollection={mangaCollection}
@@ -338,6 +453,19 @@ export function ListsClient() {
                 <div className="sticky top-[105px] z-20 mb-6 bg-background/95 backdrop-blur-sm border-y border-border/50 -mx-4 px-4 py-3">
                   <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
                     <span className="text-sm font-medium text-muted-foreground shrink-0">Salta a:</span>
+                    {currentFavorites.length > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => scrollToSection("FAVORITES")}
+                        className="shrink-0 gap-2 bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20 hover:bg-opacity-20"
+                      >
+                        Preferiti
+                        <Badge variant="secondary" className="bg-background/50 text-xs px-1.5">
+                          {currentFavorites.length}
+                        </Badge>
+                      </Button>
+                    )}
                     {currentCollection.lists?.map((list: any) => (
                       <Button
                         key={list.status}
@@ -356,6 +484,120 @@ export function ListsClient() {
                 </div>
 
                 <div className="space-y-8">
+                  {currentFavorites.length > 0 && (
+                    <Card
+                      className="overflow-hidden"
+                      ref={(el) => {
+                        sectionRefs.current["FAVORITES"] = el
+                      }}
+                    >
+                      <div className="p-6 border-b border-border/50 bg-muted/20">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Heart className="h-5 w-5 text-pink-500 fill-pink-500" />
+                            <h2 className="text-xl font-semibold">Preferiti</h2>
+                            <Badge
+                              variant="secondary"
+                              className="bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20 border"
+                            >
+                              {filteredFavorites.length}
+                            </Badge>
+                          </div>
+                          {filteredFavorites.length > 6 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleSection("FAVORITES")}
+                              className="gap-2 text-primary hover:text-primary/80"
+                            >
+                              {expandedSections["FAVORITES"] ? "Mostra meno" : "Guarda tutti"}
+                              <ArrowRight
+                                className={`h-4 w-4 transition-transform ${expandedSections["FAVORITES"] ? "rotate-90" : ""}`}
+                              />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="p-6">
+                        {filteredFavorites.length === 0 ? (
+                          <p className="text-center py-8 text-muted-foreground text-sm">
+                            {searchQuery ? "Nessun risultato trovato per la ricerca" : "Nessun preferito"}
+                          </p>
+                        ) : (
+                          <div
+                            className={`${
+                              expandedSections["FAVORITES"]
+                                ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"
+                                : "flex gap-4 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory"
+                            }`}
+                          >
+                            {(expandedSections["FAVORITES"] ? filteredFavorites : filteredFavorites.slice(0, 6)).map(
+                              (item: any) => (
+                                <div
+                                  key={item.id}
+                                  className={`group relative ${!expandedSections["FAVORITES"] ? "shrink-0 w-[160px] snap-start" : ""}`}
+                                >
+                                  <Link
+                                    href={`https://anilist.co/${activeMediaType}/${item.id}`}
+                                    target="_blank"
+                                    className="block"
+                                  >
+                                    <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-muted ring-1 ring-border/50 transition-all duration-300 group-hover:ring-2 group-hover:ring-pink-500/50 group-hover:shadow-lg group-hover:shadow-pink-500/10">
+                                      <Image
+                                        src={item.coverImage.large || item.coverImage.medium}
+                                        alt={item.title.romaji}
+                                        fill
+                                        className="object-cover transition-transform duration-500 group-hover:scale-110"
+                                      />
+                                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                    </div>
+
+                                    <div className="mt-3 space-y-2 h-[60px] flex flex-col">
+                                      <h3 className="text-sm font-medium line-clamp-2 leading-snug group-hover:text-pink-500 transition-colors flex-1">
+                                        {item.title.romaji}
+                                      </h3>
+                                    </div>
+                                  </Link>
+
+                                  <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                                    <FavoriteButton
+                                      mediaId={item.id}
+                                      itemTitle={item.title.romaji}
+                                      size="sm"
+                                      initialIsFavorite={favoriteIds.has(item.id)}
+                                      onToggle={async () => {
+                                        // Reload the lists to update favorites
+                                        await loadLists()
+                                      }}
+                                    />
+                                    <Button
+                                      size="icon"
+                                      variant="secondary"
+                                      className="h-8 w-8 shadow-lg hover:scale-110 bg-background/90 backdrop-blur-sm"
+                                      onClick={(e) => {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+                                        // Find the entry in the current collection
+                                        const entry = currentCollection?.lists
+                                          ?.flatMap((list: any) => list.entries)
+                                          .find((e: any) => e.media.id === item.id)
+                                        if (entry) {
+                                          handleEditEntry(entry)
+                                        }
+                                      }}
+                                    >
+                                      <Edit className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ),
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  )}
+
                   {currentCollection.lists?.map((list: any) => {
                     const filteredEntries = list.entries.filter(filterBySearch)
                     const isExpanded = expandedSections[list.status]
@@ -470,12 +712,24 @@ export function ListsClient() {
                                     </Link>
 
                                     <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                                      <FavoriteButton
+                                        mediaId={entry.media.id}
+                                        itemId={`anilist-${entry.media.id}`}
+                                        itemTitle={entry.media.title.romaji}
+                                        size="sm"
+                                        initialIsFavorite={favoriteIds.has(entry.media.id)}
+                                        onToggle={async () => {
+                                          // Reload the lists to update favorites
+                                          await loadLists()
+                                        }}
+                                      />
                                       <Button
                                         size="icon"
                                         variant="secondary"
                                         className="h-8 w-8 shadow-lg hover:scale-110 bg-background/90 backdrop-blur-sm"
                                         onClick={(e) => {
                                           e.preventDefault()
+                                          e.stopPropagation()
                                           handleEditEntry(entry)
                                         }}
                                       >

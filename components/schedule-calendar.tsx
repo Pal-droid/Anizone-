@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import type React from "react"
 import { Button } from "@/components/ui/button"
-import { Play, Clock, CalendarIcon, ImageIcon } from "lucide-react"
+import { Play, Clock, CalendarIcon, ImageIcon, HelpCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
 type ScheduleItem = {
@@ -29,14 +29,22 @@ export function ScheduleCalendar() {
   const loadSchedule = async () => {
     setLoading(true)
     try {
+      console.log("[v0] Loading schedule from API...")
       const response = await fetch("/api/schedule")
+      console.log("[v0] Schedule API response status:", response.status)
+
       const data = await response.json()
+      console.log("[v0] Schedule API data:", data)
+
       if (data.ok) {
+        console.log("[v0] Setting schedule with", data.schedule?.length || 0, "days")
         setSchedule(data.schedule)
         setDateRange(data.dateRange || "")
+      } else {
+        console.error("[v0] Schedule API returned error:", data.error)
       }
     } catch (error) {
-      console.error("Error loading schedule:", error)
+      console.error("[v0] Error loading schedule:", error)
     } finally {
       setLoading(false)
     }
@@ -47,9 +55,7 @@ export function ScheduleCalendar() {
 
     try {
       // Fetch anime metadata first
-      const metaResponse = await fetch(
-        `/api/anime-meta?path=${encodeURIComponent(item.href)}`
-      )
+      const metaResponse = await fetch(`/api/anime-meta?path=${encodeURIComponent(item.href)}`)
       const metaData = await metaResponse.json()
 
       if (metaData.ok && metaData.source) {
@@ -71,24 +77,22 @@ export function ScheduleCalendar() {
         ]
 
         // Store sources in sessionStorage
-        sessionStorage.setItem(
-          `anizone:sources:${item.href}`,
-          JSON.stringify(sources)
-        )
+        sessionStorage.setItem(`anizone:sources:${item.href}`, JSON.stringify(sources))
       }
     } catch (error) {
-      console.error(
-        "[v1] Failed to fetch metadata or episodes for calendar anime:",
-        error
-      )
+      console.error("[v1] Failed to fetch metadata or episodes for calendar anime:", error)
     }
 
     // Obfuscate path for watch page
-    const obfuscatedPath = btoa(item.href).replace(/[+/=]/g, (m) => ({
-      "+": "-",
-      "/": "_",
-      "=": "",
-    }[m] || m))
+    const obfuscatedPath = btoa(item.href).replace(
+      /[+/=]/g,
+      (m) =>
+        ({
+          "+": "-",
+          "/": "_",
+          "=": "",
+        })[m] || m,
+    )
     window.location.href = `/watch?p=${obfuscatedPath}`
   }
 
@@ -122,6 +126,9 @@ export function ScheduleCalendar() {
     )
   }
 
+  const regularSchedule = schedule.filter((day) => day.date !== "indeterminate")
+  const indeterminateSchedule = schedule.find((day) => day.date === "indeterminate")
+
   return (
     <div className="space-y-8">
       {dateRange && (
@@ -132,7 +139,7 @@ export function ScheduleCalendar() {
       )}
 
       <div className="space-y-10">
-        {schedule.map((daySchedule) => (
+        {regularSchedule.map((daySchedule) => (
           <div key={daySchedule.dayName} className="space-y-4">
             {/* Day header */}
             <div className="flex items-center gap-3 sticky top-[57px] bg-background/95 backdrop-blur-md py-3 z-10">
@@ -154,9 +161,9 @@ export function ScheduleCalendar() {
               </div>
             ) : (
               <div className="grid gap-3">
-                {daySchedule.items.map((item) => (
+                {daySchedule.items.map((item, idx) => (
                   <div
-                    key={item.id}
+                    key={`${item.title}-${idx}`}
                     onClick={(e) => handleAnimeClick(item, e)}
                     className="group surface cursor-pointer hover:shadow-lg transition-all duration-300 overflow-hidden"
                   >
@@ -165,7 +172,7 @@ export function ScheduleCalendar() {
                       <div className="relative w-24 h-32 flex-shrink-0 rounded-xl overflow-hidden bg-muted">
                         {item.image ? (
                           <img
-                            src={item.image}
+                            src={item.image || "/placeholder.svg"}
                             alt={item.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             onError={(e) => {
@@ -216,6 +223,81 @@ export function ScheduleCalendar() {
             )}
           </div>
         ))}
+
+        {indeterminateSchedule && indeterminateSchedule.items.length > 0 && (
+          <div className="space-y-4 pt-8 border-t border-border">
+            <div className="flex items-center gap-3 sticky top-[57px] bg-background/95 backdrop-blur-md py-3 z-10">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                <HelpCircle className="w-5 h-5 text-amber-500" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">{indeterminateSchedule.dayName}</h2>
+                <p className="text-xs text-muted-foreground">Data di uscita non ancora confermata</p>
+              </div>
+            </div>
+
+            <div className="grid gap-3">
+              {indeterminateSchedule.items.map((item, idx) => (
+                <div
+                  key={`indeterminate-${item.title}-${idx}`}
+                  onClick={(e) => handleAnimeClick(item, e)}
+                  className="group surface cursor-pointer hover:shadow-lg transition-all duration-300 overflow-hidden"
+                >
+                  <div className="flex gap-4 p-4">
+                    {/* Thumbnail */}
+                    <div className="relative w-24 h-32 flex-shrink-0 rounded-xl overflow-hidden bg-muted">
+                      {item.image ? (
+                        <img
+                          src={item.image || "/placeholder.svg"}
+                          alt={item.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement
+                            target.src = "/placeholder.svg"
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                          <ImageIcon className="w-8 h-8 text-primary/40" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
+                      <div>
+                        <h3 className="font-semibold text-base leading-snug line-clamp-2 mb-2 group-hover:text-primary transition-colors">
+                          {item.title}
+                        </h3>
+                        <p className="text-sm text-muted-foreground mb-2">{item.episode}</p>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <Badge variant="outline" className="text-xs border-amber-500/50 text-amber-600">
+                          <HelpCircle className="w-3 h-3 mr-1" />
+                          Data NAC
+                        </Badge>
+
+                        <Button
+                          size="sm"
+                          className="rounded-full group-hover:scale-105 transition-transform"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleAnimeClick(item, e)
+                          }}
+                        >
+                          <Play className="w-3.5 h-3.5 mr-1" />
+                          Guarda
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {schedule.length === 0 && !loading && (

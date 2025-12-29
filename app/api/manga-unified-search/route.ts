@@ -31,23 +31,45 @@ export async function GET(request: NextRequest) {
     console.log("[v0] Unified manga API response:", data.length, "results")
 
     const transformedResults = data.map((item: any) => {
-      // Find the World source for the mangaId
-      const worldSource = item.sources?.find((s: any) => s.name === "World")
-      const mangaId = worldSource?.id || item.id || ""
+      const sources = []
+
+      if (item.sources && Array.isArray(item.sources)) {
+        item.sources.forEach((source: any) => {
+          if (source.name === "Comix") {
+            sources.push({
+              name: "Comix",
+              slug: source.slug || item.slug,
+              id: source.id || item.id,
+              hash_id: source.hash_id || item.hash_id,
+            })
+          } else if (source.name === "World") {
+            sources.push({
+              name: "World",
+              slug: source.slug,
+              id: source.id,
+            })
+          }
+        })
+      }
+
+      const worldSource = sources.find((s) => s.name === "World")
+      const comixSource = sources.find((s) => s.name === "Comix")
+
+      const mangaId = worldSource?.id || comixSource?.hash_id || item.hash_id || item.id || ""
 
       return {
         title: item.title || "",
-        url: item.slug ? `/manga/${item.slug}` : "",
-        image: item.poster || "", // Use poster field from unified API
+        url: item.slug ? `/manga/${mangaId}` : "",
+        image: item.poster || "",
         type: item.type || "",
         status: item.status || "",
         author: "",
         artist: "",
         genres: [],
         story: item.description || "",
-        mangaId: mangaId, // Use MangaWorld ID from sources
+        mangaId: mangaId,
         mangaSlug: item.slug || "",
-        sources: item.sources || [], // Store all sources
+        sources: sources,
       }
     })
 

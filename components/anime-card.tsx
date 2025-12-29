@@ -4,6 +4,9 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { cn, obfuscateUrl } from "@/lib/utils"
 import Link from "next/link"
+import { FavoriteButton } from "@/components/favorite-button"
+import { ListEditButton } from "@/components/list-edit-button"
+import { useState } from "react"
 
 type Source = {
   name: string
@@ -22,8 +25,8 @@ type Props = {
 }
 
 export function AnimeCard({ title, href, image, isDub, className, sources, has_multi_servers }: Props) {
+  const [isHovered, setIsHovered] = useState(false)
   const path = (() => {
-    // First try to construct path from AnimeWorld source if available
     if (sources && sources.length > 0) {
       const awSource = sources.find((s) => s.name === "AnimeWorld")
       if (awSource?.id) {
@@ -32,14 +35,12 @@ export function AnimeCard({ title, href, image, isDub, className, sources, has_m
       }
     }
 
-    // Fallback to href parsing
     try {
       const u = new URL(href, "https://dummy.local")
       const parts = u.pathname.split("/").filter(Boolean)
       if (parts.length >= 2 && parts[0] === "play") {
         return `/${parts[0]}/${parts[1]}`
       }
-      // Avoid returning bare "/" - at least try to extract something meaningful
       if (u.pathname && u.pathname !== "/") {
         return u.pathname
       }
@@ -49,12 +50,10 @@ export function AnimeCard({ title, href, image, isDub, className, sources, has_m
         return `/${parts[0]}/${parts[1]}`
       }
       if (parts.length > 0) {
-        // If we have any parts, construct a /play/ path
         return `/play/${parts[parts.length - 1]}`
       }
     }
 
-    // Last resort: return href as-is if it's not just "/"
     return href && href !== "/" ? (href.startsWith("/") ? href : `/${href}`) : "/play/unknown"
   })()
 
@@ -112,7 +111,13 @@ export function AnimeCard({ title, href, image, isDub, className, sources, has_m
   const obfuscatedPath = obfuscateUrl(path)
 
   return (
-    <Link href={`/watch?p=${obfuscatedPath}`} className={cn("block", className)} onClick={handleClick}>
+    <Link
+      href={`/watch?p=${obfuscatedPath}`}
+      className={cn("block", className)}
+      onClick={handleClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       <Card
         className={cn(
           "group cursor-pointer h-full overflow-hidden",
@@ -131,6 +136,13 @@ export function AnimeCard({ title, href, image, isDub, className, sources, has_m
             />
 
             <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+
+            {isHovered && (
+              <div className="absolute top-3 right-3 flex gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                <FavoriteButton itemTitle={title} itemPath={path} size="sm" />
+                <ListEditButton itemId={path} itemTitle={title} itemImage={displayImage} itemPath={path} size="sm" />
+              </div>
+            )}
 
             {showBadges && (
               <div className="absolute top-3 left-3 flex gap-1.5">

@@ -1,5 +1,7 @@
 "use client"
 
+import { toast } from "@/hooks/use-toast"
+
 export interface AniListUser {
   id: number
   name: string
@@ -106,13 +108,28 @@ class AniListManager {
       body: JSON.stringify({ query, variables }),
     })
 
+    const data = await response.json()
+
+    if (response.status === 429 || data.rateLimited) {
+      const resetInSeconds = data.resetInSeconds || 60
+      const resetInMinutes = Math.ceil(resetInSeconds / 60)
+
+      toast({
+        title: "Limite di richieste raggiunto",
+        description: `Hai raggiunto il limite di 90 richieste al minuto. Riprova tra ${resetInMinutes} ${resetInMinutes === 1 ? "minuto" : "minuti"}.`,
+        variant: "destructive",
+        duration: 5000,
+      })
+
+      throw new Error("Rate limit exceeded")
+    }
+
     if (!response.ok) {
       throw new Error("Failed to make GraphQL request")
     }
 
-    const data = await response.json()
-
     if (data.errors) {
+      console.error("AniList API errors:", data.errors)
       throw new Error("AniList API error")
     }
 
@@ -228,6 +245,13 @@ class AniListManager {
       return true
     } catch (error) {
       console.error("[v0] Error updating anime entry:", error)
+      if (error instanceof Error && !error.message.includes("Rate limit")) {
+        toast({
+          title: "Errore",
+          description: "Impossibile aggiornare l'anime. Riprova più tardi.",
+          variant: "destructive",
+        })
+      }
       return false
     }
   }
@@ -251,6 +275,13 @@ class AniListManager {
       return true
     } catch (error) {
       console.error("[v0] Error updating manga entry:", error)
+      if (error instanceof Error && !error.message.includes("Rate limit")) {
+        toast({
+          title: "Errore",
+          description: "Impossibile aggiornare il manga. Riprova più tardi.",
+          variant: "destructive",
+        })
+      }
       return false
     }
   }
@@ -272,6 +303,13 @@ class AniListManager {
       return true
     } catch (error) {
       console.error("[v0] Error deleting anime entry:", error)
+      if (error instanceof Error && !error.message.includes("Rate limit")) {
+        toast({
+          title: "Errore",
+          description: "Impossibile eliminare l'elemento. Riprova più tardi.",
+          variant: "destructive",
+        })
+      }
       return false
     }
   }
@@ -310,6 +348,138 @@ class AniListManager {
     } catch (error) {
       console.error("[v0] Error fetching media list status:", error)
       return { status: null, progress: 0 }
+    }
+  }
+
+  async checkFavoriteStatus(mediaId: number): Promise<boolean> {
+    if (!this.user) return false
+
+    const query = `
+      query ($userId: Int) {
+        User(id: $userId) {
+          favourites {
+            anime {
+              nodes {
+                id
+              }
+            }
+            manga {
+              nodes {
+                id
+              }
+            }
+          }
+        }
+      }
+    `
+
+    try {
+      const data = await this.makeGraphQLRequest(query, { userId: this.user.id })
+      const animeIds = data.data?.User?.favourites?.anime?.nodes?.map((n: any) => n.id) || []
+      const mangaIds = data.data?.User?.favourites?.manga?.nodes?.map((n: any) => n.id) || []
+      return [...animeIds, ...mangaIds].includes(mediaId)
+    } catch (error) {
+      console.error("Error checking favorite status:", error)
+      return false
+    }
+  }
+
+  async toggleFavorite(mediaId: number, isFavorite: boolean): Promise<boolean> {
+    if (!this.user) return false
+
+    const mutation = `
+      mutation ($animeId: Int, $mangaId: Int) {
+        ToggleFavourite(animeId: $animeId, mangaId: $mangaId) {
+          anime {
+            nodes {
+              id
+            }
+          }
+          manga {
+            nodes {
+              id
+            }
+          }
+        }
+      }
+    `
+
+    try {
+      // We need to determine if this is anime or manga
+      // For now, try anime first, then manga if it fails
+      try {
+        await this.makeGraphQLRequest(mutation, { animeId: mediaId })
+        return true
+      } catch {
+        await this.makeGraphQLRequest(mutation, { mangaId: mediaId })
+        return true
+      }
+    } catch (error) {
+      console.error("[v0] Error toggling favorite:", error)
+      if (error instanceof Error && !error.message.includes("Rate limit")) {
+        toast({
+          title: "Errore",
+          description: "Impossibile aggiornare i preferiti. Riprova più tardi.",
+          variant: "destructive",
+        })
+      }
+      return false
+    }
+  }
+
+  async getUserFavorites(): Promise<{ anime: any[]; manga: any[] }> {
+    if (!this.user) return { anime: [], manga: [] }
+
+    const query = `
+      query ($userId: Int) {
+        User(id: $userId) {
+          favourites {
+            anime {
+              nodes {
+                id
+                title {
+                  romaji
+                  english
+                  native
+                }
+                coverImage {
+                  large
+                  medium
+                }
+                episodes
+                format
+              }
+            }
+            manga {
+              nodes {
+                id
+                title {
+                  romaji
+                  english
+                  native
+                }
+                coverImage {
+                  large
+                  medium
+                }
+                chapters
+                format
+              }
+            }
+          }
+        }
+      }
+    `
+
+    try {
+      const data = await this.makeGraphQLRequest(query, { userId: this.user.id })
+      return {
+        anime: data.data?.User?.favourites?.anime?.nodes || [],
+        manga: data.data?.User?.favourites?.manga?.nodes || [],
+      }
+    } catch (error) {
+      console.error("[v0] Error fetching favorites:", error)
+      return { anime: [], manga: [] }
     }
   }
 }

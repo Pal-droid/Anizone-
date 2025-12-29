@@ -18,11 +18,14 @@ type DaySchedule = {
 
 export async function GET(request: NextRequest) {
   try {
+    console.log("[v0] Schedule API called")
     let schedule: DaySchedule[] = []
     let dateRange = ""
 
     try {
+      console.log("[v0] Fetching schedule data...")
       schedule = await fetchScheduleForDate()
+      console.log("[v0] Schedule fetched, items:", schedule.length)
 
       if (schedule.length > 0) {
         const firstDate = schedule[0].date
@@ -81,7 +84,7 @@ export async function GET(request: NextRequest) {
         dateRange = `${formatDate(startOfWeek)} - ${formatDate(endOfWeek)}`
       }
     } catch (error) {
-      console.error("Failed to fetch real schedule data:", error)
+      console.error("[v0] Failed to fetch real schedule data:", error)
       // Keep empty schedule and default date range
       const now = new Date()
       const startOfWeek = new Date(now)
@@ -110,13 +113,14 @@ export async function GET(request: NextRequest) {
       dateRange = `${formatDate(startOfWeek)} - ${formatDate(endOfWeek)}`
     }
 
+    console.log("[v0] Returning schedule response with", schedule.length, "days")
     return NextResponse.json({
       ok: true,
       schedule,
       dateRange,
     })
   } catch (error) {
-    console.error("Schedule API error:", error)
+    console.error("[v0] Schedule API error:", error)
     return NextResponse.json({ ok: false, error: "Failed to fetch schedule" }, { status: 500 })
   }
 }

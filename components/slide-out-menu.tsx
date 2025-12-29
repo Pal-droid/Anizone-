@@ -3,9 +3,11 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation" // Added this
-import { Menu, X, Film, BookOpen, Search, List, Calendar, Bug, ChevronRight } from "lucide-react"
+import { Menu, X, Film, BookOpen, Search, List, Calendar, Bug, ChevronRight, User, LogOut } from "lucide-react"
 import { BugReportDialog } from "@/components/bug-report-dialog"
 import { cn } from "@/lib/utils"
+import { useAniList } from "@/contexts/anilist-context"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 interface SlideOutMenuProps {
   hideButton?: boolean
@@ -21,6 +23,8 @@ export const SlideOutMenu = forwardRef<SlideOutMenuHandle, SlideOutMenuProps>(({
   const [isOpen, setIsOpen] = useState(false)
   const [showBugReport, setShowBugReport] = useState(false)
   const [faviconError, setFaviconError] = useState(false)
+  const { user, logout, isLoading } = useAniList()
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   useImperativeHandle(ref, () => ({
     open: () => setIsOpen(true),
@@ -42,7 +46,6 @@ export const SlideOutMenu = forwardRef<SlideOutMenuHandle, SlideOutMenuProps>(({
     { href: "/schedule", icon: Calendar, label: "Calendario", description: "Prossime uscite", key: "schedule" },
   ]
 
-  // This handles the logic correctly for the root path
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/"
     return pathname.startsWith(href)
@@ -50,6 +53,13 @@ export const SlideOutMenu = forwardRef<SlideOutMenuHandle, SlideOutMenuProps>(({
 
   const handleBugReport = () => {
     setShowBugReport(true)
+    setIsOpen(false)
+  }
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+    await logout()
+    setIsLoggingOut(false)
     setIsOpen(false)
   }
 
@@ -113,6 +123,32 @@ export const SlideOutMenu = forwardRef<SlideOutMenuHandle, SlideOutMenuProps>(({
           </div>
         </div>
 
+        {/* User Info Section */}
+        {user && !isLoading && (
+          <div className="px-3 pt-3 pb-2">
+            <Link
+              href="/profile"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer group"
+            >
+              <Avatar className="w-10 h-10">
+                <AvatarImage src={user.avatar?.large || user.avatar?.medium || undefined} />
+                <AvatarFallback>
+                  <User size={18} />
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <span className="block font-medium text-sm truncate">{user.name}</span>
+                <span className="block text-xs text-muted-foreground">Account AniList</span>
+              </div>
+              <ChevronRight
+                size={16}
+                className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-0.5"
+              />
+            </Link>
+          </div>
+        )}
+
         {/* Navigation */}
         <nav className="flex-1 py-3 px-3 overflow-y-auto scrollbar-hide">
           <div className="space-y-1">
@@ -154,6 +190,27 @@ export const SlideOutMenu = forwardRef<SlideOutMenuHandle, SlideOutMenuProps>(({
           </div>
 
           <div className="my-4 mx-4 h-px bg-border" />
+
+          {/* Logout Button */}
+          {user && !isLoading && (
+            <>
+              <button
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className="flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-200 w-full text-foreground hover:bg-muted/50 group ripple disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-600 dark:text-orange-400">
+                  <LogOut size={20} />
+                </div>
+                <div className="flex-1 text-left">
+                  <span className="block font-medium text-sm">{isLoggingOut ? "Uscendo..." : "Logout"}</span>
+                  <span className="block text-xs text-muted-foreground mt-0.5">Disconnetti account</span>
+                </div>
+              </button>
+
+              <div className="my-4 mx-4 h-px bg-border" />
+            </>
+          )}
 
           {/* Bug Report */}
           <button

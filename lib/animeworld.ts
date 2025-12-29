@@ -518,6 +518,80 @@ export type DaySchedule = {
   items: ScheduleItem[]
 }
 
+export function parseSchedule(html: string): DaySchedule[] {
+  console.log("[v0] Starting parseSchedule...");
+  const $ = load(html);
+  const schedule: DaySchedule[] = [];
+
+  $(".costr").each((dayIndex, dayHeader) => {
+    const $dayHeader = $(dayHeader);
+    const dayName = $dayHeader.find(".day-header").text().trim();
+
+    if (!dayName) return;
+
+    const items: ScheduleItem[] = [];
+    const $scheduleSection = $dayHeader.next(".calendario-aw");
+
+    $scheduleSection.find(".widget.boxcalendario").each((itemIndex, el) => {
+      const $item = $(el);
+
+      const $link = $item.find("a.name");
+      const href = $link.attr("href") || "";
+      const title = $link.attr("title") || $link.text().trim() || "";
+      const episode = $item.find(".episodio-calendario").text().trim();
+      const timeText = $item.find(".hour").text().trim();
+      const time = timeText.replace("Trasmesso alle ", "").trim() || "NAC";
+
+      // Fixed Thumbnail Extraction
+      const $imgDiv = $item.find(".img-anime");
+      const bgStyle = $imgDiv.attr("style") || "";
+      let image = "";
+
+      // Regex matches url('...'), url("..."), or url(...)
+      const urlMatch = bgStyle.match(/url\((['"]?)(.*?)\1\)/);
+      if (urlMatch && urlMatch[2]) {
+        image = urlMatch[2].trim();
+      }
+
+      if (title && (href || episode)) {
+        let watchPath = href;
+        if (href.startsWith("/play/")) {
+          watchPath = href.replace(/\/+/g, "/");
+        }
+
+        items.push({
+          title,
+          href: absolutize(watchPath),
+          episode,
+          time,
+          image,
+        });
+      }
+    });
+
+    const isIndeterminate = dayName.toUpperCase().includes("INDETERMINATE");
+
+    if (!isIndeterminate) {
+      items.sort((a, b) => {
+        const parseTime = (timeStr: string) => {
+          if (timeStr === "NAC") return 9999;
+          const [hours, minutes] = timeStr.split(":").map((n) => parseInt(n, 10));
+          return (hours || 0) * 60 + (minutes || 0);
+        };
+        return parseTime(a.time) - parseTime(b.time);
+      });
+    }
+
+    schedule.push({
+      date: isIndeterminate ? "indeterminate" : new Date().toISOString().split("T")[0],
+      dayName,
+      items,
+    });
+  });
+
+  return schedule;
+}
+
 export function formatDateRange(startDate: Date | null, endDate: Date | null): string {
   const months = [
     "gennaio",
@@ -541,121 +615,6 @@ export function formatDateRange(startDate: Date | null, endDate: Date | null): s
     return `${startDay} ${startMonth} - ${endDay} ${endMonth}`
   }
   return ""
-}
-
-export function parseSchedule(html: string): DaySchedule[] {
-  const $ = load(html)
-  const schedule: DaySchedule[] = []
-
-  // Extract date range text
-  const dateRangeText = $(".widget-schedule-page .widget-body p").first().text().trim()
-
-  // Parse start and end dates
-  let startDate: Date | null = null
-  let endDate: Date | null = null
-  if (dateRangeText) {
-    const dateMatch = dateRangeText.match(/(\d+\s+\w+)\s*-\s*(\d+\s+\w+)/)
-    if (dateMatch) {
-      startDate = parseItalianDate(dateMatch[1])
-      endDate = parseItalianDate(dateMatch[2])
-    }
-  }
-
-  // Map day names to their order (Italian week: Monday to Sunday)
-  const dayOrder: { [key: string]: number } = {
-    LUNEDÌ: 0,
-    MARTEDÌ: 1,
-    MERCOLEDÌ: 2,
-    GIOVEDÌ: 3,
-    VENERDÌ: 4,
-    SABATO: 5,
-    DOMENICA: 6,
-  }
-
-  // Process each day section
-  $(".costr").each((_, dayHeader) => {
-    const $dayHeader = $(dayHeader)
-    const dayName = $dayHeader.find(".day-header").text().trim().toUpperCase()
-
-    // Skip indeterminate releases
-    if (!dayName || dayName === "USCITE INDETERMINATE") return
-
-    const items: ScheduleItem[] = []
-
-    const $scheduleSection = $dayHeader.next(".calendario-aw")
-
-    $scheduleSection.find(".widget.boxcalendario").each((_, el) => {
-      const $item = $(el)
-
-      const $link = $item.find("a").first()
-      const href = $link.attr("href") || ""
-      const title = $link.attr("title") || ""
-
-      const episode = $item.find(".episodio-calendario").text().trim()
-      const time = $item.find(".hour").text().replace("Trasmesso alle ", "").trim()
-
-      const $imgDiv = $item.find(".img-anime")
-      const bgStyle = $imgDiv.attr("style") || ""
-      let image = ""
-      const urlStart = bgStyle.indexOf("url(")
-      if (urlStart !== -1) {
-        const urlContentStart = urlStart + 4
-        const urlEnd = bgStyle.indexOf(")", urlContentStart)
-        if (urlEnd !== -1) {
-          image = bgStyle.substring(urlContentStart, urlEnd).trim()
-          // Remove quotes if present
-          if ((image.startsWith("'") && image.endsWith("'")) || (image.startsWith('"') && image.endsWith('"'))) {
-            image = image.slice(1, -1)
-          }
-        }
-      }
-
-      if (title && href && episode && time) {
-        let watchPath = href
-        if (href.startsWith("/play/")) {
-          watchPath = href.replace(/\/+/g, "/")
-        }
-
-        items.push({
-          title,
-          href: absolutize(watchPath),
-          episode,
-          time,
-          image,
-        })
-      }
-    })
-
-    // Sort items by time
-    items.sort((a, b) => {
-      const parseTime = (timeStr: string) => {
-        const [hours, minutes] = timeStr.split(":").map((n) => Number.parseInt(n))
-        return hours * 60 + minutes
-      }
-      return parseTime(a.time) - parseTime(b.time)
-    })
-
-    if (items.length > 0 && startDate && dayName in dayOrder) {
-      // Calculate the date for this day based on its position in the week
-      const dayIndex = dayOrder[dayName]
-      const dayDate = new Date(startDate)
-      dayDate.setDate(startDate.getDate() + dayIndex)
-
-      // Ensure the date is within the range
-      if (endDate && dayDate <= endDate) {
-        schedule.push({
-          date: dayDate.toISOString().split("T")[0],
-          dayName,
-          items,
-        })
-      }
-    }
-  })
-
-  // Sort schedule by date
-  schedule.sort((a, b) => a.date.localeCompare(b.date))
-
-  return schedule
 }
 
 function parseItalianDate(dateStr: string): Date | null {
@@ -690,6 +649,8 @@ function parseItalianDate(dateStr: string): Date | null {
 export async function fetchScheduleForDate(date?: string): Promise<DaySchedule[]> {
   try {
     const scheduleUrl = `${ANIMEWORLD_BASE}/schedule`
+    console.log("[v0] Fetching schedule from:", scheduleUrl)
+
     const res = await fetch(scheduleUrl, {
       headers: {
         "User-Agent":
@@ -698,10 +659,19 @@ export async function fetchScheduleForDate(date?: string): Promise<DaySchedule[]
       },
     })
 
+    console.log("[v0] Schedule fetch status:", res.status)
+
     const html = await res.text()
-    return parseSchedule(html)
+    console.log("[v0] Schedule HTML length:", html.length)
+    console.log("[v0] Schedule HTML preview:", html.substring(0, 500))
+
+    const schedule = parseSchedule(html)
+    console.log("[v0] Parsed schedule items:", schedule.length)
+    console.log("[v0] Schedule data:", JSON.stringify(schedule, null, 2))
+
+    return schedule
   } catch (error) {
-    console.error("Error fetching schedule:", error)
+    console.error("[v0] Error fetching schedule:", error)
     return []
   }
 }
@@ -872,7 +842,6 @@ export async function scrapeSchedule(): Promise<ScheduleDay[]> {
           const urlEnd = bgStyle.indexOf(")", urlContentStart)
           if (urlEnd !== -1) {
             image = bgStyle.substring(urlContentStart, urlEnd).trim()
-            // Remove quotes if present
             if ((image.startsWith("'") && image.endsWith("'")) || (image.startsWith('"') && image.endsWith('"'))) {
               image = image.slice(1, -1)
             }

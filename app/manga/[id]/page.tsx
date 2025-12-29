@@ -93,12 +93,29 @@ export default function MangaMetadataPage() {
   useEffect(() => {
     const fetchMangaData = async () => {
       try {
-        const response = await fetch(`/api/manga-info?id=${actualMangaId}`)
+        const urlParams = new URLSearchParams(window.location.search)
+        const apiParams = new URLSearchParams({ id: actualMangaId })
+
+        if (urlParams.has("comix_hash_id")) {
+          apiParams.append("comix_hash_id", urlParams.get("comix_hash_id")!)
+        }
+        if (urlParams.has("comix_slug")) {
+          apiParams.append("comix_slug", urlParams.get("comix_slug")!)
+        }
+        if (urlParams.has("world_id")) {
+          apiParams.append("world_id", urlParams.get("world_id")!)
+        }
+        if (urlParams.has("world_slug")) {
+          apiParams.append("world_slug", urlParams.get("world_slug")!)
+        }
+
+        const response = await fetch(`/api/manga-info?${apiParams}`)
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
         const data = await response.json()
         setMangaData(data)
         if (data.sources && data.sources.length > 0) {
-          setSelectedSource(data.sources[0].name)
+          const comixSource = data.sources.find((s: any) => s.name === "Comix")
+          setSelectedSource(comixSource?.name || data.sources[0].name)
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load manga data")
