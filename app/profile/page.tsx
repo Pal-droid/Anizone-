@@ -11,7 +11,7 @@ import { useEffect, useState, useRef } from "react"
 import Image from "next/image"
 import Link from "next/link"
 
-// --- Interfaces ---
+// Interface for actual AniList Activity Feed
 interface Activity {
   id: number
   type: string
@@ -20,46 +20,36 @@ interface Activity {
   createdAt: number
   media: {
     id: number
+    title: {
+      romaji: string
+      english?: string
+    }
+    coverImage: {
+      large?: string
+      medium?: string
+    }
+  }
+}
+
+interface MediaEntry {
+  id: number
+  mediaId: number
+  status: string
+  progress: number
+  score: number
+  media: {
+    id: number
     title: { romaji: string; english?: string }
     coverImage: { large?: string; medium?: string }
+    episodes?: number
+    chapters?: number
   }
 }
 
 interface MediaList {
   name: string
   status: string
-  entries: any[]
-}
-
-// --- Modern Shimmering Loading Animation ---
-function ProfileSkeleton() {
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 max-w-6xl animate-pulse">
-        {/* Banner Skeleton */}
-        <div className="h-56 bg-muted rounded-xl mb-8" />
-        
-        {/* Header Skeleton */}
-        <div className="relative -mt-16 p-6 bg-card border border-border rounded-lg mb-8">
-          <div className="flex flex-col sm:flex-row items-center gap-6 mb-6">
-            <div className="w-32 h-32 rounded-full bg-muted border-4 border-background" />
-            <div className="space-y-3 flex-1">
-              <div className="h-8 w-48 bg-muted rounded" />
-              <div className="h-4 w-32 bg-muted rounded" />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="h-20 bg-muted rounded-lg" />
-            <div className="h-20 bg-muted rounded-lg" />
-            <div className="h-20 bg-muted rounded-lg" />
-          </div>
-        </div>
-
-        {/* Activity Feed Skeleton */}
-        <div className="h-64 bg-card border border-border rounded-lg" />
-      </div>
-    </div>
-  )
+  entries: MediaEntry[]
 }
 
 export default function ProfilePage() {
@@ -79,10 +69,11 @@ export default function ProfilePage() {
 
   const loadUserLists = async () => {
     if (loadingRef.current || !user?.id) return
+
     loadingRef.current = true
     setLoadingLists(true)
 
-    // Corrected GraphQL Query (removed semicolons)
+    // GraphQL Query for actual recent activity
     const activityQuery = `
       query ($userId: Int) {
         Page(page: 1, perPage: 10) {
@@ -129,28 +120,85 @@ export default function ProfilePage() {
 
   const formatTime = (timestamp: number) => {
     const date = new Date(timestamp * 1000)
-    return date.toLocaleDateString("it-IT", { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+    return date.toLocaleDateString("it-IT", { 
+      day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' 
+    })
   }
 
   const getActivityDescription = (activity: Activity) => {
     const title = activity.media.title.english || activity.media.title.romaji
     const status = activity.status.toLowerCase()
+    
     if (status.includes('watched episode')) return `ha guardato l'episodio ${activity.progress} di ${title}`
     if (status.includes('read chapter')) return `ha letto il capitolo ${activity.progress} di ${title}`
     if (status.includes('completed')) return `ha completato ${title}`
+    if (status.includes('dropped')) return `ha abbandonato ${title}`
+    if (status.includes('paused')) return `ha messo in pausa ${title}`
+    if (status.includes('plan to')) return `ha aggiunto ${title} ai pianificati`
+    
     return `ha aggiornato ${title}`
   }
 
-  if (isLoading || (user && loadingLists && activities.length === 0)) {
+  const translateListStatus = (status: string, name: string): string => {
+    const translations: Record<string, string> = {
+      CURRENT: "In Corso",
+      COMPLETED: "Completati",
+      PLANNING: "Pianificati",
+      DROPPED: "Abbandonati",
+      PAUSED: "In Pausa",
+      REPEATING: "In Ripetizione",
+    }
+    return translations[status] || name
+  }
+
+  if (isLoading) {
     return (
-      <>
+      <div className="min-h-screen bg-background">
         <SlideOutMenu />
-        <ProfileSkeleton />
-      </>
+        <div className="container mx-auto px-4 py-8 max-w-6xl">
+          <div className="mb-8">
+            {/* Banner Skeleton */}
+            <div className="h-56 rounded-lg bg-muted animate-pulse" />
+            
+            {/* Header Skeleton */}
+            <div className="relative -mt-16 pb-6 bg-card border border-border rounded-lg shadow-sm p-6">
+              <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6 mb-6">
+                <div className="w-32 h-32 rounded-full border-4 border-background bg-muted animate-pulse shrink-0" />
+                <div className="flex-1 w-full space-y-4">
+                  <div className="h-8 w-48 bg-muted animate-pulse rounded mx-auto sm:mx-0" />
+                  <div className="flex gap-2 justify-center sm:justify-start">
+                    <div className="h-6 w-20 bg-muted animate-pulse rounded-full" />
+                    <div className="h-6 w-24 bg-muted animate-pulse rounded-full" />
+                  </div>
+                </div>
+              </div>
+              
+              {/* Stats Skeleton */}
+              <div className="grid grid-cols-3 gap-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-20 bg-muted animate-pulse rounded-lg border border-transparent" />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     )
   }
 
-  if (!user) return <div className="p-8 text-center">Please login...</div>
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <SlideOutMenu />
+        <Card className="max-w-md w-full">
+          <CardHeader>
+            <CardTitle>Accesso richiesto</CardTitle>
+            <CardDescription>Devi effettuare l'accesso per visualizzare il tuo profilo.</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -158,111 +206,138 @@ export default function ProfilePage() {
 
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="mb-8 overflow-hidden">
-          {/* Banner - Rounded on Mobile */}
-          <div className="h-56 relative rounded-xl overflow-hidden shadow-md">
+          {/* Banner Section - Updated to rounded rectangle on mobile */}
+          <div className="h-56 relative rounded-lg overflow-hidden">
             {user.bannerImage ? (
               <Image src={user.bannerImage} alt="Banner" fill className="object-cover" priority />
             ) : (
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/30 to-primary/10" />
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-primary/20 to-primary/10" />
             )}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-background" />
           </div>
 
           {/* Profile Header */}
           <div className="relative -mt-16 pb-6 bg-card border border-border rounded-lg shadow-sm p-6">
             <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6 mb-6">
-              <Avatar className="w-32 h-32 border-4 border-background shadow-xl">
-                <AvatarImage src={user.avatar?.large} />
-                <AvatarFallback><User size={48} /></AvatarFallback>
+              <Avatar className="w-32 h-32 border-4 border-background shadow-2xl">
+                <AvatarImage src={user.avatar?.large || user.avatar?.medium} />
+                <AvatarFallback className="text-3xl bg-primary/10"><User size={48} /></AvatarFallback>
               </Avatar>
               <div className="flex-1 text-center sm:text-left">
                 <h1 className="text-3xl font-bold mb-2">{user.name}</h1>
-                <Link href={`https://anilist.co/user/${user.name}`} target="_blank">
-                  <Badge variant="outline" className="gap-1.5 hover:bg-accent cursor-pointer">
-                    <ExternalLink className="w-3.5 h-3.5" /> AniList Profile
-                  </Badge>
-                </Link>
+                <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
+                  <Badge variant="secondary">ID: {user.id}</Badge>
+                  <Link href={`https://anilist.co/user/${user.name}`} target="_blank">
+                    <Badge variant="outline" className="gap-1.5 hover:bg-accent cursor-pointer">
+                      <ExternalLink className="w-3.5 h-3.5" /> Profilo AniList
+                    </Badge>
+                  </Link>
+                </div>
               </div>
             </div>
 
-            {/* Stats - Grid of 3 (Voto Medio removed) */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <StatsCard icon={<Film className="w-4 h-4" />} label="Anime" value={user.statistics?.anime?.count} sub="watched" color="blue" />
-              <StatsCard icon={<BookOpen className="w-4 h-4" />} label="Manga" value={user.statistics?.manga?.count} sub="chapters" color="green" />
-              <StatsCard icon={<Heart className="w-4 h-4" />} label="Favorites" value={(user.favourites?.anime?.nodes?.length || 0) + (user.favourites?.manga?.nodes?.length || 0)} sub="total" color="pink" />
+            {/* Stats - Removed Mean Score */}
+            <div className="grid grid-cols-3 gap-4">
+              <StatsCard icon={<Film className="w-4 h-4" />} label="Anime" value={user.statistics?.anime?.count} sub={`${Math.round((user.statistics?.anime?.minutesWatched || 0) / 60)} ore`} color="blue" />
+              <StatsCard icon={<BookOpen className="w-4 h-4" />} label="Manga" value={user.statistics?.manga?.count} sub={`${user.statistics?.manga?.chaptersRead || 0} cap.`} color="green" />
+              <StatsCard icon={<Heart className="w-4 h-4" />} label="Preferiti" value={(user.favourites?.anime?.nodes?.length || 0) + (user.favourites?.manga?.nodes?.length || 0)} sub="totali" color="pink" />
             </div>
           </div>
         </div>
 
-        {/* FEED: INTEGRATED ACTIVITY FEED */}
+        {/* RECENT ACTIVITY SECTION */}
         {activities.length > 0 && (
           <Card className="mb-8">
             <CardHeader>
               <CardTitle className="text-xl flex items-center gap-2">
-                <Clock className="w-5 h-5 text-primary" /> Attività Recente
+                <Clock className="w-5 h-5 text-primary" />
+                Attività Recente
               </CardTitle>
+              <CardDescription>I tuoi ultimi aggiornamenti in tempo reale</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {activities.map((activity) => (
-                <Link
-                  key={activity.id}
-                  href={`https://anilist.co/anime/${activity.media.id}`}
-                  target="_blank"
-                  className="flex items-start gap-4 p-3 rounded-lg border-l-2 border-transparent hover:border-l-primary hover:bg-muted/50 transition-all group"
-                >
-                  <div className="relative w-12 h-16 flex-shrink-0 rounded overflow-hidden border">
-                    <Image src={activity.media.coverImage.medium || "/placeholder.svg"} alt="Cover" fill className="object-cover" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm group-hover:text-primary transition-colors">
-                      <span className="font-bold">{user.name}</span> {getActivityDescription(activity)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{formatTime(activity.createdAt)}</p>
-                  </div>
-                </Link>
-              ))}
+            <CardContent>
+              <div className="space-y-4">
+                {activities.map((activity) => (
+                  <Link
+                    key={activity.id}
+                    href={`https://anilist.co/${activity.type === 'ANIME_LIST' ? 'anime' : 'manga'}/${activity.media.id}`}
+                    target="_blank"
+                    className="flex items-start gap-4 p-3 rounded-lg border-l-2 border-transparent hover:border-l-primary hover:bg-muted/50 transition-all group"
+                  >
+                    <div className="relative w-14 h-20 flex-shrink-0 rounded overflow-hidden border">
+                      <Image
+                        src={activity.media.coverImage.large || activity.media.coverImage.medium || "/placeholder.svg"}
+                        alt="Media Cover"
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium mb-1 group-hover:text-primary transition-colors">
+                        <span className="font-bold">{user.name}</span> {getActivityDescription(activity)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatTime(activity.createdAt)}
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
             </CardContent>
           </Card>
         )}
 
-        {/* Lists */}
+        {/* LISTS SECTIONS */}
         <div className="space-y-6">
-          <ListSection title="Anime Lists" icon={<Film />} lists={animeLists} type="anime" />
-          <ListSection title="Manga Lists" icon={<BookOpen />} lists={mangaLists} type="manga" />
+          <ListSection title="Le Mie Liste Anime" icon={<Film />} lists={animeLists} translate={translateListStatus} type="anime" />
+          <ListSection title="Le Mie Liste Manga" icon={<BookOpen />} lists={mangaLists} translate={translateListStatus} type="manga" />
         </div>
       </div>
     </div>
   )
 }
 
+// Sub-components for cleaner structure
 function StatsCard({ icon, label, value, sub, color }: any) {
-  const colors: any = {
+  const colorMap: any = {
     blue: "bg-blue-500/5 border-blue-500/20 text-blue-600",
     green: "bg-green-500/5 border-green-500/20 text-green-600",
     pink: "bg-pink-500/5 border-pink-500/20 text-pink-600",
+    amber: "bg-amber-500/5 border-amber-500/20 text-amber-600",
   }
   return (
-    <div className={`rounded-lg p-4 border ${colors[color]}`}>
-      <div className="flex items-center gap-2 mb-1 text-sm font-medium">{icon} {label}</div>
+    <div className={`rounded-lg p-4 border ${colorMap[color]}`}>
+      <div className="flex items-center gap-2 mb-2">
+        {icon} <span className="text-sm font-medium">{label}</span>
+      </div>
       <div className="text-2xl font-bold text-foreground">{value || 0}</div>
-      <div className="text-xs text-muted-foreground">{sub}</div>
+      <div className="text-xs text-muted-foreground mt-1">{sub}</div>
     </div>
   )
 }
 
-function ListSection({ title, icon, lists, type }: any) {
+function ListSection({ title, icon, lists, translate, type }: any) {
   if (lists.length === 0) return null
   return (
     <Card>
-      <CardHeader><CardTitle className="text-lg flex items-center gap-2">{icon} {title}</CardTitle></CardHeader>
+      <CardHeader>
+        <CardTitle className="text-xl flex items-center gap-2">{icon} {title}</CardTitle>
+      </CardHeader>
       <CardContent className="space-y-6">
         {lists.map((list: any) => (
           <div key={list.status}>
-            <h3 className="text-sm font-semibold mb-3 opacity-70 uppercase tracking-wider">{list.status}</h3>
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold">{translate(list.status, list.name)}</h3>
+              <Badge variant="outline">{list.entries.length}</Badge>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide snap-x">
               {list.entries.map((entry: any) => (
-                <Link key={entry.id} href={`https://anilist.co/${type}/${entry.mediaId}`} target="_blank" className="w-24 flex-shrink-0">
-                  <div className="aspect-[2/3] relative rounded-md overflow-hidden border hover:ring-2 ring-primary transition-all">
+                <Link key={entry.id} href={`https://anilist.co/${type}/${entry.mediaId}`} target="_blank" className="group flex-shrink-0 w-32 snap-start">
+                  <div className="aspect-[2/3] relative rounded-lg overflow-hidden border hover:scale-105 transition-all">
                     <Image src={entry.media.coverImage.large} alt="Media" fill className="object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent opacity-0 group-hover:opacity-100 transition-opacity p-2 flex items-end">
+                      <p className="text-white text-[10px] line-clamp-2">{entry.media.title.english || entry.media.title.romaji}</p>
+                    </div>
                   </div>
                 </Link>
               ))}
