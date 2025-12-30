@@ -15,6 +15,28 @@ async function verifyAniListToken(token: string) {
           medium
         }
         bannerImage
+        statistics {
+          anime {
+            count
+            minutesWatched
+          }
+          manga {
+            count
+            chaptersRead
+          }
+        }
+        favourites {
+          anime {
+            nodes {
+              id
+            }
+          }
+          manga {
+            nodes {
+              id
+            }
+          }
+        }
       }
     }
   `

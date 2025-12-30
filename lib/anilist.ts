@@ -10,6 +10,24 @@ export interface AniListUser {
     medium?: string
   }
   bannerImage?: string
+  statistics?: {
+    anime?: {
+      count: number
+      minutesWatched: number
+    }
+    manga?: {
+      count: number
+      chaptersRead: number
+    }
+  }
+  favourites?: {
+    anime?: {
+      nodes?: Array<{ id: number }>
+    }
+    manga?: {
+      nodes?: Array<{ id: number }>
+    }
+  }
 }
 
 class AniListManager {
@@ -480,6 +498,35 @@ class AniListManager {
     } catch (error) {
       console.error("[v0] Error fetching favorites:", error)
       return { anime: [], manga: [] }
+    }
+  }
+
+  async getUserStatistics(): Promise<any> {
+    if (!this.user) return null
+
+    const query = `
+      query ($userId: Int) {
+        User(id: $userId) {
+          statistics {
+            anime {
+              count
+              minutesWatched
+            }
+            manga {
+              count
+              chaptersRead
+            }
+          }
+        }
+      }
+    `
+
+    try {
+      const data = await this.makeGraphQLRequest(query, { userId: this.user.id })
+      return data.data?.User?.statistics
+    } catch (error) {
+      console.error("[v0] Error fetching user statistics:", error)
+      return null
     }
   }
 }
