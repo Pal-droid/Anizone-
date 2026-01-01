@@ -5,9 +5,10 @@ import { aniListManager } from "@/lib/anilist"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { User, Film, BookOpen, Heart, ExternalLink, Clock } from "lucide-react"
+import { User, Film, BookOpen, Heart, ExternalLink, Clock, ChevronDown } from "lucide-react"
 import { SlideOutMenu } from "@/components/slide-out-menu"
 import { useEffect, useState, useRef } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import Image from "next/image"
 import Link from "next/link"
 
@@ -20,14 +21,8 @@ interface Activity {
   createdAt: number
   media: {
     id: number
-    title: {
-      romaji: string
-      english?: string
-    }
-    coverImage: {
-      large?: string
-      medium?: string
-    }
+    title: { romaji: string; english?: string }
+    coverImage: { large?: string; medium?: string }
   }
 }
 
@@ -39,7 +34,7 @@ interface MediaEntry {
   score: number
   media: {
     id: number
-    title: { romaji; english?: string }
+    title: { romaji: string; english?: string }
     coverImage: { large?: string; medium?: string }
     episodes?: number
     chapters?: number
@@ -57,6 +52,7 @@ export default function ProfilePage() {
   const [activities, setActivities] = useState<Activity[]>([])
   const [animeLists, setAnimeLists] = useState<MediaList[]>([])
   const [mangaLists, setMangaLists] = useState<MediaList[]>([])
+  const [isExpanded, setIsExpanded] = useState(false)
   const [loadingLists, setLoadingLists] = useState(false)
   const loadingRef = useRef(false)
   const dataLoadedRef = useRef(false)
@@ -69,26 +65,16 @@ export default function ProfilePage() {
 
   const loadUserLists = async () => {
     if (loadingRef.current || !user?.id) return
-
     loadingRef.current = true
     setLoadingLists(true)
 
-    // GraphQL Query for actual recent activity
     const activityQuery = `
       query ($userId: Int) {
-        Page(page: 1, perPage: 10) {
+        Page(page: 1, perPage: 15) {
           activities(userId: $userId, type: MEDIA_LIST, sort: ID_DESC) {
             ... on ListActivity {
-              id
-              status
-              progress
-              createdAt
-              type
-              media {
-                id
-                title { romaji english }
-                coverImage { large medium }
-              }
+              id status progress createdAt type
+              media { id title { romaji english } coverImage { large medium } }
             }
           }
         }
@@ -126,94 +112,62 @@ export default function ProfilePage() {
   }
 
   const getActivityDescription = (activity: Activity) => {
-    // Wrap title in quotes
     const title = `"${activity.media.title.english || activity.media.title.romaji}"`
     const status = activity.status.toLowerCase()
     const progress = activity.progress || ""
-    
-    // Logic to check for ranges (hyphen)
-    const isMultiple = progress.includes('-')
+    const isMultiple = progress.includes('-') || progress.includes(',')
 
     if (status.includes('watched episode')) {
       const label = isMultiple ? "gli episodi" : "l'episodio"
       return `ha guardato ${label} ${progress} di ${title}`
     }
-    
     if (status.includes('read chapter')) {
       const label = isMultiple ? "i capitoli" : "il capitolo"
       return `ha letto ${label} ${progress} di ${title}`
     }
-
     if (status.includes('completed')) return `ha completato ${title}`
     if (status.includes('dropped')) return `ha abbandonato ${title}`
     if (status.includes('paused')) return `ha messo in pausa ${title}`
     if (status.includes('plans to')) return `ha aggiunto ${title} ai pianificati`
-
     return `ha aggiornato ${title}`
   }
 
   const translateListStatus = (status: string, name: string): string => {
     const translations: Record<string, string> = {
-      CURRENT: "In Corso",
-      COMPLETED: "Completati",
-      PLANNING: "Pianificati",
-      DROPPED: "Abbandonati",
-      PAUSED: "In Pausa",
-      REPEATING: "In Ripetizione",
+      CURRENT: "In Corso", COMPLETED: "Completati", PLANNING: "Pianificati",
+      DROPPED: "Abbandonati", PAUSED: "In Pausa", REPEATING: "In Ripetizione",
     }
     return translations[status] || name
   }
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <SlideOutMenu />
-        <div className="container mx-auto px-4 py-8 max-w-6xl">
-          <div className="mb-8">
-            <div className="h-56 rounded-lg bg-muted animate-pulse" />
-            <div className="relative -mt-16 pb-6 bg-card border border-border rounded-lg shadow-sm p-6">
-              <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6 mb-6">
-                <div className="w-32 h-32 rounded-full border-4 border-background bg-muted animate-pulse shrink-0" />
-                <div className="flex-1 w-full space-y-4">
-                  <div className="h-8 w-48 bg-muted animate-pulse rounded mx-auto sm:mx-0" />
-                  <div className="flex gap-2 justify-center sm:justify-start">
-                    <div className="h-6 w-20 bg-muted animate-pulse rounded-full" />
-                    <div className="h-6 w-24 bg-muted animate-pulse rounded-full" />
-                  </div>
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-20 bg-muted animate-pulse rounded-lg border border-transparent" />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { 
+      opacity: 1, 
+      y: 0, 
+      transition: { duration: 0.6, staggerChildren: 0.15 } 
+    }
   }
 
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <SlideOutMenu />
-        <Card className="max-w-md w-full">
-          <CardHeader>
-            <CardTitle>Accesso richiesto</CardTitle>
-            <CardDescription>Devi effettuare l'accesso per visualizzare il tuo profilo.</CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    )
-  }
+  if (isLoading) return <div className="min-h-screen bg-background p-8">Caricamento...</div>
+
+  if (!user) return <div className="min-h-screen bg-background flex items-center justify-center p-4"><SlideOutMenu /><Card className="p-6">Accesso richiesto</Card></div>
+
+  const displayedActivities = isExpanded ? activities : activities.slice(0, 4)
 
   return (
     <div className="min-h-screen bg-background">
       <SlideOutMenu />
 
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <div className="mb-8 overflow-hidden">
+      <motion.div 
+        className="container mx-auto px-4 py-8 max-w-6xl"
+        initial="hidden"
+        animate="visible"
+        variants={containerVariants}
+      >
+        {/* Profile Header Section */}
+        <motion.div variants={containerVariants} className="mb-8">
           <div className="h-56 relative rounded-lg overflow-hidden">
             {user.bannerImage ? (
               <Image src={user.bannerImage} alt="Banner" fill className="object-cover" priority />
@@ -243,59 +197,76 @@ export default function ProfilePage() {
             </div>
 
             <div className="grid grid-cols-3 gap-4">
-              <StatsCard icon={<Film className="w-4 h-4" />} label="Anime" value={user.statistics?.anime?.count} sub={`${Math.round((user.statistics?.anime?.minutesWatched || 0) / 60)} ore`} color="blue" />
-              <StatsCard icon={<BookOpen className="w-4 h-4" />} label="Manga" value={user.statistics?.manga?.count} sub={`${user.statistics?.manga?.chaptersRead || 0} cap.`} color="green" />
-              <StatsCard icon={<Heart className="w-4 h-4" />} label="Preferiti" value={(user.favourites?.anime?.nodes?.length || 0) + (user.favourites?.manga?.nodes?.length || 0)} sub="totali" color="pink" />
+              <StatsCard icon={<Film size={20} />} label="Anime" value={user.statistics?.anime?.count} sub="titoli" color="blue" />
+              <StatsCard icon={<BookOpen size={20} />} label="Manga" value={user.statistics?.manga?.count} sub="titoli" color="green" />
+              {/* FIXED: Larger Heart Icon */}
+              <StatsCard icon={<Heart size={28} className="fill-current" />} label="Preferiti" value={(user.favourites?.anime?.nodes?.length || 0) + (user.favourites?.manga?.nodes?.length || 0)} sub="totali" color="pink" />
             </div>
           </div>
-        </div>
+        </motion.div>
 
+        {/* RECENT ACTIVITY SECTION */}
         {activities.length > 0 && (
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle className="text-xl flex items-center gap-2">
-                <Clock className="w-5 h-5 text-primary" />
-                Attività Recente
-              </CardTitle>
-              <CardDescription>I tuoi ultimi aggiornamenti in tempo reale</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {activities.map((activity) => (
-                  <Link
-                    key={activity.id}
-                    href={`https://anilist.co/${activity.type === 'ANIME_LIST' ? 'anime' : 'manga'}/${activity.media.id}`}
-                    target="_blank"
-                    className="flex items-start gap-4 p-3 rounded-lg border-l-2 border-transparent hover:border-l-primary hover:bg-muted/50 transition-all group"
+          <motion.div variants={containerVariants}>
+            <Card className="mb-8 overflow-hidden">
+              <CardHeader>
+                <CardTitle className="text-xl flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-primary" />
+                  Attività Recente
+                </CardTitle>
+                <CardDescription>I tuoi ultimi aggiornamenti in tempo reale</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <AnimatePresence initial={false}>
+                    {displayedActivities.map((activity) => (
+                      <motion.div
+                        key={activity.id}
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <Link
+                          href={`https://anilist.co/${activity.type === 'ANIME_LIST' ? 'anime' : 'manga'}/${activity.media.id}`}
+                          target="_blank"
+                          className="flex items-start gap-4 p-3 rounded-lg border-l-2 border-transparent hover:border-l-primary hover:bg-muted/50 transition-all group"
+                        >
+                          <div className="relative w-14 h-20 flex-shrink-0 rounded overflow-hidden border">
+                            <Image src={activity.media.coverImage.large || ""} alt="Media Cover" fill className="object-cover" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium mb-1 group-hover:text-primary transition-colors">
+                              <span className="font-bold">{user.name}</span> {getActivityDescription(activity)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">{formatTime(activity.createdAt)}</p>
+                          </div>
+                        </Link>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </div>
+                
+                {activities.length > 4 && (
+                  <button 
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    className="w-full mt-4 py-2 flex items-center justify-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-all border-t pt-4"
                   >
-                    <div className="relative w-14 h-20 flex-shrink-0 rounded overflow-hidden border">
-                      <Image
-                        src={activity.media.coverImage.large || activity.media.coverImage.medium || "/placeholder.svg"}
-                        alt="Media Cover"
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium mb-1 group-hover:text-primary transition-colors">
-                        <span className="font-bold">{user.name}</span> {getActivityDescription(activity)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatTime(activity.createdAt)}
-                      </p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                    {isExpanded ? "Mostra meno" : "Mostra altro"}
+                    <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`} />
+                  </button>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
         )}
 
-        <div className="space-y-6">
+        {/* LISTS SECTIONS */}
+        <motion.div variants={containerVariants} className="space-y-6">
           <ListSection title="Le Mie Liste Anime" icon={<Film />} lists={animeLists} translate={translateListStatus} type="anime" />
           <ListSection title="Le Mie Liste Manga" icon={<BookOpen />} lists={mangaLists} translate={translateListStatus} type="manga" />
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </div>
   )
 }
@@ -305,12 +276,11 @@ function StatsCard({ icon, label, value, sub, color }: any) {
     blue: "bg-blue-500/5 border-blue-500/20 text-blue-600",
     green: "bg-green-500/5 border-green-500/20 text-green-600",
     pink: "bg-pink-500/5 border-pink-500/20 text-pink-600",
-    amber: "bg-amber-500/5 border-amber-500/20 text-amber-600",
   }
   return (
-    <div className={`rounded-lg p-4 border ${colorMap[color]}`}>
+    <div className={`rounded-lg p-4 border flex flex-col items-center sm:items-start ${colorMap[color]}`}>
       <div className="flex items-center gap-2 mb-2">
-        {icon} <span className="text-sm font-medium">{label}</span>
+        {icon} <span className="text-sm font-medium hidden sm:inline">{label}</span>
       </div>
       <div className="text-2xl font-bold text-foreground">{value || 0}</div>
       <div className="text-xs text-muted-foreground mt-1">{sub}</div>
@@ -338,7 +308,6 @@ function ListSection({ title, icon, lists, translate, type }: any) {
                   <div className="aspect-[2/3] relative rounded-lg overflow-hidden border hover:scale-105 transition-all">
                     <Image src={entry.media.coverImage.large} alt="Media" fill className="object-cover" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent opacity-0 group-hover:opacity-100 transition-opacity p-2 flex items-end">
-                      {/* Added quotes to title here as well for consistency */}
                       <p className="text-white text-[10px] line-clamp-2">
                         "{entry.media.title.english || entry.media.title.romaji}"
                       </p>
