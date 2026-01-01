@@ -134,7 +134,7 @@ export default function ProfilePage() {
     if (status.includes('completed')) return `ha completato ${title}`
     if (status.includes('dropped')) return `ha abbandonato ${title}`
     if (status.includes('paused')) return `ha messo in pausa ${title}`
-    if (status.includes('plan to')) return `ha aggiunto ${title} ai pianificati`
+    if (status.includes('plans to')) return `ha aggiunto ${title} ai pianificati`
     
     return `ha aggiornato ${title}`
   }
