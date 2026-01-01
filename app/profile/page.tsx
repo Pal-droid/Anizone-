@@ -39,7 +39,7 @@ interface MediaEntry {
   score: number
   media: {
     id: number
-    title: { romaji: string; english?: string }
+    title: { romaji; english?: string }
     coverImage: { large?: string; medium?: string }
     episodes?: number
     chapters?: number
@@ -126,16 +126,29 @@ export default function ProfilePage() {
   }
 
   const getActivityDescription = (activity: Activity) => {
-    const title = activity.media.title.english || activity.media.title.romaji
+    // Wrap title in quotes
+    const title = `"${activity.media.title.english || activity.media.title.romaji}"`
     const status = activity.status.toLowerCase()
+    const progress = activity.progress || ""
     
-    if (status.includes('watched episode')) return `ha guardato l'episodio ${activity.progress} di ${title}`
-    if (status.includes('read chapter')) return `ha letto il capitolo ${activity.progress} di ${title}`
+    // Logic to check for ranges (hyphen)
+    const isMultiple = progress.includes('-')
+
+    if (status.includes('watched episode')) {
+      const label = isMultiple ? "gli episodi" : "l'episodio"
+      return `ha guardato ${label} ${progress} di ${title}`
+    }
+    
+    if (status.includes('read chapter')) {
+      const label = isMultiple ? "i capitoli" : "il capitolo"
+      return `ha letto ${label} ${progress} di ${title}`
+    }
+
     if (status.includes('completed')) return `ha completato ${title}`
     if (status.includes('dropped')) return `ha abbandonato ${title}`
     if (status.includes('paused')) return `ha messo in pausa ${title}`
     if (status.includes('plans to')) return `ha aggiunto ${title} ai pianificati`
-    
+
     return `ha aggiornato ${title}`
   }
 
@@ -157,10 +170,7 @@ export default function ProfilePage() {
         <SlideOutMenu />
         <div className="container mx-auto px-4 py-8 max-w-6xl">
           <div className="mb-8">
-            {/* Banner Skeleton */}
             <div className="h-56 rounded-lg bg-muted animate-pulse" />
-            
-            {/* Header Skeleton */}
             <div className="relative -mt-16 pb-6 bg-card border border-border rounded-lg shadow-sm p-6">
               <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6 mb-6">
                 <div className="w-32 h-32 rounded-full border-4 border-background bg-muted animate-pulse shrink-0" />
@@ -172,8 +182,6 @@ export default function ProfilePage() {
                   </div>
                 </div>
               </div>
-              
-              {/* Stats Skeleton */}
               <div className="grid grid-cols-3 gap-4">
                 {[1, 2, 3].map((i) => (
                   <div key={i} className="h-20 bg-muted animate-pulse rounded-lg border border-transparent" />
@@ -206,7 +214,6 @@ export default function ProfilePage() {
 
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="mb-8 overflow-hidden">
-          {/* Banner Section - Updated to rounded rectangle on mobile */}
           <div className="h-56 relative rounded-lg overflow-hidden">
             {user.bannerImage ? (
               <Image src={user.bannerImage} alt="Banner" fill className="object-cover" priority />
@@ -216,7 +223,6 @@ export default function ProfilePage() {
             <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-background" />
           </div>
 
-          {/* Profile Header */}
           <div className="relative -mt-16 pb-6 bg-card border border-border rounded-lg shadow-sm p-6">
             <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6 mb-6">
               <Avatar className="w-32 h-32 border-4 border-background shadow-2xl">
@@ -236,7 +242,6 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Stats - Removed Mean Score */}
             <div className="grid grid-cols-3 gap-4">
               <StatsCard icon={<Film className="w-4 h-4" />} label="Anime" value={user.statistics?.anime?.count} sub={`${Math.round((user.statistics?.anime?.minutesWatched || 0) / 60)} ore`} color="blue" />
               <StatsCard icon={<BookOpen className="w-4 h-4" />} label="Manga" value={user.statistics?.manga?.count} sub={`${user.statistics?.manga?.chaptersRead || 0} cap.`} color="green" />
@@ -245,7 +250,6 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* RECENT ACTIVITY SECTION */}
         {activities.length > 0 && (
           <Card className="mb-8">
             <CardHeader>
@@ -287,7 +291,6 @@ export default function ProfilePage() {
           </Card>
         )}
 
-        {/* LISTS SECTIONS */}
         <div className="space-y-6">
           <ListSection title="Le Mie Liste Anime" icon={<Film />} lists={animeLists} translate={translateListStatus} type="anime" />
           <ListSection title="Le Mie Liste Manga" icon={<BookOpen />} lists={mangaLists} translate={translateListStatus} type="manga" />
@@ -297,7 +300,6 @@ export default function ProfilePage() {
   )
 }
 
-// Sub-components for cleaner structure
 function StatsCard({ icon, label, value, sub, color }: any) {
   const colorMap: any = {
     blue: "bg-blue-500/5 border-blue-500/20 text-blue-600",
@@ -336,7 +338,10 @@ function ListSection({ title, icon, lists, translate, type }: any) {
                   <div className="aspect-[2/3] relative rounded-lg overflow-hidden border hover:scale-105 transition-all">
                     <Image src={entry.media.coverImage.large} alt="Media" fill className="object-cover" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent opacity-0 group-hover:opacity-100 transition-opacity p-2 flex items-end">
-                      <p className="text-white text-[10px] line-clamp-2">{entry.media.title.english || entry.media.title.romaji}</p>
+                      {/* Added quotes to title here as well for consistency */}
+                      <p className="text-white text-[10px] line-clamp-2">
+                        "{entry.media.title.english || entry.media.title.romaji}"
+                      </p>
                     </div>
                   </div>
                 </Link>
