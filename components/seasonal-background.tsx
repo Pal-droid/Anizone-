@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useEffect, useState } from "react"
 import { getCurrentSeason, getSeasonalTheme } from "@/lib/seasonal-theme"
 
@@ -18,19 +20,29 @@ export function SeasonalBackground() {
   const theme = getSeasonalTheme(season)
 
   useEffect(() => {
-    if (hasPlayed) return
+    console.log("[v0] Current season:", season)
+    console.log("[v0] Has played:", hasPlayed)
 
-    // Generate particles
+    if (hasPlayed || season !== "winter") return
+
     const newParticles: Particle[] = Array.from({ length: theme.particles.count }, (_, i) => ({
       id: i,
       left: Math.random() * 100,
-      animationDuration: 10 + Math.random() * 20, // 10-30s
-      animationDelay: Math.random() * 5, // 0-5s delay
-      size: 0.8 + Math.random() * 0.4, // 0.8-1.2 scale
+      animationDuration: 10 + Math.random() * 20,
+      animationDelay: Math.random() * 5,
+      size: 0.8 + Math.random() * 0.4,
     }))
+
+    console.log("[v0] Generated particles:", newParticles.length)
     setParticles(newParticles)
     setHasPlayed(true)
-  }, [theme.particles.count, hasPlayed])
+  }, [season, theme.particles.count, hasPlayed])
+
+  if (season !== "winter") {
+    return null
+  }
+
+  console.log("[v0] Rendering snow particles:", particles.length)
 
   return (
     <>
@@ -42,22 +54,27 @@ export function SeasonalBackground() {
         }}
       />
 
-      {/* Animated particles */}
+      {/* Animated snow particles */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         {particles.map((particle) => (
           <div
             key={particle.id}
-            className="absolute animate-fall opacity-60"
+            className="absolute animate-fall-snow"
             style={{
               left: `${particle.left}%`,
               top: "-5%",
-              fontSize: `${particle.size * 1.5}rem`,
               animationDuration: `${particle.animationDuration}s`,
               animationDelay: `${particle.animationDelay}s`,
-              filter: "drop-shadow(0 0 2px rgba(0,0,0,0.3))",
             }}
           >
-            {theme.particles.emoji}
+            <div
+              className="snowflake"
+              style={
+                {
+                  "--size": `${particle.size}`,
+                } as React.CSSProperties
+              }
+            />
           </div>
         ))}
       </div>

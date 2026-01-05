@@ -229,7 +229,7 @@ export const SlideOutMenu = forwardRef<SlideOutMenuHandle, SlideOutMenuProps>(({
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-border">
-          <p className="text-xs text-muted-foreground text-center">Anizone v0.1.2 - Alpha</p>
+          <p className="text-xs text-muted-foreground text-center">Anizone v0.3.1 - Alpha</p>
         </div>
       </div>
 

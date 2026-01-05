@@ -31,6 +31,10 @@ interface MangaReaderProps {
     title?: string
     chapter?: string
     chapterIndex?: string // Added chapterIndex to track position in chapter list
+    comix_hash_id?: string
+    comix_slug?: string
+    world_id?: string
+    world_slug?: string
   }
 }
 
@@ -381,7 +385,54 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
   }, [currentPage, pages.length, viewMode])
 
   const handleGoBack = () => {
-    router.replace(`/manga/${params.id}`)
+    try {
+      const urlObj = new URL(chapterUrl || "", "https://example.com")
+      const backParams = new URLSearchParams()
+
+      if (urlObj.searchParams.get("_unified") === "true") {
+        const source = urlObj.searchParams.get("_source")
+
+        if (source === "Comix") {
+          const hashId = urlObj.searchParams.get("_hash_id")
+          const slug = urlObj.searchParams.get("_slug")
+          if (hashId) backParams.append("comix_hash_id", hashId)
+          if (slug) backParams.append("comix_slug", slug)
+
+          // Also extract World metadata if present
+          const worldId = urlObj.searchParams.get("_world_id")
+          const worldSlug = urlObj.searchParams.get("_world_slug")
+          if (worldId) backParams.append("world_id", worldId)
+          if (worldSlug) backParams.append("world_slug", worldSlug)
+        } else if (source === "World") {
+          const mangaId = urlObj.searchParams.get("_manga_id")
+          const worldUrl = urlObj.searchParams.get("_chapter_url")
+
+          // Extract world_slug from the chapter URL
+          if (worldUrl && mangaId) {
+            const worldUrlObj = new URL(worldUrl)
+            const pathParts = worldUrlObj.pathname.split("/")
+            const slugIndex = pathParts.indexOf("manga")
+            if (slugIndex !== -1 && pathParts[slugIndex + 2]) {
+              backParams.append("world_id", mangaId)
+              backParams.append("world_slug", pathParts[slugIndex + 2])
+            }
+          }
+
+          // Also extract Comix metadata if present
+          const comixHashId = urlObj.searchParams.get("_comix_hash_id")
+          const comixSlug = urlObj.searchParams.get("_comix_slug")
+          if (comixHashId) backParams.append("comix_hash_id", comixHashId)
+          if (comixSlug) backParams.append("comix_slug", comixSlug)
+        }
+      }
+
+      const backUrl = backParams.toString() ? `/manga/${params.id}?${backParams}` : `/manga/${params.id}`
+      console.log("[v0] Going back to:", backUrl)
+      router.replace(backUrl)
+    } catch (err) {
+      console.error("[v0] Error building back URL:", err)
+      router.replace(`/manga/${params.id}`)
+    }
   }
 
   if (isLoading) {

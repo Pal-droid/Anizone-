@@ -141,17 +141,16 @@ export default function MangaMetadataPage() {
           slug: sourceInfo.slug,
         })
 
-        if (selectedSource === "Comix" && sourceInfo.hash_id) {
-          params.append("hash_id", sourceInfo.hash_id)
+        if (selectedSource === "Comix" && sourceInfo) {
+          params.append("hash_id", sourceInfo.hash_id || "")
         } else if (selectedSource === "World") {
-          params.append("manga_id", sourceInfo.id)
+          params.append("manga_id", sourceInfo.id || "")
         }
 
         const response = await fetch(`/api/manga-unified-chapters?${params}`)
         if (!response.ok) throw new Error("Failed to fetch chapters")
 
         const chapters = await response.json()
-        console.log("[v0] Unified chapters fetched:", chapters.length)
         setUnifiedChapters(chapters)
       } catch (err) {
         console.error("[v0] Error fetching unified chapters:", err)
@@ -263,7 +262,7 @@ export default function MangaMetadataPage() {
   }
 
   const lastVolume = mangaData.volumes[mangaData.volumes.length - 1]
-  const oldestChapter = lastVolume.chapters[lastVolume.chapters.length - 1]
+  const oldestChapter = lastVolume?.chapters[lastVolume.chapters.length - 1]
 
   return (
     <main className="min-h-screen bg-background">
@@ -347,7 +346,7 @@ export default function MangaMetadataPage() {
                     itemPath={`/manga/${params.id}`}
                   />
                 </div>
-                {mangaData.volumes.length > 0 && lastVolume.chapters.length > 0 && (
+                {mangaData.volumes.length > 0 && oldestChapter && (
                   <Link
                     href={`/manga/${params.id}/read?u=${obfuscateUrl(
                       oldestChapter.url,
@@ -389,12 +388,16 @@ export default function MangaMetadataPage() {
                     {mangaData?.sources && mangaData.sources.length > 1 && (
                       <Select value={selectedSource} onValueChange={setSelectedSource}>
                         <SelectTrigger className="w-[140px]">
-                          <SelectValue placeholder="Fonte" />
+                          <SelectValue placeholder="Fonte">
+                            {/* Visual transformation: if selected internal value is Comix, show Mix */}
+                            {selectedSource === "Comix" ? "Mix" : selectedSource}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           {mangaData.sources.map((source) => (
                             <SelectItem key={source.name} value={source.name}>
-                              {source.name}
+                                {/* Visual transformation: show Mix instead of Comix in dropdown */}
+                              {source.name === "Comix" ? "Mix" : source.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -507,13 +510,14 @@ function transformUnifiedChaptersToVolumes(
   sources?: Array<{ name: string; slug: string; id: string; hash_id?: string }>,
 ): Volume[] {
   const sourceInfo = sources?.find((s) => s.name === source)
+  const comixInfo = sources?.find((s) => s.name === "Comix")
+  const worldInfo = sources?.find((s) => s.name === "World")
 
   const chapters = unifiedChapters
     .map((ch) => {
       const sourceData = ch.sources?.[source]
       if (!sourceData || !sourceData.available) return null
 
-      // Format date
       let formattedDate = ""
       if (typeof sourceData.date === "number") {
         formattedDate = new Date(sourceData.date * 1000).toLocaleDateString("it-IT")
@@ -521,10 +525,8 @@ function transformUnifiedChaptersToVolumes(
         formattedDate = sourceData.date || ""
       }
 
-      // Build chapter URL with all necessary data
       let chapterUrl = sourceData.url || ""
 
-      // Store metadata in URL params for unified pages API
       if (source === "Comix" && sourceInfo) {
         const params = new URLSearchParams({
           _unified: "true",
@@ -532,18 +534,27 @@ function transformUnifiedChaptersToVolumes(
           _hash_id: sourceInfo.hash_id || sourceData.hash_id || "",
           _slug: sourceInfo.slug || sourceData.slug || "",
           _chapter_id: sourceData.id || "",
-          _chapter_num: String(ch),
+          _chapter_num: String(ch.chapter_number),
         })
+        if (worldInfo) {
+          params.append("_world_id", worldInfo.id)
+          params.append("_world_slug", worldInfo.slug)
+        }
         chapterUrl += `?${params}`
       } else if (source === "World") {
         const params = new URLSearchParams({
           _unified: "true",
           _source: source,
-          _manga_id: sourceInfo.id || "",
+          _chapter_url: sourceData.url || "",
+          _manga_id: sourceInfo?.id || "",
           _chapter_id: sourceData.id || "",
-          _chapter_num: String(ch),
+          _chapter_num: String(ch.chapter_number),
         })
-        chapterUrl += `?${params}`
+        if (comixInfo) {
+          params.append("_comix_hash_id", comixInfo.hash_id || "")
+          params.append("_comix_slug", comixInfo.slug)
+        }
+        chapterUrl = `/manga/${sourceInfo?.id}/read?${params}`
       }
 
       return {

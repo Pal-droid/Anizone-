@@ -407,7 +407,7 @@ export function ListsClient() {
         )}
 
         <Tabs value={activeMediaType} onValueChange={(v) => setActiveMediaType(v as MediaType)}>
-          <TabsList className="grid w-full max-w-md grid-cols-2 mb-8">
+          <TabsList className="grid w-full max-w-md grid-cols-2 mb-8 mx-auto">
             <TabsTrigger value="anime" className="gap-2">
               <Film className="h-4 w-4" />
               Anime
@@ -451,7 +451,7 @@ export function ListsClient() {
             ) : (
               <>
                 <div className="sticky top-[105px] z-20 mb-6 bg-background/95 backdrop-blur-sm border-y border-border/50 -mx-4 px-4 py-3">
-                  <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+                  <div className="flex items-center md:justify-center gap-2 overflow-x-auto scrollbar-hide">
                     <span className="text-sm font-medium text-muted-foreground shrink-0">Salta a:</span>
                     {currentFavorites.length > 0 && (
                       <Button
