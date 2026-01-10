@@ -494,11 +494,11 @@ export function ListsImportExport({ animeCollection, mangaCollection, user, onIm
                     <span className="sm:hidden">JSON</span>
                   </TabsTrigger>
                   <TabsTrigger value="animeunity" className="gap-2 text-xs sm:text-sm">
-                    <Image
+                    <img
                       src="https://www.animeunity.so/apple-touch-icon.png"
                       alt="AnimeUnity"
-                      width={16}
-                      height={16}
+                      width="16"
+                      height="16"
                       className="rounded"
                     />
                     <span className="hidden sm:inline">AnimeUnity</span>
