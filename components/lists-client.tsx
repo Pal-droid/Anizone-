@@ -208,7 +208,7 @@ export function ListsClient() {
       const response = await fetch("/api/anilist/graphql", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.JSON.stringify({ query: mutation, variables }),
+        body: JSON.stringify({ query: mutation, variables }),
       })
 
       const data = await response.json()
@@ -528,14 +528,14 @@ export function ListsClient() {
                             className={`${
                               expandedSections["FAVORITES"]
                                 ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"
-                                : "flex gap-4 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory"
+                                : "flex gap-4 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory min-w-0"
                             }`}
                           >
                             {(expandedSections["FAVORITES"] ? filteredFavorites : filteredFavorites.slice(0, 6)).map(
                               (item: any) => (
                                 <div
                                   key={item.id}
-                                  className={`group relative ${!expandedSections["FAVORITES"] ? "shrink-0 w-[160px] snap-start" : ""}`}
+                                  className={`group relative ${!expandedSections["FAVORITES"] ? "flex-none w-[160px] snap-start" : ""}`}
                                 >
                                   <Link
                                     href={`https://anilist.co/${activeMediaType}/${item.id}`}
@@ -644,113 +644,111 @@ export function ListsClient() {
                                 : "Nessun elemento in questa lista"}
                             </p>
                           ) : (
-                            <>
-                              <div
-                                className={`${
-                                  isExpanded
-                                    ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"
-                                    : "flex gap-4 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory"
-                                }`}
-                              >
-                                {displayedEntries.map((entry: any) => (
-                                  <div
-                                    key={entry.id}
-                                    className={`group relative ${!isExpanded ? "shrink-0 w-[160px] snap-start" : ""}`}
+                            <div
+                              className={`${
+                                isExpanded
+                                  ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"
+                                  : "flex gap-4 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory min-w-0"
+                              }`}
+                            >
+                              {displayedEntries.map((entry: any) => (
+                                <div
+                                  key={entry.id}
+                                  className={`group relative ${!isExpanded ? "flex-none w-[160px] snap-start" : ""}`}
+                                >
+                                  <Link
+                                    href={`https://anilist.co/${activeMediaType}/${entry.media.id}`}
+                                    target="_blank"
+                                    className="block"
                                   >
-                                    <Link
-                                      href={`https://anilist.co/${activeMediaType}/${entry.media.id}`}
-                                      target="_blank"
-                                      className="block"
-                                    >
-                                      <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-muted ring-1 ring-border/50 transition-all duration-300 group-hover:ring-2 group-hover:ring-primary/50 group-hover:shadow-lg group-hover:shadow-primary/10">
-                                        <Image
-                                          src={entry.media.coverImage.large || entry.media.coverImage.medium}
-                                          alt={entry.media.title.romaji}
-                                          fill
-                                          className="object-cover transition-transform duration-500 group-hover:scale-110"
-                                        />
-                                        {entry.score > 0 && (
-                                          <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/80 backdrop-blur-sm px-2 py-1 rounded-full">
-                                            <Star className="h-3 w-3 text-yellow-400 fill-yellow-400" />
-                                            <span className="text-xs font-medium text-white">{entry.score}</span>
-                                          </div>
-                                        )}
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                                      </div>
-
-                                      <div className="mt-3 space-y-2 h-[60px] flex flex-col">
-                                        <h3 className="text-sm font-medium line-clamp-2 leading-snug group-hover:text-primary transition-colors flex-1">
-                                          {entry.media.title.romaji}
-                                        </h3>
-                                        {entry.progress > 0 && (
-                                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                            <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
-                                              <div
-                                                className="bg-primary h-full rounded-full transition-all duration-300"
-                                                style={{
-                                                  width: `${
-                                                    activeMediaType === "anime" && entry.media.episodes
-                                                      ? (entry.progress / entry.media.episodes) * 100
-                                                      : activeMediaType === "manga" && entry.media.chapters
-                                                        ? (entry.progress / entry.media.chapters) * 100
-                                                        : 0
-                                                  }%`,
-                                                }}
-                                              />
-                                            </div>
-                                            <span className="shrink-0">
-                                              {entry.progress}
-                                              {activeMediaType === "anime" && entry.media.episodes
-                                                ? `/${entry.media.episodes}`
-                                                : activeMediaType === "manga" && entry.media.chapters
-                                                  ? `/${entry.media.chapters}`
-                                                  : ""}
-                                            </span>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </Link>
-
-                                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
-                                      <FavoriteButton
-                                        mediaId={entry.media.id}
-                                        itemId={`anilist-${entry.media.id}`}
-                                        itemTitle={entry.media.title.romaji}
-                                        size="sm"
-                                        initialIsFavorite={favoriteIds.has(entry.media.id)}
-                                        onToggle={async () => {
-                                          // Reload the lists to update favorites
-                                          await loadLists()
-                                        }}
+                                    <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-muted ring-1 ring-border/50 transition-all duration-300 group-hover:ring-2 group-hover:ring-primary/50 group-hover:shadow-lg group-hover:shadow-primary/10">
+                                      <Image
+                                        src={entry.media.coverImage.large || entry.media.coverImage.medium}
+                                        alt={entry.media.title.romaji}
+                                        fill
+                                        className="object-cover transition-transform duration-500 group-hover:scale-110"
                                       />
-                                      <Button
-                                        size="icon"
-                                        variant="secondary"
-                                        className="h-8 w-8 shadow-lg hover:scale-110 bg-background/90 backdrop-blur-sm"
-                                        onClick={(e) => {
-                                          e.preventDefault()
-                                          e.stopPropagation()
-                                          handleEditEntry(entry)
-                                        }}
-                                      >
-                                        <Edit className="h-3.5 w-3.5" />
-                                      </Button>
-                                      <Button
-                                        size="icon"
-                                        variant="destructive"
-                                        className="h-8 w-8 shadow-lg hover:scale-110"
-                                        onClick={(e) => {
-                                          e.preventDefault()
-                                          handleDeleteEntry(entry.id)
-                                        }}
-                                      >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                      </Button>
+                                      {entry.score > 0 && (
+                                        <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/80 backdrop-blur-sm px-2 py-1 rounded-full">
+                                          <Star className="h-3 w-3 text-yellow-400 fill-yellow-400" />
+                                          <span className="text-xs font-medium text-white">{entry.score}</span>
+                                        </div>
+                                      )}
+                                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                                     </div>
+
+                                    <div className="mt-3 space-y-2 h-[60px] flex flex-col">
+                                      <h3 className="text-sm font-medium line-clamp-2 leading-snug group-hover:text-primary transition-colors flex-1">
+                                        {entry.media.title.romaji}
+                                      </h3>
+                                      {entry.progress > 0 && (
+                                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                          <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                                            <div
+                                              className="bg-primary h-full rounded-full transition-all duration-300"
+                                              style={{
+                                                width: `${
+                                                  activeMediaType === "anime" && entry.media.episodes
+                                                    ? (entry.progress / entry.media.episodes) * 100
+                                                    : activeMediaType === "manga" && entry.media.chapters
+                                                      ? (entry.progress / entry.media.chapters) * 100
+                                                      : 0
+                                                }%`,
+                                              }}
+                                            />
+                                          </div>
+                                          <span className="shrink-0">
+                                            {entry.progress}
+                                            {activeMediaType === "anime" && entry.media.episodes
+                                              ? `/${entry.media.episodes}`
+                                              : activeMediaType === "manga" && entry.media.chapters
+                                                ? `/${entry.media.chapters}`
+                                                : ""}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </Link>
+
+                                  <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                                    <FavoriteButton
+                                      mediaId={entry.media.id}
+                                      itemId={`anilist-${entry.media.id}`}
+                                      itemTitle={entry.media.title.romaji}
+                                      size="sm"
+                                      initialIsFavorite={favoriteIds.has(entry.media.id)}
+                                      onToggle={async () => {
+                                        // Reload the lists to update favorites
+                                        await loadLists()
+                                      }}
+                                    />
+                                    <Button
+                                      size="icon"
+                                      variant="secondary"
+                                      className="h-8 w-8 shadow-lg hover:scale-110 bg-background/90 backdrop-blur-sm"
+                                      onClick={(e) => {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+                                        handleEditEntry(entry)
+                                      }}
+                                    >
+                                      <Edit className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                      size="icon"
+                                      variant="destructive"
+                                      className="h-8 w-8 shadow-lg hover:scale-110"
+                                      onClick={(e) => {
+                                        e.preventDefault()
+                                        handleDeleteEntry(entry.id)
+                                      }}
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
                                   </div>
-                                ))}
-                              </div>
-                            </>
+                                </div>
+                              ))}
+                            </div>
                           )}
                         </div>
                       </Card>

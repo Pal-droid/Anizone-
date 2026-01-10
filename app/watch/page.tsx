@@ -68,8 +68,9 @@ export default function WatchPage() {
       .join(" ")
     setTitle(capitalizedName || "Anime")
 
-    const fetchSources = async () => {
+    const fetchData = async () => {
       try {
+        // First, fetch sources
         let mappedSources: Source[] = []
 
         const storageKey = `anizone:sources:${path}`
@@ -102,49 +103,75 @@ export default function WatchPage() {
         }
 
         setSources(mappedSources)
+        setLoadingSources(false)
+
+        try {
+          // Define priority order for metadata fetching
+          const priorityOrder = ["AnimeWorld", "AnimeSaturn", "AnimeUnity", "AnimePahe"]
+
+          let metaUrl = ""
+
+          // Find the highest priority source available
+          for (const sourceName of priorityOrder) {
+            const source = mappedSources.find((s) => s.name === sourceName)
+            if (source) {
+              console.log(`[v0] WatchPage - Using ${sourceName} for metadata (priority match)`)
+
+              if (sourceName === "AnimeWorld") {
+                metaUrl = `/api/anime-meta?path=${encodeURIComponent(source.url || `/play/${source.id}`)}`
+              } else if (sourceName === "AnimeSaturn") {
+                metaUrl = `/api/anime-meta?path=${encodeURIComponent(source.url || source.id)}`
+              } else if (sourceName === "AnimeUnity") {
+                metaUrl = `/api/anime-meta?unityId=${encodeURIComponent(source.id)}`
+              } else if (sourceName === "AnimePahe") {
+                metaUrl = `/api/anime-meta?animepaheId=${encodeURIComponent(source.id)}`
+              }
+
+              break
+            }
+          }
+
+          if (!metaUrl) {
+            console.log("[v0] WatchPage - No sources available for metadata")
+            setLoadingMeta(false)
+            return
+          }
+
+          console.log("[v0] WatchPage - Fetching metadata from:", metaUrl)
+          const response = await fetch(metaUrl)
+          if (!response.ok) {
+            console.log("[v0] WatchPage - Metadata fetch failed with status:", response.status)
+            setLoadingMeta(false)
+            return
+          }
+          const data = await response.json()
+          console.log("[v0] WatchPage - Metadata response:", data)
+          if (data.ok && data.meta) {
+            if (data.meta.title) setTitle(data.meta.title)
+            if (data.meta.nextEpisodeDate && data.meta.nextEpisodeTime) {
+              setNextEpisodeDate(data.meta.nextEpisodeDate)
+              setNextEpisodeTime(data.meta.nextEpisodeTime)
+            }
+            if (data.meta.anilistId) {
+              setAnilistId(data.meta.anilistId)
+              const metaKey = `anizone:meta:${path}`
+              sessionStorage.setItem(metaKey, JSON.stringify({ anilistId: data.meta.anilistId }))
+              console.log("[v0] Stored AniList ID in sessionStorage:", data.meta.anilistId)
+            }
+          }
+        } catch (err) {
+          console.log("[v0] WatchPage - Error fetching meta:", err)
+        } finally {
+          setLoadingMeta(false)
+        }
       } catch (err) {
         console.log("[v0] WatchPage - Error fetching sources:", err)
-      } finally {
         setLoadingSources(false)
-      }
-    }
-
-    fetchSources()
-
-    const fetchMeta = async () => {
-      try {
-        const animepaheSource = sources.find((s) => s.name === "AnimePahe")
-        let metaUrl = `/api/anime-meta?path=${encodeURIComponent(path)}`
-
-        if (animepaheSource?.id) {
-          metaUrl += `&animepaheId=${encodeURIComponent(animepaheSource.id)}`
-          console.log("[v0] WatchPage - Including AnimePahe ID in metadata request:", animepaheSource.id)
-        }
-
-        const response = await fetch(metaUrl)
-        if (!response.ok) return
-        const data = await response.json()
-        if (data.ok && data.meta) {
-          if (data.meta.title) setTitle(data.meta.title)
-          if (data.meta.nextEpisodeDate && data.meta.nextEpisodeTime) {
-            setNextEpisodeDate(data.meta.nextEpisodeDate)
-            setNextEpisodeTime(data.meta.nextEpisodeTime)
-          }
-          if (data.meta.anilistId) {
-            setAnilistId(data.meta.anilistId)
-            const metaKey = `anizone:meta:${path}`
-            sessionStorage.setItem(metaKey, JSON.stringify({ anilistId: data.meta.anilistId }))
-            console.log("[v0] Stored AniList ID in sessionStorage:", data.meta.anilistId)
-          }
-        }
-      } catch (err) {
-        console.log("[v0] WatchPage - Error fetching meta:", err)
-      } finally {
         setLoadingMeta(false)
       }
     }
 
-    fetchMeta()
+    fetchData()
   }, [path])
 
   const seriesKey = useMemo(() => (path ? path : ""), [path])

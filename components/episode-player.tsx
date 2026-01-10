@@ -210,7 +210,11 @@ export function EpisodePlayer({
 
   useEffect(() => {
     if (availableServers.length > 0 && !availableServers.includes(selectedServer)) {
-      setSelectedServer(availableServers[0])
+      const serverPriority = ["AnimeWorld", "AnimeSaturn", "Unity", "AnimePahe"]
+      const prioritizedServer = serverPriority.find((s) => availableServers.includes(s))
+      if (prioritizedServer) {
+        setSelectedServer(prioritizedServer)
+      }
     }
   }, [availableServers, selectedServer])
 
@@ -288,14 +292,14 @@ export function EpisodePlayer({
             href:
               ep.sources?.AnimeWorld?.url ||
               ep.sources?.AnimeSaturn?.url ||
-              ep.sources?.AnimePahe?.url ||
               ep.sources?.Unity?.url ||
+              ep.sources?.AnimePahe?.url ||
               "",
             id:
               ep.sources?.AnimeWorld?.id ||
               ep.sources?.AnimeSaturn?.id ||
-              ep.sources?.AnimePahe?.id ||
               ep.sources?.Unity?.id ||
+              ep.sources?.AnimePahe?.id ||
               "",
             unifiedData: ep,
           }))
@@ -757,6 +761,9 @@ export function EpisodePlayer({
       await aniListManager.updateAnimeEntry(Number(metaData.anilistId), newStatus, episodeNum)
 
       console.log("[v0] Successfully updated AniList progress")
+
+      setIsInWatchingList(true)
+      setUserProgress(episodeNum)
 
       // Broadcast status change event so QuickListManager can update
       window.dispatchEvent(

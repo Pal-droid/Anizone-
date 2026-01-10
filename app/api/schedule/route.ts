@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { fetchScheduleForDate } from "@/lib/animeworld"
+import { fetchScheduleForDate, extractScheduleDateRange } from "@/lib/animeworld"
 
 type ScheduleItem = {
   id: string
@@ -16,6 +16,17 @@ type DaySchedule = {
   items: ScheduleItem[]
 }
 
+async function fetchScheduleHtml(): Promise<string> {
+  const res = await fetch("https://animeworld.ac/schedule", {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      Accept: "text/html,application/xhtml+xml",
+    },
+    next: { revalidate: 3600 },
+  })
+  return res.text()
+}
+
 export async function GET(request: NextRequest) {
   try {
     console.log("[v0] Schedule API called")
@@ -24,36 +35,13 @@ export async function GET(request: NextRequest) {
 
     try {
       console.log("[v0] Fetching schedule data...")
+
+      const html = await fetchScheduleHtml()
+      dateRange = extractScheduleDateRange(html)
+      console.log("[v0] Scraped date range:", dateRange)
+
       schedule = await fetchScheduleForDate()
       console.log("[v0] Schedule fetched, items:", schedule.length)
-
-      if (schedule.length > 0) {
-        const firstDate = schedule[0].date
-        const lastDate = schedule[schedule.length - 1].date
-
-        if (firstDate && lastDate) {
-          const formatItalianDate = (dateStr: string) => {
-            const date = new Date(dateStr)
-            const months = [
-              "gennaio",
-              "febbraio",
-              "marzo",
-              "aprile",
-              "maggio",
-              "giugno",
-              "luglio",
-              "agosto",
-              "settembre",
-              "ottobre",
-              "novembre",
-              "dicembre",
-            ]
-            return `${date.getDate()} ${months[date.getMonth()]}`
-          }
-
-          dateRange = `${formatItalianDate(firstDate)} - ${formatItalianDate(lastDate)}`
-        }
-      }
 
       if (!dateRange) {
         // Fallback to current week

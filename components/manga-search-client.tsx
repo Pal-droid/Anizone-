@@ -35,6 +35,7 @@ export function MangaSearchClient() {
   const [currentQuery, setCurrentQuery] = useState("")
   const [initialLoadComplete, setInitialLoadComplete] = useState(false)
   const [pagination, setPagination] = useState<PaginationInfo | null>(null)
+  const [isSearching, setIsSearching] = useState(false)
 
   useEffect(() => {
     const genre = searchParams.get("genre")
@@ -87,6 +88,7 @@ export function MangaSearchClient() {
     page?: string
   }) => {
     setIsLoading(true)
+    setIsSearching(true)
     setHasSearched(true)
     setCurrentQuery(params.keyword || params.genre || "filtri applicati")
 
@@ -100,16 +102,14 @@ export function MangaSearchClient() {
         (params.sort && params.sort !== "default")
 
       if (params.keyword && !hasFilters) {
-        // Use unified API for pure keyword search
         console.log("[v0] Using unified manga API for keyword search:", params.keyword)
         const response = await fetch(`/api/manga-unified-search?q=${encodeURIComponent(params.keyword)}`)
         const data = await response.json()
         setSearchResults(data.results || [])
-        setPagination(null) // Unified API doesn't support pagination
+        setPagination(null)
         return
       }
 
-      // Use regular manga-search API with filters
       const searchParams = new URLSearchParams()
       if (params.keyword) searchParams.set("keyword", params.keyword)
       if (params.type && params.type !== "all") searchParams.set("type", params.type)
@@ -130,6 +130,7 @@ export function MangaSearchClient() {
       setPagination(null)
     } finally {
       setIsLoading(false)
+      setIsSearching(false)
       setInitialLoadComplete(true)
     }
   }
@@ -139,7 +140,6 @@ export function MangaSearchClient() {
 
     let targetPage = pageNum
 
-    // Wrap around logic
     if (pageNum > pagination.totalPages) {
       targetPage = 1
     } else if (pageNum < 1) {
@@ -214,7 +214,7 @@ export function MangaSearchClient() {
         </div>
       </div>
 
-      {isLoading && searchResults.length === 0 && (
+      {isLoading && (isSearching || searchResults.length === 0) && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
           {Array.from({ length: 12 }).map((_, i) => (
             <SkeletonCard key={i} />
@@ -232,7 +232,7 @@ export function MangaSearchClient() {
         </div>
       )}
 
-      {searchResults.length > 0 && (
+      {searchResults.length > 0 && !(isLoading && isSearching) && (
         <div className="space-y-4">
           <h2 className="text-lg font-semibold">
             {currentQuery === "archivio completo" ? "Archivio manga completo" : `Risultati per "${currentQuery}"`} (

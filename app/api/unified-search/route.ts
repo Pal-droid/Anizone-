@@ -136,7 +136,12 @@ export async function GET(req: NextRequest) {
         // Transform unified results to our format
         let items = enrichedData.map((result) => {
           const animeWorldSource = result.sources.find((s) => s.name === "AnimeWorld")
-          const primaryUrl = animeWorldSource?.url || result.sources[0]?.url || ""
+          const animeSaturnSource = result.sources.find((s) => s.name === "AnimeSaturn")
+          const animeUnitySource = result.sources.find((s) => s.name === "Unity")
+          const animePaheSource = result.sources.find((s) => s.name === "AnimePahe")
+
+          const primaryUrl =
+            animeWorldSource?.url || animeSaturnSource?.url || animeUnitySource?.url || animePaheSource?.url || ""
 
           console.log(
             "Result:",

@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Play, Check, Pause, X, RotateCcw, BookOpen, Edit, Heart } from "lucide-react"
+import { Plus, Play, Check, Pause, X, RotateCcw, BookOpen, Edit } from "lucide-react"
 import { aniListManager } from "@/lib/anilist"
 import { useAniList } from "@/contexts/anilist-context"
 
@@ -58,7 +58,6 @@ export function QuickListManager({ itemId, itemTitle, itemImage, anilistMediaId,
   const [progressValue, setProgressValue] = useState("")
   const [mediaId, setMediaId] = useState<number | null>(anilistMediaId || null)
   const [currentProgress, setCurrentProgress] = useState<number>(0)
-  const [isFavorite, setIsFavorite] = useState(false)
 
   useEffect(() => {
     if (!mediaId && user) {
@@ -104,9 +103,6 @@ export function QuickListManager({ itemId, itemTitle, itemImage, anilistMediaId,
         setCurrentStatus(null)
         setCurrentProgress(0)
       }
-
-      const favoriteStatus = await aniListManager.checkFavoriteStatus(mediaId)
-      setIsFavorite(favoriteStatus)
     } catch (error) {
       console.error("[v0] Failed to fetch current status:", error)
     }
@@ -213,22 +209,6 @@ export function QuickListManager({ itemId, itemTitle, itemImage, anilistMediaId,
     setProgressValue("")
   }
 
-  const toggleFavorite = async () => {
-    if (!user || !mediaId) return
-
-    setLoading(true)
-    try {
-      const success = await aniListManager.toggleFavorite(mediaId, !isFavorite)
-      if (success) {
-        setIsFavorite(!isFavorite)
-      }
-    } catch (error) {
-      console.error("[v0] Failed to toggle favorite:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   // Render: Login prompt if not authenticated
   if (!user) {
     return (
@@ -296,21 +276,6 @@ export function QuickListManager({ itemId, itemTitle, itemImage, anilistMediaId,
   // Render: List management buttons
   return (
     <div className="flex flex-wrap gap-2">
-      <Button
-        variant={isFavorite ? "default" : "outline"}
-        size="sm"
-        onClick={toggleFavorite}
-        className={`gap-2 ${isFavorite ? "bg-pink-500 hover:bg-pink-600" : ""}`}
-        disabled={loading}
-      >
-        <Heart className={`h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />
-        {isFavorite && (
-          <Badge variant="secondary" className="ml-1 px-1 py-0 text-xs">
-            ✓
-          </Badge>
-        )}
-        <span className="hidden sm:inline">Preferiti</span>
-      </Button>
       {Object.entries(LIST_CONFIG).map(([statusKey, config]) => {
         const Icon = config.icon
         const isActive = currentStatus === statusKey

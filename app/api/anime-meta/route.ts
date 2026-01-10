@@ -273,165 +273,130 @@ export async function GET(req: NextRequest) {
       )
     }
 
+    // Try path-based metadata first (World/Saturn have priority)
+    if (path) {
+      let url: string
+      let intendedSource: "animeworld" | "animesaturn"
+
+      if (path!.startsWith("http")) {
+        url = path!
+        intendedSource = path!.includes("animesaturn") ? "animesaturn" : "animeworld"
+      } else if (path!.includes("animesaturn") || path!.startsWith("/anime/")) {
+        url = path!.startsWith("http") ? path! : `https://www.animesaturn.cx${path}`
+        intendedSource = "animesaturn"
+      } else {
+        let animePath = path!.replace(/\/+/g, "/")
+        if (animePath.includes("/play/")) {
+          const playMatch = animePath.match(/\/play\/([^/?]+)/)
+          if (playMatch) {
+            const worldId = playMatch[1].endsWith("-") ? playMatch[1].slice(0, -1) : playMatch[1]
+            animePath = `/play/${worldId}`
+          }
+        } else if (!animePath.startsWith("/")) {
+          animePath = `/play/${animePath}`
+        } else if (!animePath.startsWith("/play/") && !animePath.includes(".")) {
+          animePath = `/play/${animePath.replace(/^\/+/, "")}`
+        }
+        url = `${ANIMEWORLD_BASE}${animePath}`.replace(/([^:]\/)\/+/g, "$1")
+        intendedSource = "animeworld"
+      }
+
+      console.log("[v0] anime-meta fetching URL:", url, "| Intended source:", intendedSource)
+
+      let html: string
+      let finalUrl: string
+
+      try {
+        const result = await fetchHtml(url)
+        html = result.html
+        finalUrl = result.finalUrl
+
+        console.log("[v0] anime-meta received redirect from:", url, "to:", finalUrl)
+
+        let meta
+        if (intendedSource === "animesaturn") {
+          console.log("[v0] Using AnimeSaturn parser based on intended source")
+          meta = parseAnimeSaturnMetaWithRelated(html)
+        } else {
+          console.log("[v0] Using AnimeWorld parser based on intended source")
+          meta = parseWatchMeta(html)
+        }
+
+        const countdownData = parseNextEpisodeCountdown(html)
+
+        console.log("[v0] anime-meta API response meta:", JSON.stringify(meta, null, 2))
+
+        if (meta && meta.title) {
+          console.log("[v0] Successfully fetched metadata from primary source. Provider:", intendedSource)
+          return NextResponse.json({
+            ok: true,
+            meta: { ...meta, ...countdownData },
+            source: finalUrl,
+            provider: intendedSource,
+          })
+        }
+      } catch (primaryError: any) {
+        console.warn("[v0] Primary metadata fetch failed:", primaryError?.message)
+      }
+    }
+
+    // Try AnimeSaturn metadata next
+    if (path && path.includes("animesaturn") && !path.startsWith("http")) {
+      const saturnUrl = `https://www.animesaturn.cx${path}`
+      console.log("[v0] Attempting AnimeSaturn metadata with url:", saturnUrl)
+      try {
+        const result = await fetchHtml(saturnUrl)
+        const meta = parseAnimeSaturnMetaWithRelated(result.html)
+        if (meta && meta.title) {
+          console.log("[v0] Successfully fetched metadata from AnimeSaturn")
+          return NextResponse.json({
+            ok: true,
+            meta,
+            source: saturnUrl,
+            provider: "animesaturn",
+          })
+        }
+      } catch (saturnError: any) {
+        console.warn("[v0] AnimeSaturn metadata fetch failed:", saturnError?.message)
+      }
+    }
+
+    if (unityId) {
+      console.log("[v0] Attempting AnimeUnity metadata with id:", unityId)
+      try {
+        const { html, finalUrl } = await fetchAnimeUnityMeta(unityId)
+        const meta = parseAnimeUnityMeta(html)
+
+        if (meta && meta.title) {
+          console.log("[v0] Successfully fetched metadata from AnimeUnity")
+          return NextResponse.json({
+            ok: true,
+            meta,
+            source: finalUrl,
+            provider: "animeunity",
+          })
+        }
+      } catch (unityError: any) {
+        console.warn("[v0] AnimeUnity metadata fetch failed:", unityError?.message)
+      }
+    }
+
     if (animepaheId) {
-      console.log("[v0] Prioritizing AnimePahe metadata for ID:", animepaheId)
+      console.log("[v0] Attempting AnimePahe metadata (last resort) with id:", animepaheId)
       const animePaheMeta = await fetchAnimePaheMetadata(animepaheId)
       if (animePaheMeta) {
-        console.log("[v0] Using AnimePahe metadata with AniList ID:", animePaheMeta.anilistId)
+        console.log("[v0] Successfully fetched metadata from AnimePahe (fallback)")
         return NextResponse.json({
           ok: true,
           meta: animePaheMeta,
           source: `https://animepahe-two.vercel.app/api/${animepaheId}`,
           provider: "animepahe",
+          fallback: true,
         })
       }
     }
 
-    if (!path && unityId) {
-      try {
-        const { html, finalUrl } = await fetchAnimeUnityMeta(unityId)
-        const meta = parseAnimeUnityMeta(html)
-
-        if (!meta || !meta.title) {
-          return NextResponse.json(
-            { ok: false, error: "Meta non trovati su AnimeUnity", source: finalUrl },
-            { status: 404 },
-          )
-        }
-
-        return NextResponse.json({
-          ok: true,
-          meta,
-          source: finalUrl,
-          provider: "animeunity",
-        })
-      } catch (e: any) {
-        return NextResponse.json({ ok: false, error: e?.message || "Errore AnimeUnity meta" }, { status: 500 })
-      }
-    }
-
-    let url: string
-    if (path!.startsWith("http")) {
-      url = path!
-    } else if (path!.includes("animesaturn") || path!.startsWith("/anime/")) {
-      url = path!.startsWith("http") ? path! : `https://www.animesaturn.cx${path}`
-    } else {
-      let animePath = path!.replace(/\/+/g, "/")
-      if (animePath.includes("/play/")) {
-        const playMatch = animePath.match(/\/play\/([^/?]+)/)
-        if (playMatch) {
-          const worldId = playMatch[1].endsWith("-") ? playMatch[1].slice(0, -1) : playMatch[1]
-          animePath = `/play/${worldId}`
-        }
-      } else if (!animePath.startsWith("/")) {
-        animePath = `/play/${animePath}`
-      } else if (!animePath.startsWith("/play/") && !animePath.includes(".")) {
-        animePath = `/play/${animePath.replace(/^\/+/, "")}`
-      }
-      url = `${ANIMEWORLD_BASE}${animePath}`.replace(/([^:]\/)\/+/g, "$1")
-    }
-
-    console.log("[v0] anime-meta fetching URL:", url)
-
-    let html: string
-    let finalUrl: string
-
-    try {
-      const result = await fetchHtml(url)
-      html = result.html
-      finalUrl = result.finalUrl
-    } catch (primaryError: any) {
-      console.warn("[v0] Primary metadata fetch failed:", primaryError?.message)
-
-      if (animepaheId) {
-        console.log("[v0] Attempting AnimePahe fallback with id:", animepaheId)
-        const animePaheMeta = await fetchAnimePaheMetadata(animepaheId)
-        if (animePaheMeta) {
-          return NextResponse.json({
-            ok: true,
-            meta: animePaheMeta,
-            source: `https://animepahe-two.vercel.app/api/${animepaheId}`,
-            provider: "animepahe",
-            fallback: true,
-          })
-        }
-      }
-
-      if (unityId) {
-        console.log("[v0] Attempting AnimeUnity fallback with id:", unityId)
-        try {
-          const unityResult = await fetchAnimeUnityMeta(unityId)
-          const meta = parseAnimeUnityMeta(unityResult.html)
-
-          if (meta && meta.title) {
-            return NextResponse.json({
-              ok: true,
-              meta,
-              source: unityResult.finalUrl,
-              provider: "animeunity",
-              fallback: true,
-            })
-          }
-        } catch (unityError: any) {
-          console.warn("[v0] AnimeUnity fallback also failed:", unityError?.message)
-        }
-      }
-
-      throw primaryError
-    }
-
-    let meta
-    if (finalUrl.includes("animesaturn.cx") || url.includes("animesaturn.cx")) {
-      meta = parseAnimeSaturnMetaWithRelated(html)
-    } else {
-      meta = parseWatchMeta(html)
-    }
-
-    const countdownData = parseNextEpisodeCountdown(html)
-    if (!meta) {
-      if (animepaheId) {
-        console.log("[v0] Meta parsing failed, attempting AnimePahe fallback with id:", animepaheId)
-        const animePaheMeta = await fetchAnimePaheMetadata(animepaheId)
-        if (animePaheMeta) {
-          return NextResponse.json({
-            ok: true,
-            meta: animePaheMeta,
-            source: `https://animepahe-two.vercel.app/api/${animepaheId}`,
-            provider: "animepahe",
-            fallback: true,
-          })
-        }
-      }
-
-      if (unityId) {
-        console.log("[v0] Meta parsing failed, attempting AnimeUnity fallback with id:", unityId)
-        try {
-          const unityResult = await fetchAnimeUnityMeta(unityId)
-          const unityMeta = parseAnimeUnityMeta(unityResult.html)
-
-          if (unityMeta && unityMeta.title) {
-            return NextResponse.json({
-              ok: true,
-              meta: unityMeta,
-              source: unityResult.finalUrl,
-              provider: "animeunity",
-              fallback: true,
-            })
-          }
-        } catch (unityError: any) {
-          console.warn("[v0] AnimeUnity fallback also failed:", unityError?.message)
-        }
-      }
-
-      return NextResponse.json({ ok: false, error: "Meta non trovati", source: finalUrl }, { status: 404 })
-    }
-
-    return NextResponse.json({
-      ok: true,
-      meta: { ...meta, ...countdownData },
-      source: finalUrl,
-      provider: finalUrl.includes("animesaturn") ? "animesaturn" : "animeworld",
-    })
+    return NextResponse.json({ ok: false, error: "Meta non trovati da nessuna fonte" }, { status: 404 })
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "Errore meta" }, { status: 500 })
   }

@@ -27,6 +27,53 @@ export async function GET(req: NextRequest) {
     const awId = searchParams.get("AW")
     const asId = searchParams.get("AS")
 
+    // Check World first (highest priority)
+    if (awId) {
+      try {
+        const params = new URLSearchParams()
+        params.set("AW", awId)
+
+        const unifiedRes = await fetch(`https://aw-au-as-api.vercel.app/api/stream?${params}`, {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) AnizoneBot/1.0 Safari/537.36",
+            Accept: "application/json, text/plain, */*",
+            "Accept-Language": "it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7",
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
+          },
+          signal: AbortSignal.timeout(25000),
+        })
+
+        if (unifiedRes.ok) {
+          const streamData = await unifiedRes.json()
+          const animeWorldData = streamData.AnimeWorld
+
+          if (animeWorldData?.available && animeWorldData.stream_url) {
+            return NextResponse.json({
+              ok: true,
+              streamUrl: animeWorldData.stream_url,
+              embed: animeWorldData.embed,
+              source: "https://aw-au-as-api.vercel.app/api/stream",
+              server: "AnimeWorld",
+              unified: true,
+              isEmbed: false,
+            })
+          } else {
+            return NextResponse.json(
+              { ok: false, error: "AnimeWorld non disponibile per questo episodio", streamData },
+              { status: 404 },
+            )
+          }
+        } else {
+          const errorText = await unifiedRes.text()
+          console.warn(`Unified API failed with status ${unifiedRes.status}:`, errorText)
+        }
+      } catch (unifiedError) {
+        console.warn("Unified stream API failed, falling back to AnimeWorld:", unifiedError)
+      }
+    }
+
     if (asId) {
       try {
         const params = new URLSearchParams()
@@ -74,52 +121,6 @@ export async function GET(req: NextRequest) {
       } catch (unifiedError) {
         console.warn("AnimeSaturn stream API failed:", unifiedError)
         return NextResponse.json({ ok: false, error: "Errore nel recupero stream AnimeSaturn" }, { status: 500 })
-      }
-    }
-
-    if (awId) {
-      try {
-        const params = new URLSearchParams()
-        params.set("AW", awId)
-
-        const unifiedRes = await fetch(`https://aw-au-as-api.vercel.app/api/stream?${params}`, {
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) AnizoneBot/1.0 Safari/537.36",
-            Accept: "application/json, text/plain, */*",
-            "Accept-Language": "it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7",
-            "Cache-Control": "no-cache",
-            Pragma: "no-cache",
-          },
-          signal: AbortSignal.timeout(25000),
-        })
-
-        if (unifiedRes.ok) {
-          const streamData = await unifiedRes.json()
-          const animeWorldData = streamData.AnimeWorld
-
-          if (animeWorldData?.available && animeWorldData.stream_url) {
-            return NextResponse.json({
-              ok: true,
-              streamUrl: animeWorldData.stream_url,
-              embed: animeWorldData.embed,
-              source: "https://aw-au-as-api.vercel.app/api/stream",
-              server: "AnimeWorld",
-              unified: true,
-              isEmbed: false,
-            })
-          } else {
-            return NextResponse.json(
-              { ok: false, error: "AnimeWorld non disponibile per questo episodio", streamData },
-              { status: 404 },
-            )
-          }
-        } else {
-          const errorText = await unifiedRes.text()
-          console.warn(`Unified API failed with status ${unifiedRes.status}:`, errorText)
-        }
-      } catch (unifiedError) {
-        console.warn("Unified stream API failed, falling back to AnimeWorld:", unifiedError)
       }
     }
 

@@ -308,6 +308,15 @@ export function parseWatchMeta(html: string): WatchMeta | null {
   const status = pick("Stato")
   const views = pick("Visualizzazioni")
 
+  console.log("[v0] parseWatchMeta - Extracted fields:", {
+    audio,
+    releaseDate,
+    duration,
+    episodesCount,
+    status,
+    views,
+  })
+
   let season = ""
   let seasonHref: string | undefined
   root
@@ -334,6 +343,8 @@ export function parseWatchMeta(html: string): WatchMeta | null {
 
   const rating = root.find("#average-vote").text().trim() || root.find(".rating[data-value]").attr("data-value")
   const votesCount = root.find(".votes-count").text().trim()
+
+  console.log("[v0] parseWatchMeta - Rating and studio:", { rating, votesCount, studio })
 
   const description = root.find(".desc").text().trim()
 
@@ -380,7 +391,7 @@ export function parseWatchMeta(html: string): WatchMeta | null {
 
   console.log("[v0] Final AniList ID for", title, ":", anilistId || "NOT FOUND")
 
-  return {
+  const result = {
     title,
     jtitle,
     image: img,
@@ -395,6 +406,10 @@ export function parseWatchMeta(html: string): WatchMeta | null {
     description,
     anilistId,
   }
+
+  console.log("[v0] parseWatchMeta - Final result:", JSON.stringify(result, null, 2))
+
+  return result
 }
 
 export type SimpleEntry = { title: string; href: string; image?: string }
@@ -518,45 +533,52 @@ export type DaySchedule = {
   items: ScheduleItem[]
 }
 
+export function extractScheduleDateRange(html: string): string {
+  const $ = load(html)
+  // Scrape the date range text from the schedule page header
+  // Format: "5 gennaio - 12 gennaio"
+  const dateRangeText = $(".widget-body p.text-center.font-weight-bold").first().text().trim()
+  return dateRangeText || ""
+}
+
 export function parseSchedule(html: string): DaySchedule[] {
-  console.log("[v0] Starting parseSchedule...");
-  const $ = load(html);
-  const schedule: DaySchedule[] = [];
+  console.log("[v0] Starting parseSchedule...")
+  const $ = load(html)
+  const schedule: DaySchedule[] = []
 
   $(".costr").each((dayIndex, dayHeader) => {
-    const $dayHeader = $(dayHeader);
-    const dayName = $dayHeader.find(".day-header").text().trim();
+    const $dayHeader = $(dayHeader)
+    const dayName = $dayHeader.find(".day-header").text().trim()
 
-    if (!dayName) return;
+    if (!dayName) return
 
-    const items: ScheduleItem[] = [];
-    const $scheduleSection = $dayHeader.next(".calendario-aw");
+    const items: ScheduleItem[] = []
+    const $scheduleSection = $dayHeader.next(".calendario-aw")
 
     $scheduleSection.find(".widget.boxcalendario").each((itemIndex, el) => {
-      const $item = $(el);
+      const $item = $(el)
 
-      const $link = $item.find("a.name");
-      const href = $link.attr("href") || "";
-      const title = $link.attr("title") || $link.text().trim() || "";
-      const episode = $item.find(".episodio-calendario").text().trim();
-      const timeText = $item.find(".hour").text().trim();
-      const time = timeText.replace("Trasmesso alle ", "").trim() || "NAC";
+      const $link = $item.find("a.name")
+      const href = $link.attr("href") || ""
+      const title = $link.attr("title") || $link.text().trim() || ""
+      const episode = $item.find(".episodio-calendario").text().trim()
+      const timeText = $item.find(".hour").text().trim()
+      const time = timeText.replace("Trasmesso alle ", "").trim() || "NAC"
 
-      // Fixed Thumbnail Extraction
-      const $imgDiv = $item.find(".img-anime");
-      const bgStyle = $imgDiv.attr("style") || "";
-      let image = "";
+      const $imgDiv = $item.find(".img-anime")
+      const bgStyle = $imgDiv.attr("style") || ""
+      let image = ""
 
       // Regex matches url('...'), url("..."), or url(...)
-      const urlMatch = bgStyle.match(/url\((['"]?)(.*?)\1\)/);
-      if (urlMatch && urlMatch[2]) {
-        image = urlMatch[2].trim();
+      const urlMatch = bgStyle.match(/url$$\s*['"]?(.*?)['"]?\s*$$/)
+      if (urlMatch && urlMatch[1]) {
+        image = urlMatch[1].trim()
       }
 
       if (title && (href || episode)) {
-        let watchPath = href;
+        let watchPath = href
         if (href.startsWith("/play/")) {
-          watchPath = href.replace(/\/+/g, "/");
+          watchPath = href.replace(/\/+/g, "/")
         }
 
         items.push({
@@ -565,31 +587,31 @@ export function parseSchedule(html: string): DaySchedule[] {
           episode,
           time,
           image,
-        });
+        })
       }
-    });
+    })
 
-    const isIndeterminate = dayName.toUpperCase().includes("INDETERMINATE");
+    const isIndeterminate = dayName.toUpperCase().includes("INDETERMINATE")
 
     if (!isIndeterminate) {
       items.sort((a, b) => {
         const parseTime = (timeStr: string) => {
-          if (timeStr === "NAC") return 9999;
-          const [hours, minutes] = timeStr.split(":").map((n) => parseInt(n, 10));
-          return (hours || 0) * 60 + (minutes || 0);
-        };
-        return parseTime(a.time) - parseTime(b.time);
-      });
+          if (timeStr === "NAC") return 9999
+          const [hours, minutes] = timeStr.split(":").map((n) => Number.parseInt(n, 10))
+          return (hours || 0) * 60 + (minutes || 0)
+        }
+        return parseTime(a.time) - parseTime(b.time)
+      })
     }
 
     schedule.push({
       date: isIndeterminate ? "indeterminate" : new Date().toISOString().split("T")[0],
       dayName,
       items,
-    });
-  });
+    })
+  })
 
-  return schedule;
+  return schedule
 }
 
 export function formatDateRange(startDate: Date | null, endDate: Date | null): string {

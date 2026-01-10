@@ -165,15 +165,55 @@ export function WatchInfo({
           // Ignore sessionStorage errors
         }
 
-        let metaUrl = `/api/anime-meta?path=${encodeURIComponent(metaPath)}`
-        if (animepaheId) {
+        let metaUrl = ""
+
+        try {
+          const storedSources = sessionStorage.getItem(`anizone:sources:${path}`)
+          if (storedSources) {
+            const parsedSources = JSON.parse(storedSources)
+
+            // Define priority order
+            const priorityOrder = [
+              { name: "AnimeWorld", param: "path", transform: (s: any) => s.url || `/play/${s.id}` },
+              { name: "AnimeSaturn", param: "path", transform: (s: any) => s.url || s.id },
+              { name: "AnimeUnity", param: "unityId", transform: (s: any) => s.id },
+              { name: "AnimePahe", param: "animepaheId", transform: (s: any) => s.id },
+            ]
+
+            // Find first available source in priority order
+            for (const priority of priorityOrder) {
+              const source = parsedSources.find((s: any) => s.name === priority.name)
+              if (source && (source.url || source.id)) {
+                const value = priority.transform(source)
+                metaUrl = `/api/anime-meta?${priority.param}=${encodeURIComponent(value)}`
+                console.log(
+                  `[v0] WatchInfo - Using ${priority.name} for metadata (priority: ${priorityOrder.indexOf(priority) + 1})`,
+                )
+                break
+              }
+            }
+          }
+        } catch (e) {
+          console.error("[v0] WatchInfo - Error reading sources from sessionStorage:", e)
+        }
+
+        // Fallback to default path if no priority source found
+        if (!metaUrl) {
+          metaUrl = `/api/anime-meta?path=${encodeURIComponent(path)}`
+          console.log("[v0] WatchInfo - Using fallback path for metadata")
+        }
+
+        // Add supplementary IDs if available
+        if (animepaheId && !metaUrl.includes("animepaheId")) {
           metaUrl += `&animepaheId=${encodeURIComponent(animepaheId)}`
           console.log("[v0] WatchInfo - Including AnimePahe ID:", animepaheId)
         }
-        if (unityId) {
+        if (unityId && !metaUrl.includes("unityId")) {
           metaUrl += `&unityId=${encodeURIComponent(unityId)}`
+          console.log("[v0] WatchInfo - Including Unity ID:", unityId)
         }
 
+        console.log("[v0] WatchInfo - Fetching metadata from:", metaUrl)
         const metaResponse = await fetch(metaUrl)
         const metaData = await metaResponse.json()
 
