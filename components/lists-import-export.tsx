@@ -665,7 +665,7 @@ export function ListsImportExport({ animeCollection, mangaCollection, user, onIm
                           className="rounded"
                         />
                         <div>
-                          <p className="font-medium">{auUsername}</p>
+                          <p className="font-medium" style={{ textAlign: "center" }} >{auUsername}</p>
                           <p className="text-sm text-muted-foreground">AnimeUnity</p>
                         </div>
                         <Button
