@@ -657,11 +657,11 @@ export function ListsImportExport({ animeCollection, mangaCollection, user, onIm
                   ) : (
                     <div className="flex-1 min-h-0 flex flex-col">
                       <Card className="p-3 flex items-center gap-3 mb-4 flex-shrink-0">
-                        <Image
+                        <img
                           src="https://www.animeunity.so/apple-touch-icon.png"
                           alt="AnimeUnity"
-                          width={40}
-                          height={40}
+                          width="40"
+                          height="40"
                           className="rounded"
                         />
                         <div>
