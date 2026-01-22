@@ -570,7 +570,7 @@ export function parseSchedule(html: string): DaySchedule[] {
       let image = ""
 
       // Regex matches url('...'), url("..."), or url(...)
-      const urlMatch = bgStyle.match(/url$$\s*['"]?(.*?)['"]?\s*$$/)
+      const urlMatch = bgStyle.match(/url\(\s*['"]?(.*?)['"]?\s*\)/);
       if (urlMatch && urlMatch[1]) {
         image = urlMatch[1].trim()
       }
