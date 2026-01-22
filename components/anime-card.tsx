@@ -30,8 +30,8 @@ export function AnimeCard({ title, href, image, isDub, className, sources, has_m
     if (sources && sources.length > 0) {
       const awSource = sources.find((s) => s.name === "AnimeWorld")
       if (awSource?.id) {
-        const normalizedId = awSource.id.endsWith("-") ? awSource.id.slice(0, -1) : awSource.id
-        return `/play/${normalizedId}`
+        // Keep the ID as-is, including trailing hyphens which are part of valid AnimeWorld IDs
+        return `/play/${awSource.id}`
       }
     }
 
@@ -61,7 +61,8 @@ export function AnimeCard({ title, href, image, isDub, className, sources, has_m
   const hasAnimeSaturn = sources?.some((s) => s.name === "AnimeSaturn")
   const hasAnimePahe = sources?.some((s) => s.name === "AnimePahe")
   const hasUnity = sources?.some((s) => s.name === "Unity")
-  const showBadges = sources && sources.length > 0 && (hasAnimeWorld || hasAnimeSaturn || hasAnimePahe || hasUnity)
+  const hasAnimeGG = sources?.some((s) => s.name === "AnimeGG")
+  const showBadges = sources && sources.length > 0 && (hasAnimeWorld || hasAnimeSaturn || hasAnimePahe || hasUnity || hasAnimeGG)
 
   const isAnimePaheImage = image.includes("animepahe.si") || image.includes("animepahe.com")
   const displayImage = isAnimePaheImage ? `/api/animepahe-image-proxy?url=${encodeURIComponent(image)}` : image
@@ -71,11 +72,10 @@ export function AnimeCard({ title, href, image, isDub, className, sources, has_m
       try {
         const normalizedSources = sources.map((s) => {
           if (s.name === "AnimeWorld" && s.id) {
-            const normalizedId = s.id.endsWith("-") ? s.id.slice(0, -1) : s.id
+            // Keep the ID as-is, including trailing hyphens which are part of valid AnimeWorld IDs
             return {
               ...s,
-              id: normalizedId,
-              url: s.url || `https://www.animeworld.ac/play/${normalizedId}`,
+              url: s.url || `https://www.animeworld.ac/play/${s.id}`,
             }
           }
           return s
@@ -178,6 +178,15 @@ export function AnimeCard({ title, href, image, isDub, className, sources, has_m
                     <img
                       src="https://www.animeunity.so/apple-touch-icon.png"
                       alt="Unity"
+                      className="w-full h-full object-cover rounded"
+                    />
+                  </div>
+                )}
+                {hasAnimeGG && (
+                  <div className="w-7 h-7 rounded-lg overflow-hidden bg-background/90 p-1 shadow-lg backdrop-blur-sm">
+                    <img
+                      src="https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/refs/heads/main/public/animegg.png"
+                      alt="AnimeGG"
                       className="w-full h-full object-cover rounded"
                     />
                   </div>

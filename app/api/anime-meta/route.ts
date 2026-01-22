@@ -284,22 +284,23 @@ export async function GET(req: NextRequest) {
       } else if (path!.includes("animesaturn") || path!.startsWith("/anime/")) {
         url = path!.startsWith("http") ? path! : `https://www.animesaturn.cx${path}`
         intendedSource = "animesaturn"
-      } else {
-        let animePath = path!.replace(/\/+/g, "/")
-        if (animePath.includes("/play/")) {
-          const playMatch = animePath.match(/\/play\/([^/?]+)/)
-          if (playMatch) {
-            const worldId = playMatch[1].endsWith("-") ? playMatch[1].slice(0, -1) : playMatch[1]
-            animePath = `/play/${worldId}`
-          }
-        } else if (!animePath.startsWith("/")) {
-          animePath = `/play/${animePath}`
-        } else if (!animePath.startsWith("/play/") && !animePath.includes(".")) {
-          animePath = `/play/${animePath.replace(/^\/+/, "")}`
+} else {
+      let animePath = path!.replace(/\/+/g, "/")
+      if (animePath.includes("/play/")) {
+        const playMatch = animePath.match(/\/play\/([^/?]+)/)
+        if (playMatch) {
+          // Keep the ID as-is, including trailing hyphens which are part of valid AnimeWorld IDs
+          const worldId = playMatch[1]
+          animePath = `/play/${worldId}`
         }
-        url = `${ANIMEWORLD_BASE}${animePath}`.replace(/([^:]\/)\/+/g, "$1")
-        intendedSource = "animeworld"
+      } else if (!animePath.startsWith("/")) {
+        animePath = `/play/${animePath}`
+      } else if (!animePath.startsWith("/play/") && !animePath.includes(".")) {
+        animePath = `/play/${animePath.replace(/^\/+/, "")}`
       }
+      url = `${ANIMEWORLD_BASE}${animePath}`.replace(/([^:]\/)\/+/g, "$1")
+      intendedSource = "animeworld"
+    }
 
       console.log("[v0] anime-meta fetching URL:", url, "| Intended source:", intendedSource)
 

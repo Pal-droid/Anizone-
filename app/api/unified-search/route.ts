@@ -139,9 +139,10 @@ export async function GET(req: NextRequest) {
           const animeSaturnSource = result.sources.find((s) => s.name === "AnimeSaturn")
           const animeUnitySource = result.sources.find((s) => s.name === "Unity")
           const animePaheSource = result.sources.find((s) => s.name === "AnimePahe")
+          const animeGGSource = result.sources.find((s) => s.name === "AnimeGG")
 
           const primaryUrl =
-            animeWorldSource?.url || animeSaturnSource?.url || animeUnitySource?.url || animePaheSource?.url || ""
+            animeWorldSource?.url || animeSaturnSource?.url || animeUnitySource?.url || animePaheSource?.url || animeGGSource?.url || ""
 
           console.log(
             "Result:",

@@ -85,11 +85,10 @@ export default function WatchPage() {
           if (Array.isArray(parsedSources) && parsedSources.length > 0) {
             mappedSources = parsedSources.map((s) => {
               if (s.name === "AnimeWorld" && s.id) {
-                const normalizedId = s.id.endsWith("-") ? s.id.slice(0, -1) : s.id
+                // Keep the ID as-is, including trailing hyphens which are part of valid AnimeWorld IDs
                 return {
                   ...s,
-                  id: normalizedId,
-                  url: s.url || `https://www.animeworld.ac/play/${normalizedId}`,
+                  url: s.url || `https://www.animeworld.ac/play/${s.id}`,
                 }
               }
               return s

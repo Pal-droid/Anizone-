@@ -26,6 +26,9 @@ export async function GET(req: NextRequest) {
     const path = searchParams.get("path")
     const awId = searchParams.get("AW")
     const asId = searchParams.get("AS")
+    const agId = searchParams.get("AG")
+    const agAudio = searchParams.get("AG_AUDIO") || "sub" // "sub" or "dub"
+    const agRes = searchParams.get("AG_RES") || "1080p" // Resolution preference
 
     // Check World first (highest priority)
     if (awId) {
@@ -124,9 +127,112 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Handle AnimeGG (AGG) server
+    if (agId) {
+      try {
+        const params = new URLSearchParams()
+        params.set("AG", agId)
+
+        const unifiedRes = await fetch(`https://aw-au-as-api.vercel.app/api/stream?${params}`, {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) AnizoneBot/1.0 Safari/537.36",
+            Accept: "application/json, text/plain, */*",
+            "Accept-Language": "it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7",
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
+          },
+          signal: AbortSignal.timeout(25000),
+        })
+
+        if (unifiedRes.ok) {
+          const streamData = await unifiedRes.json()
+          const animeGGData = streamData.AnimeGG
+
+          if (animeGGData?.available && animeGGData.servers) {
+            // Determine which audio track to use (GG-SUB or GG-DUB)
+            const audioKey = agAudio === "dub" ? "GG-DUB" : "GG-SUB"
+            const streams = animeGGData.servers[audioKey] || animeGGData.servers["GG-SUB"] || []
+            
+            // Check if the requested audio type is available
+            const hasRequestedAudio = !!animeGGData.servers[audioKey]
+            const hasSub = !!animeGGData.servers["GG-SUB"]
+            const hasDub = !!animeGGData.servers["GG-DUB"]
+
+            if (streams.length === 0) {
+              return NextResponse.json(
+                { ok: false, error: `AnimeGG ${audioKey} not available for this episode`, streamData },
+                { status: 404 },
+              )
+            }
+
+            // Process streams to handle duplicate resolutions
+            const processedStreams: { url: string; quality: string; type: string; label: string }[] = []
+            const qualityCounts: Record<string, number> = {}
+
+            for (const stream of streams) {
+              const quality = stream.quality || "360p"
+              qualityCounts[quality] = (qualityCounts[quality] || 0) + 1
+              const version = qualityCounts[quality] > 1 ? ` v${qualityCounts[quality]}` : ""
+              processedStreams.push({
+                url: stream.url,
+                quality: quality,
+                type: stream.type || "mp4",
+                label: `${quality}${version}`,
+              })
+            }
+
+            // Find the best matching resolution
+            let selectedStream = processedStreams.find((s) => s.quality === agRes)
+            if (!selectedStream) {
+              // Try to find the highest available resolution
+              const resOrder = ["1080p", "720p", "480p", "360p"]
+              for (const res of resOrder) {
+                selectedStream = processedStreams.find((s) => s.quality === res)
+                if (selectedStream) break
+              }
+            }
+            if (!selectedStream) {
+              selectedStream = processedStreams[0]
+            }
+
+            // Build proxy URL for the stream (requires animegg.org referrer)
+            const proxyUrl = `/api/animegg-proxy?url=${encodeURIComponent(selectedStream.url)}`
+
+            return NextResponse.json({
+              ok: true,
+              streamUrl: selectedStream.url,
+              proxyUrl: proxyUrl,
+              source: "https://aw-au-as-api.vercel.app/api/stream",
+              server: "AnimeGG",
+              unified: true,
+              isEmbed: false,
+              audioType: hasRequestedAudio ? agAudio : "sub",
+              hasSub,
+              hasDub,
+              selectedQuality: selectedStream.label,
+              availableQualities: processedStreams.map((s) => s.label),
+              allStreams: processedStreams,
+            })
+          } else {
+            return NextResponse.json(
+              { ok: false, error: "AnimeGG non disponibile per questo episodio", streamData },
+              { status: 404 },
+            )
+          }
+        } else {
+          const errorText = await unifiedRes.text()
+          console.warn(`AnimeGG API failed with status ${unifiedRes.status}:`, errorText)
+        }
+      } catch (unifiedError) {
+        console.warn("AnimeGG stream API failed:", unifiedError)
+        return NextResponse.json({ ok: false, error: "Errore nel recupero stream AnimeGG" }, { status: 500 })
+      }
+    }
+
     if (!path) {
       return NextResponse.json(
-        { ok: false, error: "Parametro mancante. Usa AW=<id>, AS=<id> oppure path=<path>" },
+        { ok: false, error: "Parametro mancante. Usa AW=<id>, AS=<id>, AG=<id> oppure path=<path>" },
         { status: 400 },
       )
     }
