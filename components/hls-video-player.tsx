@@ -26,7 +26,7 @@ export function HLSVideoPlayer({ m3u8Url, title, className, autoPlay = false }: 
   const [showControls, setShowControls] = useState(true)
   const [isFullscreen, setIsFullscreen] = useState(false)
 
-  const proxiedUrl = `https://animesaturn-proxy.onrender.com/proxy?url=${encodeURIComponent(m3u8Url)}`
+  const proxiedUrl = `/api/animesaturn-proxy?url=${encodeURIComponent(m3u8Url)}`
 
   useEffect(() => {
     const video = videoRef.current

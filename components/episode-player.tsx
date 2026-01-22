@@ -146,7 +146,7 @@ export function EpisodePlayer({
     [],
   )
 
-  const isEmbedServer = selectedServer === "AnimeSaturn"
+  const isEmbedServer = false // AnimeSaturn now uses proxy URL instead of embed
   const isAnimePahe = selectedServer === "AnimePahe"
   const isUnity = selectedServer === "Unity"
   const isAnimeGG = selectedServer === "AnimeGG"
@@ -592,15 +592,16 @@ export function EpisodePlayer({
 
         if (selectedServer === "AnimeSaturn" && serverData.stream_url) {
           const rawStreamUrl = serverData.stream_url
-          // Build embed URL using the AnimeSaturn proxy
-          const embed = `https://animesaturn-proxy.onrender.com/embed?url=${encodeURIComponent(rawStreamUrl)}`
-          console.log("[v0] Got AnimeSaturn embed URL:", embed)
+          // Build proxy URL using our local AnimeSaturn proxy
+          const proxied = `/api/animesaturn-proxy?url=${encodeURIComponent(rawStreamUrl)}`
+          console.log("[v0] Got AnimeSaturn stream URL:", rawStreamUrl)
+          console.log("[v0] Using AnimeSaturn proxy URL:", proxied)
           setStreamUrl(rawStreamUrl)
-          setEmbedUrl(embed)
+          setProxyUrl(proxied)
           setEpisodeRefUrl(selectedEpisode.href)
 
           // Cache the result
-          localStorage.setItem(cacheKey, JSON.stringify({ streamUrl: rawStreamUrl, embedUrl: embed }))
+          localStorage.setItem(cacheKey, JSON.stringify({ streamUrl: rawStreamUrl, proxyUrl: proxied }))
         } else if (selectedServer === "AnimePahe" && serverData.stream_url) {
           const direct = serverData.stream_url
           console.log("[v0] Got AnimePahe stream URL:", direct)
