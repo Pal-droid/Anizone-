@@ -25,6 +25,7 @@ export function ScheduleCalendar() {
   const [schedule, setSchedule] = useState<DaySchedule[]>([])
   const [dateRange, setDateRange] = useState<string>("")
   const [loading, setLoading] = useState(true)
+  const [clickingAnime, setClickingAnime] = useState<string | null>(null)
 
   const loadSchedule = async () => {
     setLoading(true)
@@ -52,6 +53,13 @@ export function ScheduleCalendar() {
 
   const handleAnimeClick = async (item: ScheduleItem, e: React.MouseEvent) => {
     e.preventDefault()
+    
+    // Prevent multiple clicks on same anime
+    if (clickingAnime === item.href) {
+      return
+    }
+    
+    setClickingAnime(item.href)
 
     try {
       // Fetch anime metadata first
@@ -81,6 +89,8 @@ export function ScheduleCalendar() {
       }
     } catch (error) {
       console.error("[v1] Failed to fetch metadata or episodes for calendar anime:", error)
+    } finally {
+      setClickingAnime(null)
     }
 
     // Obfuscate path for watch page
@@ -165,7 +175,9 @@ export function ScheduleCalendar() {
                   <div
                     key={`${item.title}-${idx}`}
                     onClick={(e) => handleAnimeClick(item, e)}
-                    className="group surface cursor-pointer hover:shadow-lg transition-all duration-300 overflow-hidden"
+                    className={`group surface cursor-pointer hover:shadow-lg transition-all duration-300 overflow-hidden ${
+                      clickingAnime === item.href ? 'opacity-60 pointer-events-none' : ''
+                    }`}
                   >
                     <div className="flex gap-4 p-4">
                       {/* Thumbnail */}
@@ -241,7 +253,9 @@ export function ScheduleCalendar() {
                 <div
                   key={`indeterminate-${item.title}-${idx}`}
                   onClick={(e) => handleAnimeClick(item, e)}
-                  className="group surface cursor-pointer hover:shadow-lg transition-all duration-300 overflow-hidden"
+                  className={`group surface cursor-pointer hover:shadow-lg transition-all duration-300 overflow-hidden ${
+                    clickingAnime === item.href ? 'opacity-60 pointer-events-none' : ''
+                  }`}
                 >
                   <div className="flex gap-4 p-4">
                     {/* Thumbnail */}

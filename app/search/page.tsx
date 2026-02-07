@@ -2,15 +2,17 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { SearchForm, SERVER_LIST, ALL_SERVERS } from "@/components/search-form"
+import { SearchForm } from "@/components/search-form"
 import { MangaSearchForm } from "@/components/manga-search-form"
 import { AnimeCard } from "@/components/anime-card"
 import { MangaCard } from "@/components/manga-card"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { GENRES } from "@/lib/genre-map"
 import Link from "next/link"
-import { Film, BookOpen, ChevronLeft, ChevronRight } from "lucide-react"
+import { Film, BookOpen, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react"
 import { SlideOutMenu } from "@/components/slide-out-menu"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
 type Source = {
@@ -24,6 +26,7 @@ type AnimeItem = {
   href: string
   image: string
   isDub?: boolean
+  dubLanguage?: "it" | "en" | "ko" | "it/en" | "it/ko" | "en/ko" | "it/en/ko"
   sources?: Source[]
   has_multi_servers?: boolean
 }
@@ -49,6 +52,86 @@ type PaginationInfo = {
   previousUrl?: string
 }
 
+function MangaMaintenanceNotice() {
+  useEffect(() => {
+    // Prevent scrolling when popup is open
+    document.body.style.overflow = 'hidden'
+    
+    // Create and append overlay directly to body
+    const overlay = document.createElement('div')
+    overlay.style.cssText = `
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      background: rgba(0, 0, 0, 0.8) !important;
+      backdrop-filter: blur(4px) !important;
+      z-index: 99999999 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      padding: 16px !important;
+      box-sizing: border-box !important;
+    `
+    
+    const modal = document.createElement('div')
+    modal.style.cssText = `
+      max-width: 448px !important;
+      width: 100% !important;
+      background: white !important;
+      border-radius: 8px !important;
+      padding: 24px !important;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+      z-index: 100000000 !important;
+      position: relative !important;
+      text-align: center !important;
+    `
+    
+    modal.innerHTML = `
+      <div style="color: #eab308; margin-bottom: 16px;">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto;">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+      </div>
+      <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 16px; color: #0f172a;">Ricerca Manga in Manutenzione</h2>
+      <p style="color: #64748b; margin-bottom: 24px; line-height: 1.5;">
+        La funzionalità di ricerca manga è attualmente in manutenzione per miglioramenti del sistema. 
+        Riprova più tardi. Puoi comunque accedere ai manga direttamente dalle altre sezioni del sito.
+      </p>
+      <a href="/" style="
+        display: inline-block;
+        width: 100%;
+        padding: 8px 16px;
+        background: #0f172a;
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: background-color 0.2s;
+      " onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#0f172a'">
+        Torna alla Home
+      </a>
+    `
+    
+    overlay.appendChild(modal)
+    document.body.appendChild(overlay)
+    
+    return () => {
+      document.body.style.overflow = 'unset'
+      if (document.body.contains(overlay)) {
+        document.body.removeChild(overlay)
+      }
+    }
+  }, [])
+
+  return null // Render nothing in React, we're using DOM manipulation
+}
+
 export default function SearchPage() {
   const sp = useSearchParams()
   const router = useRouter()
@@ -65,8 +148,6 @@ export default function SearchPage() {
   const [showingDefaults, setShowingDefaults] = useState(false)
   const [pagination, setPagination] = useState<PaginationInfo | null>(null)
 
-  const [allowedServers, setAllowedServers] = useState<string[]>(ALL_SERVERS)
-
   const genreId = sp.get("genre")
   const keyword = sp.get("keyword")
   const queryString = useMemo(() => sp.toString(), [sp])
@@ -76,22 +157,6 @@ export default function SearchPage() {
     const g = GENRES.find((x) => String(x.id) === genreId)
     return g?.name || `Genere ${genreId}`
   }, [genreId])
-
-  const filteredAnimeItems = useMemo(() => {
-    if (allowedServers.length === 0) return []
-    if (allowedServers.length === ALL_SERVERS.length) return animeItems
-
-    return animeItems.filter((item) => {
-      if (!item.sources || item.sources.length === 0) {
-        return true
-      }
-      return item.sources.some((source) => allowedServers.includes(source.name))
-    })
-  }, [animeItems, allowedServers])
-
-  const handleServerFilterChange = useCallback((selectedServers: string[]) => {
-    setAllowedServers(selectedServers)
-  }, [])
 
   const loadDefaultRecommendations = async () => {
     setLoading(true)
@@ -153,7 +218,10 @@ export default function SearchPage() {
       }
       setPagination(j.pagination || null)
     } catch (e: any) {
-      setError(e?.message || "Errore nella ricerca")
+      const errorMessage = e?.message || "Errore nella ricerca"
+      setError(errorMessage)
+      // Don't redirect validation errors - show them in the search page instead
+      // Only redirect for other types of errors
     } finally {
       setLoading(false)
     }
@@ -228,12 +296,6 @@ export default function SearchPage() {
     const tabParam = sp.get("tab")
     if (tabParam === "manga" || tabParam === "anime") {
       setSearchType(tabParam)
-    }
-    const serversParam = sp.get("servers")
-    if (serversParam) {
-      const serverIds = serversParam.split(",").filter(Boolean)
-      const serverNames = serverIds.map((id) => SERVER_LIST.find((s) => s.id === id)?.name).filter(Boolean) as string[]
-      setAllowedServers(serverNames.length > 0 ? serverNames : ALL_SERVERS)
     }
   }, [sp])
 
@@ -355,7 +417,7 @@ export default function SearchPage() {
 
   return (
     <main className="min-h-screen bg-background">
-      <SlideOutMenu currentPath="/search" />
+      <SlideOutMenu />
 
       <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border">
         <div className="px-6 py-4 flex items-center justify-center">
@@ -411,7 +473,7 @@ export default function SearchPage() {
               )}
             </div>
 
-            <SearchForm onServerFilterChange={handleServerFilterChange} />
+            <SearchForm />
 
             {error && (
               <div className="surface-elevated p-4 border-l-4 border-destructive">
@@ -425,33 +487,26 @@ export default function SearchPage() {
                   <SkeletonCard key={i} />
                 ))}
               </div>
-            ) : filteredAnimeItems.length === 0 && (hasSearched || allowedServers.length === 0) ? (
+            ) : animeItems.length === 0 && hasSearched ? (
               <div className="surface-elevated p-8 text-center">
                 <Film size={48} className="mx-auto mb-4 text-muted-foreground" />
                 <h2 className="text-lg font-semibold text-foreground mb-2">Nessun risultato</h2>
                 <p className="text-muted-foreground text-sm">
-                  {allowedServers.length === 0
-                    ? "Seleziona almeno un server per vedere i risultati."
-                    : allowedServers.length < ALL_SERVERS.length
-                      ? "Nessun anime trovato con i server selezionati. Prova a selezionare altri server."
-                      : "Prova a cambiare parola chiave o filtri"}
+                  Prova a cambiare parola chiave o filtri
                 </p>
               </div>
             ) : (
               <>
-                {allowedServers.length < ALL_SERVERS.length && filteredAnimeItems.length !== animeItems.length && (
-                  <div className="text-sm text-muted-foreground">
-                    Mostrando {filteredAnimeItems.length} di {animeItems.length} risultati (filtrati per server)
-                  </div>
-                )}
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                  {filteredAnimeItems.map((it) => (
+                  {animeItems.map((it: AnimeItem) => (
                     <AnimeCard
                       key={it.href}
                       title={it.title}
                       href={it.href}
                       image={it.image}
                       isDub={it.isDub}
+                      dubLanguage={it.dubLanguage}
+                      compactSources
                       sources={it.sources}
                       has_multi_servers={it.has_multi_servers}
                     />
@@ -463,14 +518,26 @@ export default function SearchPage() {
           </TabsContent>
 
           <TabsContent value="manga" className="space-y-5 mt-5">
-            <div className="surface-elevated p-5">
-              <h1 className="text-xl font-bold text-foreground">Cerca Manga</h1>
-              <p className="text-sm text-muted-foreground mt-1">Trova capitoli tradotti in ITA</p>
-            </div>
+            {error && error.includes("almeno 2 caratteri") ? (
+              // Show error message instead of maintenance popup for validation errors
+              <div className="surface-elevated p-5">
+                <h1 className="text-xl font-bold text-foreground">Cerca Manga</h1>
+                <p className="text-sm text-muted-foreground mt-1">Trova capitoli tradotti in ITA</p>
+              </div>
+            ) : (
+              <MangaMaintenanceNotice />
+            )}
+            
+            {!error && (
+              <div className="surface-elevated p-5">
+                <h1 className="text-xl font-bold text-foreground">Cerca Manga</h1>
+                <p className="text-sm text-muted-foreground mt-1">Trova capitoli tradotti in ITA</p>
+              </div>
+            )}
 
             <MangaSearchForm onSearch={searchManga} isLoading={loading} />
 
-            {error && (
+            {error && !error.includes("almeno 2 caratteri") && (
               <div className="surface-elevated p-4 border-l-4 border-destructive">
                 <p className="text-sm text-destructive">{error}</p>
               </div>

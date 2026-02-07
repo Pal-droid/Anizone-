@@ -16,6 +16,16 @@ type UnifiedResult = {
   }
   sources: UnifiedSource[]
   has_multi_servers: boolean
+  isDub?: boolean
+  anilistId?: number
+  animepaheId?: unknown
+  metadata?: {
+    episodes?: unknown
+    status?: unknown
+    season?: unknown
+    studio?: unknown
+    synopsis?: unknown
+  }
 }
 
 async function enrichWithAnimePaheMetadata(results: UnifiedResult[]) {
@@ -75,6 +85,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "Parametro 'keyword' mancante" }, { status: 400 })
     }
 
+    // Validate minimum character length
+    if (keyword.trim().length < 2) {
+      return NextResponse.json({ 
+        ok: false, 
+        error: "La ricerca deve contenere almeno 2 caratteri. Inserisci una parola chiave più lunga." 
+      }, { status: 400 })
+    }
+
     const allParams = Array.from(searchParams.entries())
     const hasFilters = allParams.some(([key, value]) => {
       if (key === "keyword" || key === "dub") return false
@@ -90,6 +108,7 @@ export async function GET(req: NextRequest) {
       // Fall back to regular search if filters are applied
       const params: Record<string, string | string[]> = {}
       for (const [k, v] of searchParams.entries()) {
+        if (k === "dub" && v === "2") continue
         const existing = params[k]
         if (existing) {
           if (Array.isArray(existing)) {
@@ -141,6 +160,18 @@ export async function GET(req: NextRequest) {
           const animePaheSource = result.sources.find((s) => s.name === "AnimePahe")
           const animeGGSource = result.sources.find((s) => s.name === "AnimeGG")
 
+          const isItalianDub = result.title.includes("(ITA)")
+          const isEnglishDub = !!animeGGSource && result.isDub === true
+          const isKoreanDub = result.title.includes("(KOR)") || result.title.includes("(한국어)")
+          
+          // Build dub language string based on available dubs
+          const dubLanguages: string[] = []
+          if (isItalianDub) dubLanguages.push("it")
+          if (isEnglishDub) dubLanguages.push("en") 
+          if (isKoreanDub) dubLanguages.push("ko")
+          
+          const dubLanguage = dubLanguages.length > 0 ? dubLanguages.join("/") : undefined
+
           const primaryUrl =
             animeWorldSource?.url || animeSaturnSource?.url || animeUnitySource?.url || animePaheSource?.url || animeGGSource?.url || ""
 
@@ -157,7 +188,8 @@ export async function GET(req: NextRequest) {
             title: result.title,
             href: primaryUrl,
             image: result.images.poster || result.images.cover || "",
-            isDub: result.title.includes("(ITA)"),
+            isDub: isItalianDub || isEnglishDub || isKoreanDub,
+            dubLanguage,
             sources: result.sources,
             has_multi_servers: result.has_multi_servers,
             description: result.description,
@@ -168,13 +200,21 @@ export async function GET(req: NextRequest) {
         })
 
         if (dubParam === "0") {
-          // Sub only - exclude titles with "(ITA)"
-          console.log("Filtering for SUB only (excluding ITA)")
-          items = items.filter((item) => !item.title.includes("(ITA)"))
+          // Sub only - exclude any dub
+          console.log("Filtering for SUB only (excluding dubs)")
+          items = items.filter((item) => !item.isDub)
         } else if (dubParam === "1") {
-          // Dub only - only titles with "(ITA)"
-          console.log("Filtering for DUB only (ITA only)")
-          items = items.filter((item) => item.title.includes("(ITA)"))
+          // Italian dub only - any combination with Italian
+          console.log("Filtering for DUB only (Italian)")
+          items = items.filter((item) => item.dubLanguage?.includes("it"))
+        } else if (dubParam === "2") {
+          // English dub only - any combination with English
+          console.log("Filtering for DUB only (English)")
+          items = items.filter((item) => item.dubLanguage?.includes("en"))
+        } else if (dubParam === "3") {
+          // Korean dub only - any combination with Korean
+          console.log("Filtering for DUB only (Korean)")
+          items = items.filter((item) => item.dubLanguage?.includes("ko"))
         }
         // For "any"/tutti or no dub param, show all results
 

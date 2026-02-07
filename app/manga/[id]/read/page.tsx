@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import {
   ArrowLeft,
@@ -173,7 +173,49 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
   const startSentinelRef = useRef<HTMLDivElement>(null)
   const endSentinelRef = useRef<HTMLDivElement>(null)
 
-  const chapterUrl = searchParams.u ? deobfuscateUrl(searchParams.u) : searchParams.url
+  // Handle different URL formats for different manga sources
+  const chapterUrl = useMemo(() => {
+    // Check for obfuscated URL first
+    if (searchParams.u) {
+      return deobfuscateUrl(searchParams.u)
+    }
+    
+    // Check for legacy URL
+    if (searchParams.url) {
+      return searchParams.url
+    }
+    
+    // Handle Comix (Mix) source - construct unified URL
+    if (searchParams.comix_hash_id && searchParams.comix_slug) {
+      const params = new URLSearchParams()
+      params.set('_unified', 'true')
+      params.set('_source', 'Comix')
+      params.set('_hash_id', searchParams.comix_hash_id)
+      params.set('_slug', searchParams.comix_slug)
+      if (searchParams.chapter) {
+        params.set('_chapter_id', searchParams.chapter)
+      }
+      if (searchParams.chapterIndex) {
+        params.set('_chapter_num', searchParams.chapterIndex)
+      }
+      return `?${params.toString()}`
+    }
+    
+    // Handle World source
+    if (searchParams.world_id && searchParams.world_slug) {
+      const params = new URLSearchParams()
+      params.set('_unified', 'true')
+      params.set('_source', 'World')
+      params.set('_world_id', searchParams.world_id)
+      params.set('_world_slug', searchParams.world_slug)
+      if (searchParams.chapter) {
+        params.set('_chapter_url', searchParams.chapter)
+      }
+      return `?${params.toString()}`
+    }
+    
+    return null
+  }, [searchParams])
 
   useEffect(() => {
     const fetchChapters = async () => {
@@ -466,7 +508,7 @@ export default function MangaReader({ params, searchParams }: MangaReaderProps) 
 
   return (
     <main ref={containerRef} className="min-h-screen bg-black text-white pb-16">
-      <SlideOutMenu ref={menuRef} currentPath={`/manga/${params.id}/read`} hideButton />
+      <SlideOutMenu ref={menuRef} hideButton />
 
       <header className="sticky top-0 bg-black/90 backdrop-blur z-20 border-b border-gray-800">
         <div className="px-4 py-3 flex items-center justify-between">
