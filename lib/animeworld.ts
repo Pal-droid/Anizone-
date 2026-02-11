@@ -370,7 +370,7 @@ export function parseWatchMeta(html: string): WatchMeta | null {
     const match = watchlistLink.match(/anilist\.co\/anime\/(\d+)/)
     if (match) {
       anilistId = Number.parseInt(match[1], 10)
-      console.log("[v0] ✓ Extracted AniList ID from watchlist link:", anilistId)
+      console.log("[v0] ��� Extracted AniList ID from watchlist link:", anilistId)
     }
   }
 

@@ -1,9 +1,15 @@
 "use client"
 
+import { SelectItem } from "@/components/ui/select"
+import { SelectContent } from "@/components/ui/select"
+import { SelectValue } from "@/components/ui/select"
+import { SelectTrigger } from "@/components/ui/select"
+import { Select } from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
 import { useState, useEffect, forwardRef, useImperativeHandle } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation" // Added this
-import { Menu, X, Film, BookOpen, Search, List, Calendar, Bug, ChevronRight, User, LogOut } from "lucide-react"
+import { Menu, X, Film, BookOpen, Search, List, Calendar, Bug, ChevronRight, User, LogOut, Settings, Globe } from "lucide-react"
 import { BugReportDialog } from "@/components/bug-report-dialog"
 import { cn } from "@/lib/utils"
 import { useAniList } from "@/contexts/anilist-context"
@@ -25,6 +31,12 @@ export const SlideOutMenu = forwardRef<SlideOutMenuHandle, SlideOutMenuProps>(({
   const [faviconError, setFaviconError] = useState(false)
   const { user, logout, isLoading } = useAniList()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const [preferredLanguage, setPreferredLanguage] = useState("it") // Default language
+
+  const handleLanguageChange = (value: string) => {
+    setPreferredLanguage(value)
+  }
 
   useImperativeHandle(ref, () => ({
     open: () => setIsOpen(true),
@@ -211,6 +223,22 @@ export const SlideOutMenu = forwardRef<SlideOutMenuHandle, SlideOutMenuProps>(({
               <div className="my-4 mx-4 h-px bg-border" />
             </>
           )}
+
+          {/* Settings */}
+          <Link
+            href="/settings"
+            onClick={() => setIsOpen(false)}
+            className="flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-200 text-foreground hover:bg-muted/50 group ripple"
+          >
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+              <Settings size={20} />
+            </div>
+            <div className="flex-1 text-left">
+              <span className="block font-medium text-sm">Impostazioni</span>
+              <span className="block text-xs text-muted-foreground mt-0.5">Lingua e preferenze</span>
+            </div>
+            <ChevronRight size={16} className="text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+          </Link>
 
           {/* Bug Report */}
           <button

@@ -29,6 +29,7 @@ type AnimeItem = {
   dubLanguage?: "it" | "en" | "ko" | "it/en" | "it/ko" | "en/ko" | "it/en/ko"
   sources?: Source[]
   has_multi_servers?: boolean
+  isEnglishServer?: boolean
 }
 
 type MangaItem = {
@@ -92,7 +93,7 @@ function MangaMaintenanceNotice() {
     
     modal.innerHTML = `
       <div style="color: #eab308; margin-bottom: 16px;">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto;">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style="margin: 0 auto;">
           <circle cx="12" cy="12" r="10"></circle>
           <line x1="12" y1="8" x2="12" y2="12"></line>
           <line x1="12" y1="16" x2="12.01" y2="16"></line>
@@ -147,6 +148,25 @@ export default function SearchPage() {
   const [hasSearched, setHasSearched] = useState(false)
   const [showingDefaults, setShowingDefaults] = useState(false)
   const [pagination, setPagination] = useState<PaginationInfo | null>(null)
+  const [preferredLanguage, setPreferredLanguage] = useState<"it" | "en">(() => {
+    try {
+      const saved = typeof window !== "undefined" ? localStorage.getItem("anizone:preferredLanguage") : null
+      if (saved === "en" || saved === "it") return saved
+    } catch {}
+    return "it"
+  })
+
+  // Listen for language changes from settings panel
+  useEffect(() => {
+    const handleLangChange = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (detail?.language === "en" || detail?.language === "it") {
+        setPreferredLanguage(detail.language)
+      }
+    }
+    window.addEventListener("anizone:language-changed", handleLangChange)
+    return () => window.removeEventListener("anizone:language-changed", handleLangChange)
+  }, [])
 
   const genreId = sp.get("genre")
   const keyword = sp.get("keyword")
@@ -180,7 +200,7 @@ export default function SearchPage() {
     }
   }
 
-  const searchAnime = async () => {
+  const searchAnime = async (signal?: AbortSignal) => {
     setLoading(true)
     setError(null)
     setIsUnified(false)
@@ -192,18 +212,24 @@ export default function SearchPage() {
       const hasFilters = hasOtherFilters()
       const dubParam = sp.get("dub")
 
-      if (genreId && !keyword) {
-        r = await fetch(`/api/search?${queryString}`)
+      // If English server is preferred and we have a keyword, use the EN API
+      if (preferredLanguage === "en" && keyword) {
+        r = await fetch(`/api/en/search?keyword=${encodeURIComponent(keyword)}`, { signal })
+        setIsUnified(true)
+      } else if (genreId && !keyword) {
+        r = await fetch(`/api/search?${queryString}`, { signal })
       } else if (keyword && !hasFilters) {
         let unifiedUrl = `/api/unified-search?keyword=${encodeURIComponent(keyword)}`
         if (dubParam && dubParam !== "any") {
           unifiedUrl += `&dub=${dubParam}`
         }
-        r = await fetch(unifiedUrl)
+        r = await fetch(unifiedUrl, { signal })
         setIsUnified(true)
       } else {
-        r = await fetch(`/api/search?${queryString}`)
+        r = await fetch(`/api/search?${queryString}`, { signal })
       }
+
+      if (signal?.aborted) return
 
       const ct = r.headers.get("content-type") || ""
       if (!ct.includes("application/json")) {
@@ -211,6 +237,7 @@ export default function SearchPage() {
         throw new Error(txt.slice(0, 200))
       }
       const j = await r.json()
+      if (signal?.aborted) return
       if (!j.ok) throw new Error(j.error || "Errore ricerca")
       setAnimeItems(j.items)
       if (!isUnified) {
@@ -218,12 +245,11 @@ export default function SearchPage() {
       }
       setPagination(j.pagination || null)
     } catch (e: any) {
+      if (e?.name === "AbortError") return
       const errorMessage = e?.message || "Errore nella ricerca"
       setError(errorMessage)
-      // Don't redirect validation errors - show them in the search page instead
-      // Only redirect for other types of errors
     } finally {
-      setLoading(false)
+      if (!signal?.aborted) setLoading(false)
     }
   }
 
@@ -300,14 +326,15 @@ export default function SearchPage() {
   }, [sp])
 
   useEffect(() => {
-    if (searchType === "anime") {
-      if (queryString) {
-        searchAnime()
-      } else {
-        loadDefaultRecommendations()
-      }
+    if (searchType !== "anime") return
+    const abort = new AbortController()
+    if (queryString) {
+      searchAnime(abort.signal)
+    } else {
+      loadDefaultRecommendations()
     }
-  }, [queryString, genreId, searchType])
+    return () => abort.abort()
+  }, [queryString, genreId, searchType, preferredLanguage])
 
   useEffect(() => {
     if (searchType === "manga") {
@@ -500,7 +527,7 @@ export default function SearchPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                   {animeItems.map((it: AnimeItem) => (
                     <AnimeCard
-                      key={it.href}
+                      key={it.href || it.title}
                       title={it.title}
                       href={it.href}
                       image={it.image}
@@ -509,6 +536,7 @@ export default function SearchPage() {
                       compactSources
                       sources={it.sources}
                       has_multi_servers={it.has_multi_servers}
+                      isEnglishServer={it.isEnglishServer}
                     />
                   ))}
                 </div>

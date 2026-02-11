@@ -24,6 +24,7 @@ type Props = {
   className?: string
   sources?: Source[]
   has_multi_servers?: boolean
+  isEnglishServer?: boolean
 }
 
 function FlagIcon({ code }: { code: "it" | "gb" | "kr" }) {
@@ -34,7 +35,7 @@ function FlagIcon({ code }: { code: "it" | "gb" | "kr" }) {
       ? "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f1ec-1f1e7.svg"
       : "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f1f0-1f1f7.svg"
 
-  return <img src={src} alt={code.toUpperCase()} className="w-3.5 h-3.5" loading="lazy" />
+  return <img src={src || "/placeholder.svg"} alt={code.toUpperCase()} className="w-3.5 h-3.5" loading="lazy" />
 }
 
 function MergedFlags() {
@@ -91,14 +92,20 @@ function getSourceIconUrl(name: string) {
   if (name === "AnimePahe") return "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://animepahe.si&size=48"
   if (name === "Unity") return "https://www.animeunity.so/apple-touch-icon.png"
   if (name === "AnimeGG") return "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/refs/heads/main/public/animegg.png"
+  if (name === "HNime") return "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://hianime.to&size=48"
   return null
 }
 
-export function AnimeCard({ title, href, image, isDub, dubLanguage, compactSources, className, sources, has_multi_servers }: Props) {
+export function AnimeCard({ title, href, image, isDub, dubLanguage, compactSources, className, sources, has_multi_servers, isEnglishServer }: Props) {
   const [isHovered, setIsHovered] = useState(false)
   const showDubBadge = isDub === true || !!dubLanguage
   const path = (() => {
     if (sources && sources.length > 0) {
+      // English server: use HNime source ID
+      const hnSource = sources.find((s) => s.name === "HNime")
+      if (hnSource?.id) {
+        return `/en/${hnSource.id}`
+      }
       const awSource = sources.find((s) => s.name === "AnimeWorld")
       if (awSource?.id) {
         // Keep the ID as-is, including trailing hyphens which are part of valid AnimeWorld IDs
@@ -146,7 +153,6 @@ export function AnimeCard({ title, href, image, isDub, dubLanguage, compactSourc
       try {
         const normalizedSources = sources.map((s) => {
           if (s.name === "AnimeWorld" && s.id) {
-            // Keep the ID as-is, including trailing hyphens which are part of valid AnimeWorld IDs
             return {
               ...s,
               url: s.url || `https://www.animeworld.ac/play/${s.id}`,
@@ -158,6 +164,14 @@ export function AnimeCard({ title, href, image, isDub, dubLanguage, compactSourc
         const storageKey = `anizone:sources:${path}`
         console.log("[v0] AnimeCard storing sources with key:", storageKey, "sources:", normalizedSources)
         sessionStorage.setItem(storageKey, JSON.stringify(normalizedSources))
+
+        // Store English server flag and title
+        if (isEnglishServer) {
+          sessionStorage.setItem(`anizone:isEnglish:${path}`, "true")
+          sessionStorage.setItem(`anizone:title:${path}`, title)
+        } else {
+          sessionStorage.removeItem(`anizone:isEnglish:${path}`)
+        }
       } catch (e) {
         console.error("Failed to store sources:", e)
       }
@@ -219,7 +233,7 @@ export function AnimeCard({ title, href, image, isDub, dubLanguage, compactSourc
                     return (
                       <div key={s.name} className="w-7 h-7 rounded-lg overflow-hidden bg-background/90 p-1 shadow-lg backdrop-blur-sm">
                         {iconUrl ? (
-                          <img src={iconUrl} alt={s.name} className="w-full h-full object-cover rounded" />
+                          <img src={iconUrl || "/placeholder.svg"} alt={s.name} className="w-full h-full object-cover rounded" />
                         ) : (
                           <div className="w-full h-full rounded flex items-center justify-center text-[10px] font-semibold text-foreground">
                             {s.name.slice(0, 2).toUpperCase()}

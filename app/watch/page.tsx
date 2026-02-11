@@ -74,18 +74,14 @@ export default function WatchPage() {
         let mappedSources: Source[] = []
 
         const storageKey = `anizone:sources:${path}`
-        console.log("[v0] WatchPage - Looking for sources with key:", storageKey)
 
         const stored = sessionStorage.getItem(storageKey)
-        console.log("[v0] WatchPage - sessionStorage stored:", stored)
 
         if (stored) {
           const parsedSources = JSON.parse(stored)
-          console.log("[v0] WatchPage - Parsed sources:", parsedSources)
           if (Array.isArray(parsedSources) && parsedSources.length > 0) {
             mappedSources = parsedSources.map((s) => {
               if (s.name === "AnimeWorld" && s.id) {
-                // Keep the ID as-is, including trailing hyphens which are part of valid AnimeWorld IDs
                 return {
                   ...s,
                   url: s.url || `https://www.animeworld.ac/play/${s.id}`,
@@ -93,18 +89,30 @@ export default function WatchPage() {
               }
               return s
             })
-            console.log("[v0] WatchPage - Using normalized sources:", mappedSources)
           }
         }
 
-        if (mappedSources.length === 0) {
-          console.log("[v0] WatchPage - No sources in sessionStorage - user should navigate from search")
+        // For HNime/English paths, ensure we always have the HNime source
+        const isEnglishPath = path.startsWith("/en/")
+        if (isEnglishPath && !mappedSources.some((s) => s.name === "HNime")) {
+          const hiId = path.replace("/en/", "")
+          mappedSources = [{ name: "HNime", url: "", id: hiId }]
         }
 
         setSources(mappedSources)
         setLoadingSources(false)
 
         try {
+          // For HNime/English server, we already have the title from the search
+          // and there's no Italian metadata endpoint to use
+          if (isEnglishPath) {
+            // Try to get title from sessionStorage (stored by search results)
+            const storedTitle = sessionStorage.getItem(`anizone:title:${path}`)
+            if (storedTitle) setTitle(storedTitle)
+            setLoadingMeta(false)
+            return
+          }
+
           // Define priority order for metadata fetching
           const priorityOrder = ["AnimeWorld", "AnimeSaturn", "AnimeUnity", "AnimePahe"]
 
@@ -114,8 +122,6 @@ export default function WatchPage() {
           for (const sourceName of priorityOrder) {
             const source = mappedSources.find((s) => s.name === sourceName)
             if (source) {
-              console.log(`[v0] WatchPage - Using ${sourceName} for metadata (priority match)`)
-
               if (sourceName === "AnimeWorld") {
                 metaUrl = `/api/anime-meta?path=${encodeURIComponent(source.url || `/play/${source.id}`)}`
               } else if (sourceName === "AnimeSaturn") {
@@ -131,12 +137,10 @@ export default function WatchPage() {
           }
 
           if (!metaUrl) {
-            console.log("[v0] WatchPage - No sources available for metadata")
             setLoadingMeta(false)
             return
           }
 
-          console.log("[v0] WatchPage - Fetching metadata from:", metaUrl)
           const response = await fetch(metaUrl)
           if (!response.ok) {
             console.log("[v0] WatchPage - Metadata fetch failed with status:", response.status)
