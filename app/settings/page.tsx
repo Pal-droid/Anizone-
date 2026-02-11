@@ -65,7 +65,7 @@ export default function SettingsPage() {
                         Italiano
                       </Label>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Gli anime verranno cercati dai server italiani: AnimeWorld, AnimeSaturn, AnimeUnity.
+                        Gli anime verranno cercati dai server italiani: World, Saturn, Unity.
                       </p>
                     </div>
                   </div>
@@ -77,7 +77,7 @@ export default function SettingsPage() {
                         English
                       </Label>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Anime will be fetched from English servers: HiAnime (HD streaming, multiple audio options)
+                        Anime will be fetched from English servers: HNime (HD streaming, multiple subs options)
                       </p>
                     </div>
                   </div>
