@@ -541,6 +541,40 @@ export function extractScheduleDateRange(html: string): string {
   return dateRangeText || ""
 }
 
+function getDateForDayName(dayName: string): string {
+  const dayMap: Record<string, number> = {
+    "lunedì": 1, "lunedi": 1,
+    "martedì": 2, "martedi": 2,
+    "mercoledì": 3, "mercoledi": 3,
+    "giovedì": 4, "giovedi": 4,
+    "venerdì": 5, "venerdi": 5,
+    "sabato": 6,
+    "domenica": 0,
+  }
+
+  const targetDay = dayMap[dayName.toLowerCase()]
+  if (targetDay === undefined) return ""
+
+  const now = new Date()
+  const currentDay = now.getDay() // 0=Sun, 1=Mon, ...
+
+  // Calculate the Monday of the current week
+  const monday = new Date(now)
+  const diffToMonday = currentDay === 0 ? -6 : 1 - currentDay
+  monday.setDate(now.getDate() + diffToMonday)
+
+  // Calculate target date relative to Monday
+  const targetDate = new Date(monday)
+  const daysFromMonday = targetDay === 0 ? 6 : targetDay - 1
+  targetDate.setDate(monday.getDate() + daysFromMonday)
+
+  // Format as DD-MM-YY
+  const dd = String(targetDate.getDate()).padStart(2, "0")
+  const mm = String(targetDate.getMonth() + 1).padStart(2, "0")
+  const yy = String(targetDate.getFullYear()).slice(-2)
+  return `${dd}-${mm}-${yy}`
+}
+
 export function parseSchedule(html: string): DaySchedule[] {
   console.log("[v0] Starting parseSchedule...")
   const $ = load(html)
@@ -605,7 +639,7 @@ export function parseSchedule(html: string): DaySchedule[] {
     }
 
     schedule.push({
-      date: isIndeterminate ? "indeterminate" : new Date().toISOString().split("T")[0],
+      date: isIndeterminate ? "indeterminate" : (getDateForDayName(dayName) || new Date().toISOString().split("T")[0]),
       dayName,
       items,
     })
