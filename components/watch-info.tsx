@@ -241,29 +241,9 @@ export function WatchInfo({
             }
           }
 
-          // Handle HNime AniList related/similar (already included in response)
+          // For HNime, skip related/similar sections entirely for now
           if (isHNimeMeta) {
-            if (metaData.meta?.related?.length) {
-              const hnRelated: AnimeItem[] = metaData.meta.related
-                .map((r: any) => ({
-                  title: r.title,
-                  href: "",
-                  image: r.image,
-                  has_multi_servers: false,
-                }))
-              setRelated(hnRelated)
-            }
             setLoadingRelated(false)
-
-            if (metaData.meta?.similar?.length) {
-              const hnSimilar: AnimeItem[] = metaData.meta.similar.map((s: any) => ({
-                title: s.title,
-                href: "",
-                image: s.image,
-                has_multi_servers: false,
-              }))
-              setSimilar(hnSimilar)
-            }
             setLoadingSimilar(false)
           }
 
