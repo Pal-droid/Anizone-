@@ -90,10 +90,10 @@ export const SlideOutMenu = forwardRef<SlideOutMenuHandle, SlideOutMenuProps>(({
       {/* Overlay */}
       <div
         className={cn(
-          "fixed inset-0 z-40 transition-all duration-300",
+          "fixed inset-0 z-40 transition-opacity duration-300",
           isOpen
-            ? "bg-background/60 backdrop-blur-sm pointer-events-auto"
-            : "bg-transparent backdrop-blur-none pointer-events-none",
+            ? "bg-background/60 opacity-100 pointer-events-auto"
+            : "bg-transparent opacity-0 pointer-events-none",
         )}
         onClick={() => setIsOpen(false)}
       />

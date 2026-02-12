@@ -330,7 +330,7 @@ export async function GET(req: NextRequest) {
       status: mapStatus(media.status),
       studio: media.studios?.nodes?.[0]?.name || "",
       duration: media.duration ? `${media.duration} min` : "",
-      rating: media.averageScore ? String(media.averageScore) : "",
+      rating: media.averageScore ? (media.averageScore / 10).toFixed(1) : "",
       season: mapSeason(media.season, media.seasonYear),
       releaseDate: media.seasonYear ? String(media.seasonYear) : "",
       anilistId: media.id,
