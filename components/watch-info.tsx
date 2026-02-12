@@ -166,30 +166,39 @@ export function WatchInfo({
         }
 
         let metaUrl = ""
+        let isHNimeMeta = false
 
         try {
           const storedSources = sessionStorage.getItem(`anizone:sources:${path}`)
           if (storedSources) {
             const parsedSources = JSON.parse(storedSources)
 
-            // Define priority order
-            const priorityOrder = [
-              { name: "AnimeWorld", param: "path", transform: (s: any) => s.url || `/play/${s.id}` },
-              { name: "AnimeSaturn", param: "path", transform: (s: any) => s.url || s.id },
-              { name: "AnimeUnity", param: "unityId", transform: (s: any) => s.id },
-              { name: "AnimePahe", param: "animepaheId", transform: (s: any) => s.id },
-            ]
+            // Check for HNime source first (English server)
+            const hnSource = parsedSources.find((s: any) => s.name === "HNime")
+            if (hnSource && hnSource.url) {
+              metaUrl = `/api/en/metadata?url=${encodeURIComponent(hnSource.url)}`
+              isHNimeMeta = true
+              console.log("[v0] WatchInfo - Using HNime metadata endpoint for:", hnSource.url)
+            } else {
+              // Define priority order for Italian sources
+              const priorityOrder = [
+                { name: "AnimeWorld", param: "path", transform: (s: any) => s.url || `/play/${s.id}` },
+                { name: "AnimeSaturn", param: "path", transform: (s: any) => s.url || s.id },
+                { name: "AnimeUnity", param: "unityId", transform: (s: any) => s.id },
+                { name: "AnimePahe", param: "animepaheId", transform: (s: any) => s.id },
+              ]
 
-            // Find first available source in priority order
-            for (const priority of priorityOrder) {
-              const source = parsedSources.find((s: any) => s.name === priority.name)
-              if (source && (source.url || source.id)) {
-                const value = priority.transform(source)
-                metaUrl = `/api/anime-meta?${priority.param}=${encodeURIComponent(value)}`
-                console.log(
-                  `[v0] WatchInfo - Using ${priority.name} for metadata (priority: ${priorityOrder.indexOf(priority) + 1})`,
-                )
-                break
+              // Find first available source in priority order
+              for (const priority of priorityOrder) {
+                const source = parsedSources.find((s: any) => s.name === priority.name)
+                if (source && (source.url || source.id)) {
+                  const value = priority.transform(source)
+                  metaUrl = `/api/anime-meta?${priority.param}=${encodeURIComponent(value)}`
+                  console.log(
+                    `[v0] WatchInfo - Using ${priority.name} for metadata (priority: ${priorityOrder.indexOf(priority) + 1})`,
+                  )
+                  break
+                }
               }
             }
           }
@@ -232,6 +241,32 @@ export function WatchInfo({
             }
           }
 
+          // Handle HNime AniList related/similar (already included in response)
+          if (isHNimeMeta) {
+            if (metaData.meta?.related?.length) {
+              const hnRelated: AnimeItem[] = metaData.meta.related
+                .map((r: any) => ({
+                  title: r.title,
+                  href: "",
+                  image: r.image,
+                  has_multi_servers: false,
+                }))
+              setRelated(hnRelated)
+            }
+            setLoadingRelated(false)
+
+            if (metaData.meta?.similar?.length) {
+              const hnSimilar: AnimeItem[] = metaData.meta.similar.map((s: any) => ({
+                title: s.title,
+                href: "",
+                image: s.image,
+                has_multi_servers: false,
+              }))
+              setSimilar(hnSimilar)
+            }
+            setLoadingSimilar(false)
+          }
+
           if (metaData.fallback && metaData.meta?.related?.length) {
             const unityRelated: AnimeItem[] = metaData.meta.related
               .filter((r: any) => r.url)
@@ -261,7 +296,8 @@ export function WatchInfo({
           }
         }
 
-        if (!metaData?.fallback) {
+        // Skip fetching from anime-similar/anime-related for HNime paths (not applicable)
+        if (!metaData?.fallback && !isHNimeMeta) {
           fetch(`/api/anime-similar?path=${encodeURIComponent(animeWorldPath)}`)
             .then((x) => x.json())
             .then((s) => {

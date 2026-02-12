@@ -103,12 +103,36 @@ export default function WatchPage() {
         setLoadingSources(false)
 
         try {
-          // For HNime/English server, we already have the title from the search
-          // and there's no Italian metadata endpoint to use
+          // For HNime/English server, scrape syncData from HiAnime to get AniList metadata
           if (isEnglishPath) {
-            // Try to get title from sessionStorage (stored by search results)
+            // Try to get title from sessionStorage first (stored by search results)
             const storedTitle = sessionStorage.getItem(`anizone:title:${path}`)
             if (storedTitle) setTitle(storedTitle)
+
+            // Get the HNime source URL to scrape metadata from
+            const hnSource = mappedSources.find((s) => s.name === "HNime")
+            const hnUrl = hnSource?.url || ""
+
+            if (hnUrl) {
+              try {
+                const metaRes = await fetch(`/api/en/metadata?url=${encodeURIComponent(hnUrl)}`)
+                if (metaRes.ok) {
+                  const metaData = await metaRes.json()
+                  if (metaData.ok && metaData.meta) {
+                    if (metaData.meta.title) setTitle(metaData.meta.title)
+                    if (metaData.meta.anilistId) {
+                      setAnilistId(metaData.meta.anilistId)
+                      const metaKey = `anizone:meta:${path}`
+                      sessionStorage.setItem(metaKey, JSON.stringify({ anilistId: metaData.meta.anilistId }))
+                      console.log("[v0] Stored HNime AniList ID:", metaData.meta.anilistId)
+                    }
+                  }
+                }
+              } catch (err) {
+                console.warn("[v0] WatchPage - HNime metadata fetch failed:", err)
+              }
+            }
+
             setLoadingMeta(false)
             return
           }
