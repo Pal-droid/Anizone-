@@ -12,7 +12,7 @@ async function fetchWithRedirects(url: string, maxRedirects = 5): Promise<Respon
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
       },
       redirect: "manual",
-    })
+    })  
 
     if (response.ok) return response
 
@@ -41,6 +41,119 @@ export const GET = withCors(async (request: NextRequest) => {
 
     if (!id) {
       return NextResponse.json({ error: "Missing manga ID" }, { status: 400 })
+    }
+
+    // Handle Comix-only manga (no World source available)
+    if (comixHashId && comixSlug && !worldId && !worldSlug) {
+      console.log("[v0] Comix-only manga detected, scraping metadata from Comix")
+      
+      try {
+        // Scrape metadata from Comix
+        const comixUrl = `https://comix.to/title/${comixHashId}-${comixSlug}`
+        console.log("[v0] Fetching Comix metadata from:", comixUrl)
+        
+        const comixResponse = await fetch(comixUrl, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+          },
+        })
+        
+        if (!comixResponse.ok) {
+          throw new Error(`Failed to fetch Comix page: ${comixResponse.status}`)
+        }
+        
+        const comixHtml = await comixResponse.text()
+        const $ = cheerio.load(comixHtml)
+        
+        // Extract title from meta title or h1
+        const title = $("title").text().split(" - ")[0].trim() || 
+                     $("h1").first().text().trim() ||
+                     comixSlug.replace(/-/g, " ").replace(/\b\w/g, l => l.toUpperCase())
+        
+        // Extract thumbnail
+        const image = $(".poster img[itemProp='image']").attr("src") || ""
+        
+        // Extract plot from meta description
+        const metaDescription = $("meta[name='description']").attr("content") || ""
+        const trama = metaDescription.includes("Described as a story") 
+          ? metaDescription.split("Described as a story")[1].split("Note:")[0].trim()
+          : metaDescription
+        
+        // Extract status and year from status span
+        const statusText = $(".status").first().text().trim()
+        const statusYearMatch = statusText.match(/(\d{4})\s+(.+)/)
+        const year = statusYearMatch ? statusYearMatch[1] : ""
+        const status = statusYearMatch ? statusYearMatch[2] : statusText
+        
+        // Extract author
+        const author = $("li:contains('Authors:') span a").first().text().trim()
+        
+        // Extract artist  
+        const artist = $("li:contains('Artists:') span a").first().text().trim()
+        
+        // Extract genres
+        const genres = $("li:contains('Genres:') span a").map((_, el) => $(el).text().trim()).get()
+        
+        // Extract AniList ID
+        let anilistId: number | null = null
+        const anilistLink = $("a[href*='anilist.co/manga/']").first()
+        if (anilistLink.length) {
+          const href = anilistLink.attr("href")
+          const match = href?.match(/anilist\.co\/manga\/(\d+)/)
+          if (match) anilistId = parseInt(match[1], 10)
+        }
+        
+        const mangaData = {
+          title,
+          image,
+          type: "Manga",
+          status,
+          author,
+          artist,
+          year,
+          genres,
+          trama,
+          volumes: [], // Comix doesn't provide volume structure in the same way
+          url: comixUrl,
+          anilistId,
+          sources: [{
+            name: "Comix",
+            slug: comixSlug,
+            id: "",
+            hash_id: comixHashId,
+          }]
+        }
+        
+        console.log("[v0] Successfully scraped Comix metadata for:", title)
+        return NextResponse.json(mangaData)
+        
+      } catch (error) {
+        console.error("[v0] Error scraping Comix metadata:", error)
+        
+        // Fallback to basic info if scraping fails
+        const mangaData = {
+          title: comixSlug.replace(/-/g, " ").replace(/\b\w/g, l => l.toUpperCase()),
+          image: "",
+          type: "Manga",
+          status: "Unknown",
+          author: "",
+          artist: "",
+          year: "",
+          genres: [],
+          trama: "",
+          volumes: [],
+          url: "",
+          anilistId: null,
+          sources: [{
+            name: "Comix",
+            slug: comixSlug,
+            id: "",
+            hash_id: comixHashId,
+          }]
+        }
+        
+        return NextResponse.json(mangaData)
+      }
     }
 
     // Metadata is ONLY from MangaWorld scraping
@@ -162,7 +275,7 @@ export const GET = withCors(async (request: NextRequest) => {
       const parent = el.parent()
       const link = parent.find("a").first()
       if (link.length) return link.text().trim()
-      return el[0].nextSibling?.nodeValue?.trim() || ""
+      return (el[0].nextSibling as unknown as Text)?.nodeValue?.trim() || ""
     }
 
     function extractGenres(): string[] {

@@ -4,6 +4,9 @@ import { Inter, JetBrains_Mono } from "next/font/google"
 import "./globals.css"
 import { AniListProvider } from "@/contexts/anilist-context"
 import { SeasonalBackground } from "@/components/seasonal-background"
+import { ThemeProvider } from "@/components/theme-provider"
+import { AccentColorProvider } from "@/components/accent-color-provider"
+import { Toaster } from "@/components/ui/toaster"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -57,10 +60,20 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="it" className={`dark ${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang="it" className={`${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <body className="font-sans antialiased overscroll-none">
-        <SeasonalBackground />
-        <AniListProvider>{children}</AniListProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <AccentColorProvider>
+            <SeasonalBackground />
+            <AniListProvider>{children}</AniListProvider>
+            <Toaster />
+          </AccentColorProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

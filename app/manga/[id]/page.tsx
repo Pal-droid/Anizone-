@@ -178,7 +178,7 @@ export default function MangaMetadataPage() {
   if (loading) {
     return (
       <main className="min-h-screen pb-16 bg-background">
-        <SlideOutMenu ref={menuRef} currentPath={`/manga/${params.id}`} hideButton />
+        <SlideOutMenu ref={menuRef} hideButton />
         <header className="border-b sticky top-0 bg-background/95 backdrop-blur z-10">
           <div className="px-4 py-3 flex items-center gap-3 max-w-7xl mx-auto">
             <button
@@ -238,7 +238,7 @@ export default function MangaMetadataPage() {
   if (error || !mangaData) {
     return (
       <main className="min-h-screen pb-16 bg-background">
-        <SlideOutMenu ref={menuRef} currentPath={`/manga/${params.id}`} hideButton />
+        <SlideOutMenu ref={menuRef} hideButton />
         <header className="border-b sticky top-0 bg-background/95 backdrop-blur z-10">
           <div className="px-4 py-3 flex items-center gap-3 max-w-7xl mx-auto">
             <button
@@ -266,7 +266,7 @@ export default function MangaMetadataPage() {
 
   return (
     <main className="min-h-screen bg-background">
-      <SlideOutMenu ref={menuRef} currentPath={`/manga/${params.id}`} hideButton />
+      <SlideOutMenu ref={menuRef} hideButton />
       <header className="border-b sticky top-0 bg-background/95 backdrop-blur z-10">
         <div className="px-4 py-3 flex items-center gap-3 max-w-7xl mx-auto">
           <button
@@ -342,15 +342,26 @@ export default function MangaMetadataPage() {
                     itemId={actualMangaId}
                     itemTitle={mangaData.title}
                     itemImage={mangaData.image}
-                    anilistMediaId={mangaData.anilistId}
+                    anilistMediaId={mangaData.anilistId || undefined}
                     itemPath={`/manga/${params.id}`}
                   />
                 </div>
                 {mangaData.volumes.length > 0 && oldestChapter && (
                   <Link
-                    href={`/manga/${params.id}/read?u=${obfuscateUrl(
-                      oldestChapter.url,
-                    )}&title=${encodeURIComponent(mangaData.title)}&chapter=${encodeURIComponent(oldestChapter.title)}&source=${selectedSource}`}
+                    href={
+                      selectedSource === "World"
+                        ? (() => {
+                            const params = new URLSearchParams({
+                              _unified: "true",
+                              _source: "World",
+                              _chapter_url: oldestChapter.url,
+                            })
+                            return `/manga/${actualMangaId}/read?${params.toString()}&title=${encodeURIComponent(mangaData.title)}&chapter=${encodeURIComponent(oldestChapter.title)}`
+                          })()
+                        : `/manga/${actualMangaId}/read?u=${obfuscateUrl(
+                            oldestChapter.url,
+                          )}&title=${encodeURIComponent(mangaData.title)}&chapter=${encodeURIComponent(oldestChapter.title)}&source=${selectedSource}`
+                    }
                     className="w-full flex justify-center"
                   >
                     <Button size="sm" variant="outline" className="mt-2 w-full bg-transparent">
@@ -419,9 +430,23 @@ export default function MangaMetadataPage() {
                                 className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-md transition-colors group"
                               >
                                 <Link
-                                  href={`/manga/${params.id}/read?u=${obfuscateUrl(chapter.url)}&title=${encodeURIComponent(
-                                    mangaData.title,
-                                  )}&chapter=${encodeURIComponent(chapter.title)}&source=${selectedSource}`}
+                                  href={
+                                    // Always use unified format for World source, regardless of unified chapters
+                                    selectedSource === "World"
+                                      ? (() => {
+                                          const params = new URLSearchParams({
+                                            _unified: "true",
+                                            _source: "World",
+                                            _chapter_url: chapter.url,
+                                          })
+                                          return `/manga/${actualMangaId}/read?${params.toString()}&title=${encodeURIComponent(
+                                            mangaData.title,
+                                          )}&chapter=${encodeURIComponent(chapter.title)}`
+                                        })()
+                                      : `/manga/${actualMangaId}/read?u=${obfuscateUrl(chapter.url)}&title=${encodeURIComponent(
+                                          mangaData.title,
+                                        )}&chapter=${encodeURIComponent(chapter.title)}&source=${selectedSource}`
+                                  }
                                   className="flex-1 text-sm hover:text-primary transition-colors group-hover:text-primary"
                                 >
                                   {chapter.title

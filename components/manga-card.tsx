@@ -4,9 +4,6 @@ import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { obfuscateId } from "@/lib/utils"
-import { FavoriteButton } from "@/components/favorite-button"
-import { ListEditButton } from "@/components/list-edit-button"
-import { useState } from "react"
 
 interface MangaResult {
   title: string
@@ -33,8 +30,6 @@ interface MangaCardProps {
 }
 
 export function MangaCard({ manga }: MangaCardProps) {
-  const [isHovered, setIsHovered] = useState(false)
-
   let mangaId = manga.mangaId || ""
 
   if (!mangaId && manga.url) {
@@ -73,7 +68,7 @@ export function MangaCard({ manga }: MangaCardProps) {
   }
 
   return (
-    <Link href={detailUrl} onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
+    <Link href={detailUrl}>
       <Card className="group cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-lg h-full">
         <CardContent className="p-0 h-full flex flex-col">
           <div className="relative aspect-[3/4] overflow-hidden rounded-t-lg">
@@ -83,19 +78,6 @@ export function MangaCard({ manga }: MangaCardProps) {
               className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-110"
               loading="lazy"
             />
-
-            {isHovered && (
-              <div className="absolute top-2 right-2 flex gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
-                <FavoriteButton itemTitle={manga.title} itemPath={detailUrl} size="sm" />
-                <ListEditButton
-                  itemId={mangaId}
-                  itemTitle={manga.title}
-                  itemImage={manga.image}
-                  itemPath={detailUrl}
-                  size="sm"
-                />
-              </div>
-            )}
 
             <div className="absolute top-2 left-2">
               <Badge variant="secondary" className="text-xs">

@@ -261,11 +261,6 @@ export default function ProfilePage() {
           </motion.div>
         )}
 
-        {/* LISTS SECTIONS */}
-        <motion.div variants={containerVariants} className="space-y-6">
-          <ListSection title="Le Mie Liste Anime" icon={<Film />} lists={animeLists} translate={translateListStatus} type="anime" />
-          <ListSection title="Le Mie Liste Manga" icon={<BookOpen />} lists={mangaLists} translate={translateListStatus} type="manga" />
-        </motion.div>
       </motion.div>
     </div>
   )

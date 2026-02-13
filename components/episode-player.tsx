@@ -6,6 +6,8 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { EpisodeCountdown } from "@/components/episode-countdown"
+import { EpisodeItem, initialEpisode, initialSources } from "@/types"
+import { hlsRef, videoRef, iframeRef, currentPathRef, lastSentSecRef, lastSentAtRef, hasNavigatedToNextRef } from "@/lib/references"
 
 declare global {
   interface Window {
@@ -116,24 +118,31 @@ export function EpisodePlayer({
   const [aggSelectedQuality, setAggSelectedQuality] = useState<string>("1080p")
   const [userProgress, setUserProgress] = useState<number>(0)
   const [isInWatchingList, setIsInWatchingList] = useState<boolean>(false)
-  const videoRef = useRef<HTMLVideoElement | null>(null)
-  const iframeRef = useRef<HTMLIFrameElement | null>(null)
-  const hlsRef = useRef<any>(null)
-  const currentPathRef = useRef<string>("")
-  const lastSentAtRef = useRef<number>(0)
-  const lastSentSecRef = useRef<number>(0)
-  const restoreDoneRef = useRef<boolean>(false)
-  const hasNavigatedToNextRef = useRef<boolean>(false)
+  const [isEnglishServer, setIsEnglishServer] = useState<boolean>(() => {
+    return path.startsWith("/en/") || !!sessionStorage.getItem(`anizone:isEnglish:${path}`)
+  })
+  const [enEmbeds, setEnEmbeds] = useState<Array<{ name: string; embedUrl: string }>>([])
+  const [selectedEnEmbed, setSelectedEnEmbed] = useState<string | null>(null)
   const videoEndedRef = useRef<boolean>(false)
 
   const seriesKeyForStore = useMemo(() => seriesBaseFromPath(path), [path])
 
+  // Update isEnglishServer when path changes
+  useEffect(() => {
+    const isEn = path.startsWith("/en/") || !!sessionStorage.getItem(`anizone:isEnglish:${path}`)
+    setIsEnglishServer(isEn)
+    if (isEn) {
+      setSelectedServer("HNime")
+    }
+  }, [path])
+
   const availableServers = useMemo(() => {
+    if (isEnglishServer) return ["HNime"]
     const serverNames = sources?.map((s) => s.name) || []
     return serverNames.filter(
       (name) => name === "AnimeWorld" || name === "AnimeSaturn" || name === "AnimePahe" || name === "Unity" || name === "AnimeGG",
     )
-  }, [sources])
+  }, [sources, isEnglishServer])
 
   const serverDisplayNames = useMemo(
     () => ({
@@ -142,6 +151,7 @@ export function EpisodePlayer({
       AnimePahe: "Pahe",
       Unity: "Unity",
       AnimeGG: "AGG",
+      HNime: "HNime",
     }),
     [],
   )
@@ -150,6 +160,7 @@ export function EpisodePlayer({
   const isAnimePahe = selectedServer === "AnimePahe"
   const isUnity = selectedServer === "Unity"
   const isAnimeGG = selectedServer === "AnimeGG"
+  const isHNime = selectedServer === "HNime"
 
   useEffect(() => {
     if (currentPathRef.current && currentPathRef.current !== path) {
@@ -226,12 +237,12 @@ export function EpisodePlayer({
   }, [availableServers, selectedServer])
 
   useEffect(() => {
-    if (!sources || sources.length === 0) {
+    if (!isEnglishServer && (!sources || sources.length === 0)) {
       console.log("[v0] loadEpisodes useEffect - No sources available")
       return
     }
 
-    console.log("[v0] loadEpisodes useEffect - Starting with selectedServer:", selectedServer)
+    console.log("[v0] loadEpisodes useEffect - Starting with selectedServer:", selectedServer, "isEnglish:", isEnglishServer)
 
     async function loadEpisodes() {
       console.log("[v0] loadEpisodes function called - episodesLoading:", episodesLoading)
@@ -243,6 +254,39 @@ export function EpisodePlayer({
       setEpisodesError(null)
 
       try {
+        // English server (HNime) episode loading
+        if (isEnglishServer) {
+          const hnSource = sources?.find((s) => s.name === "HNime")
+          const sourceId = hnSource?.id || path.replace("/en/", "")
+          console.log("[v0] Loading English episodes with HI:", sourceId)
+
+          const r = await fetch(`/api/en/episodes?HI=${encodeURIComponent(sourceId)}`, {
+            signal: AbortSignal.timeout(20000),
+          })
+
+          if (!r.ok) {
+            const errorText = await r.text()
+            throw new Error(`EN Episodes API failed: ${errorText}`)
+          }
+
+          const data = await r.json()
+          if (data.ok && Array.isArray(data.episodes) && data.episodes.length > 0) {
+            const mapped: Episode[] = data.episodes.map((ep: any) => ({
+              num: ep.num,
+              href: ep.sources?.HNime?.url || ep.href || "",
+              id: ep.sources?.HNime?.id || ep.id || "",
+              unifiedData: ep,
+            }))
+            console.log("[v0] EN Mapped episodes:", mapped.length)
+            setEpisodes(mapped)
+          } else {
+            throw new Error("No English episodes found")
+          }
+          setEpisodesLoading(false)
+          return
+        }
+
+        // Italian server episode loading (existing logic)
         console.log("[v0] Loading episodes for server:", selectedServer, "with sources:", sources)
 
         const params = new URLSearchParams()
@@ -332,7 +376,7 @@ export function EpisodePlayer({
     }
 
     loadEpisodes()
-  }, [path, sources, selectedServer])
+  }, [path, sources, selectedServer, isEnglishServer])
 
   useEffect(() => {
     async function fetchAniListProgress() {
@@ -426,7 +470,7 @@ export function EpisodePlayer({
       setEpisodeRefUrl(null)
       setProxyUrl(null)
 
-      const cacheKey = `anizone:stream:${epKey(selectedEpisode)}:${selectedServer}:${selectedResolution}:${isAnimeGG ? `${aggAudioType}:${aggSelectedQuality}` : ""}`
+      const cacheKey = `anizone:stream:${epKey(selectedEpisode)}:${selectedServer}:${selectedResolution}:${isAnimeGG ? `${aggAudioType}:${aggSelectedQuality}` : ""}${isHNime ? `:en:${selectedEnEmbed}` : ""}`
       const cached = localStorage.getItem(cacheKey)
       if (cached) {
         try {
@@ -434,6 +478,12 @@ export function EpisodePlayer({
           if (parsed.streamUrl) setStreamUrl(parsed.streamUrl)
           if (parsed.embedUrl) setEmbedUrl(parsed.embedUrl)
           if (parsed.proxyUrl) setProxyUrl(parsed.proxyUrl)
+          if (parsed.enEmbeds) {
+            setEnEmbeds(parsed.enEmbeds)
+            if (!selectedEnEmbed && parsed.enEmbeds.length > 0) {
+              setSelectedEnEmbed(parsed.enEmbeds[0].name)
+            }
+          }
           if (parsed.streamUrl || parsed.embedUrl || parsed.proxyUrl) {
             setLoading(false)
             return
@@ -443,6 +493,40 @@ export function EpisodePlayer({
 
       try {
         console.log("[v0] Loading stream for episode:", selectedEpisode, "server:", selectedServer)
+
+        // Handle HNime (English) server
+        if (isHNime) {
+          const episodeId = selectedEpisode.unifiedData?.sources?.HNime?.id || selectedEpisode.id
+          console.log("[v0] Using HNime for stream - episode ID:", episodeId)
+
+          const hiRes = await fetch(`/api/en/stream?HI=${encodeURIComponent(episodeId)}`, {
+            signal: abort.signal,
+          })
+
+          if (!hiRes.ok) {
+            const errorText = await hiRes.text()
+            throw new Error(`HNime stream API failed: ${errorText}`)
+          }
+
+          const hiData = await hiRes.json()
+          console.log("[v0] HNime stream data:", hiData)
+
+          if (hiData.ok && hiData.embeds && hiData.embeds.length > 0) {
+            setEnEmbeds(hiData.embeds)
+            const defaultEmbed = selectedEnEmbed
+              ? hiData.embeds.find((e: any) => e.name === selectedEnEmbed) || hiData.embeds[0]
+              : hiData.embeds[0]
+            setSelectedEnEmbed(defaultEmbed.name)
+            setEmbedUrl(defaultEmbed.embedUrl)
+            setEpisodeRefUrl(selectedEpisode.href)
+
+            localStorage.setItem(cacheKey, JSON.stringify({ embedUrl: defaultEmbed.embedUrl, enEmbeds: hiData.embeds }))
+            setLoading(false)
+            return
+          } else {
+            throw new Error(hiData.error || "Failed to get HNime stream")
+          }
+        }
 
         const unifiedEp = selectedEpisode.unifiedData
         if (!unifiedEp) {
@@ -637,7 +721,7 @@ export function EpisodePlayer({
 
     load()
     return () => abort.abort()
-  }, [selectedEpisode, selectedServer, selectedResolution, isAnimeGG, aggAudioType, aggSelectedQuality])
+  }, [selectedEpisode, selectedServer, selectedResolution, isAnimeGG, aggAudioType, aggSelectedQuality, isHNime])
 
   useEffect(() => {
     if (selectedServer !== "AnimePahe" || !selectedEpisode) return
@@ -1011,6 +1095,33 @@ export function EpisodePlayer({
               </div>
             )}
 
+            {isHNime && enEmbeds.length > 1 && (
+              <div className="flex items-center gap-2">
+                <Label htmlFor="en-embed-select" className="text-xs text-muted-foreground">
+                  Server:
+                </Label>
+                <Select
+                  value={selectedEnEmbed}
+                  onValueChange={(v) => {
+                    setSelectedEnEmbed(v)
+                    const embed = enEmbeds.find((e) => e.name === v)
+                    if (embed) setEmbedUrl(embed.embedUrl)
+                  }}
+                >
+                  <SelectTrigger className="w-[120px] h-7 text-xs" id="en-embed-select">
+                    <SelectValue placeholder="Server" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {enEmbeds.map((embed) => (
+                      <SelectItem key={embed.name} value={embed.name} className="text-xs">
+                        {embed.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {isAnimeGG && (
               <>
                 <div className="flex items-center gap-2">
@@ -1167,13 +1278,14 @@ export function EpisodePlayer({
         )}
       </div>
 
-      {(isEmbedServer || isAnimePahe || isUnity || isAnimeGG) && (
+      {(isEmbedServer || isAnimePahe || isUnity || isAnimeGG || isHNime) && (
         <div className="text-xs text-muted-foreground">
           Stai guardando tramite{" "}
           {serverDisplayNames[selectedServer as keyof typeof serverDisplayNames] || selectedServer}.
           {isAnimePahe && ` Risoluzione: ${selectedResolution}p.`}
           {isAnimeGG && ` Audio: ${aggAudioType === "dub" ? "Dub" : "Sub"}. Qualità: ${aggSelectedQuality}.`}
-          {isEmbedServer &&
+          {isHNime && selectedEnEmbed && ` ${selectedEnEmbed}.`}
+          {(isEmbedServer || isHNime) &&
             " Il controllo della riproduzione e il salvataggio della posizione potrebbero essere limitati."}
         </div>
       )}

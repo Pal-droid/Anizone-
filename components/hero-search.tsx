@@ -1,13 +1,22 @@
 "use client"
 
-import type React from "react"
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import React, { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 
 export function HeroSearch() {
   const [query, setQuery] = useState("")
   const [contentType, setContentType] = useState("anime")
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const [error, setError] = useState<string | null>(null)
+
+  // Check for search error from URL params
+  useEffect(() => {
+    const searchError = searchParams.get("error")
+    if (searchError) {
+      setError(decodeURIComponent(searchError))
+    }
+  }, [searchParams, router])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -17,6 +26,9 @@ export function HeroSearch() {
         tab: contentType, // Add tab parameter to specify which tab to show
       })
       router.push(`/search?${params}`)
+    } else {
+      // Show error for empty query - don't clear existing errors
+      setError("La ricerca deve contenere almeno 2 caratteri. Inserisci una parola chiave più lunga.")
     }
   }
 
@@ -39,6 +51,13 @@ export function HeroSearch() {
           />
         </div>
       </form>
+
+      {/* Error Message */}
+      {error && (
+        <div className="text-red-500 text-sm mt-2 text-center bg-red-50 border border-red-200 rounded-lg p-3">
+          {error}
+        </div>
+      )}
 
       <div className="flex justify-center">
         <div className="inline-flex rounded-lg border border-border/30 glass p-1">
