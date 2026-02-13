@@ -74,7 +74,7 @@ export default function UpcomingFall() {
       <Card className="glass rounded-xl transition-smooth hover:glow">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
-            <Calendar className="h-5 w-5 text-orange-400" />
+            <Calendar className="h-5 w-5 text-primary" />
             {displayTitle}
           </CardTitle>
         </CardHeader>
@@ -92,7 +92,7 @@ export default function UpcomingFall() {
       <Card className="glass rounded-xl transition-smooth hover:glow">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
-            <Calendar className="h-5 w-5 text-orange-400" />
+            <Calendar className="h-5 w-5 text-primary" />
             {displayTitle}
           </CardTitle>
         </CardHeader>
@@ -110,7 +110,7 @@ export default function UpcomingFall() {
       <Card className="glass rounded-xl transition-smooth hover:glow">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
-            <Calendar className="h-5 w-5 text-orange-400" />
+            <Calendar className="h-5 w-5 text-primary" />
             {displayTitle}
           </CardTitle>
         </CardHeader>
@@ -127,7 +127,7 @@ export default function UpcomingFall() {
     <Card className="glass rounded-xl transition-smooth hover:glow">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
-          <Calendar className="h-5 w-5 text-orange-400" />
+          <Calendar className="h-5 w-5 text-primary" />
           {displayTitle}
         </CardTitle>
       </CardHeader>
@@ -174,7 +174,7 @@ export default function UpcomingFall() {
                   )}
                   <Badge
                     variant="outline"
-                    className="text-xs px-1.5 py-0.5 bg-orange-500/20 text-orange-400 border-orange-500/30"
+                    className="text-xs px-1.5 py-0.5 bg-primary/20 text-primary border-primary/30"
                   >
                     In arrivo
                   </Badge>

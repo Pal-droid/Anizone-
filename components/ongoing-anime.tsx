@@ -100,13 +100,13 @@ export function OngoingAnime() {
                     />
 
                     {/* Episode badge */}
-                    <div className="absolute top-2 left-2 py-0.5 px-1.5 rounded bg-blue-600/90 text-white text-xs font-medium">
+                    <div className="absolute top-2 left-2 py-0.5 px-1.5 rounded bg-primary text-primary-foreground text-xs font-medium">
                       {item.currentEpisode}/{item.totalEpisodes}
                     </div>
 
                     {/* ONA badge */}
                     {item.isONA && (
-                      <div className="absolute top-2 right-2 py-0.5 px-1.5 rounded bg-purple-600/90 text-white text-xs font-medium">
+                      <div className="absolute top-2 right-2 py-0.5 px-1.5 rounded bg-primary text-primary-foreground text-xs font-medium">
                         ONA
                       </div>
                     )}

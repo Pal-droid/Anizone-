@@ -61,6 +61,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="it" className={`${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var h=localStorage.getItem("anizone:accentHue");if(h){var n=Number(h);if(!isNaN(n)){var r=document.documentElement;r.style.setProperty("--primary","oklch(0.75 0.15 "+n+")");r.style.setProperty("--primary-foreground","oklch(0.15 0.02 "+n+")");r.style.setProperty("--ring","oklch(0.75 0.15 "+n+" / 0.5)");r.style.setProperty("--sidebar-primary","oklch(0.75 0.15 "+n+")");r.style.setProperty("--sidebar-primary-foreground","oklch(0.15 0.02 "+n+")");r.style.setProperty("--sidebar-ring","oklch(0.75 0.15 "+n+" / 0.5)");r.style.setProperty("--chart-1","oklch(0.75 0.15 "+n+")");r.style.setProperty("--accent","oklch(0.72 0.14 "+n+")");r.style.setProperty("--accent-foreground","oklch(0.15 0.02 "+n+")");r.style.setProperty("--sidebar-accent","oklch(0.72 0.14 "+n+")");r.style.setProperty("--sidebar-accent-foreground","oklch(0.15 0.02 "+n+")")}}}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="font-sans antialiased overscroll-none">
         <ThemeProvider
           attribute="class"
