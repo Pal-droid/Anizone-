@@ -241,8 +241,51 @@ export function WatchInfo({
             }
           }
 
-          // For HNime, skip related/similar sections entirely for now
+          // For HNime, fetch related/similar from English meta API
           if (isHNimeMeta) {
+            try {
+              const storedSources = sessionStorage.getItem(`anizone:sources:${path}`)
+              if (storedSources) {
+                const parsedSources = JSON.parse(storedSources)
+                const hnSource = parsedSources.find((s: any) => s.name === "HNime")
+                if (hnSource?.id) {
+                  console.log("[v0] WatchInfo - Fetching English meta for related/similar:", hnSource.id)
+                  const enMetaUrl = `/api/en/meta?HI=${encodeURIComponent(hnSource.id)}`
+                  const enMetaResponse = await fetch(enMetaUrl)
+                  const enMetaData = await enMetaResponse.json()
+                  
+                  if (enMetaData?.related && Array.isArray(enMetaData.related)) {
+                    const enRelated: AnimeItem[] = enMetaData.related
+                      .filter((r: any) => r.url && r.id)
+                      .map((r: any) => ({
+                        title: r.title,
+                        href: r.url,
+                        image: r.poster,
+                        sources: [{ name: "HNime", url: r.url, id: r.id }],
+                        has_multi_servers: false,
+                      }))
+                    setRelated(enRelated)
+                    console.log("[v0] WatchInfo - Set English related items:", enRelated.length)
+                  }
+
+                  if (enMetaData?.similar && Array.isArray(enMetaData.similar)) {
+                    const enSimilar: AnimeItem[] = enMetaData.similar
+                      .filter((s: any) => s.url && s.id)
+                      .map((s: any) => ({
+                        title: s.title,
+                        href: s.url,
+                        image: s.poster,
+                        sources: [{ name: "HNime", url: s.url, id: s.id }],
+                        has_multi_servers: false,
+                      }))
+                    setSimilar(enSimilar)
+                    console.log("[v0] WatchInfo - Set English similar items:", enSimilar.length)
+                  }
+                }
+              }
+            } catch (e) {
+              console.error("[v0] WatchInfo - Error fetching English meta:", e)
+            }
             setLoadingRelated(false)
             setLoadingSimilar(false)
           }

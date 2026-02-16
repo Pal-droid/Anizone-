@@ -37,16 +37,34 @@ function seriesBaseFromPath(path: string) {
 
 function extractAnimeIdFromUrl(url: string): string {
   try {
+    // Handle relative paths first (like /en/19318/sub)
+    if (url.startsWith('/')) {
+      const pathParts = url.split("/").filter(Boolean)
+      // Handle /en/19318/sub format - extract the numeric ID
+      if (pathParts.length >= 2) {
+        const potentialId = pathParts[1]
+        if (/^\d+$/.test(potentialId)) {
+          return potentialId
+        }
+      }
+      // Handle /play/ID format
+      if (pathParts[0] === "play" && pathParts[1]) {
+        return pathParts[1]
+      }
+    }
+    
+    // Handle full URLs
     const urlObj = new URL(url)
     const pathParts = urlObj.pathname.split("/").filter(Boolean)
-    const parts = pathParts // Declare parts variable here
-    if (parts.length >= 2 && pathParts[0] === "play") {
+    if (pathParts.length >= 2 && pathParts[0] === "play") {
       return pathParts[1]
     }
+    
     const pathMatch = url.match(/\/play\/([^/?#]+)/)
     if (pathMatch && pathMatch[1]) {
       return pathMatch[1]
     }
+    
     console.warn("[v0] Could not extract anime ID from URL:", url)
     return url
   } catch (error) {
@@ -54,6 +72,11 @@ function extractAnimeIdFromUrl(url: string): string {
     const pathMatch = url.match(/\/play\/([^/?#]+)/)
     if (pathMatch && pathMatch[1]) {
       return pathMatch[1]
+    }
+    // For relative paths like /en/19318/sub, try to extract the numeric part
+    const pathMatch2 = url.match(/\/(\d+)/)
+    if (pathMatch2 && pathMatch2[1]) {
+      return pathMatch2[1]
     }
     return url
   }
@@ -470,7 +493,7 @@ export function EpisodePlayer({
       setEpisodeRefUrl(null)
       setProxyUrl(null)
 
-      const cacheKey = `anizone:stream:${epKey(selectedEpisode)}:${selectedServer}:${selectedResolution}:${isAnimeGG ? `${aggAudioType}:${aggSelectedQuality}` : ""}${isHNime ? `:en:${selectedEnEmbed}` : ""}`
+      const cacheKey = `anizone:stream:${epKey(selectedEpisode!)}:${selectedServer}:${selectedResolution}:${isAnimeGG ? `${aggAudioType}:${aggSelectedQuality}` : ""}${isHNime ? `:en:${selectedEnEmbed}` : ""}`
       const cached = localStorage.getItem(cacheKey)
       if (cached) {
         try {
@@ -496,7 +519,7 @@ export function EpisodePlayer({
 
         // Handle HNime (English) server
         if (isHNime) {
-          const episodeId = selectedEpisode.unifiedData?.sources?.HNime?.id || selectedEpisode.id
+          const episodeId = selectedEpisode?.unifiedData?.sources?.HNime?.id || selectedEpisode?.id || ''
           console.log("[v0] Using HNime for stream - episode ID:", episodeId)
 
           const hiRes = await fetch(`/api/en/stream?HI=${encodeURIComponent(episodeId)}`, {
@@ -518,7 +541,7 @@ export function EpisodePlayer({
               : hiData.embeds[0]
             setSelectedEnEmbed(defaultEmbed.name)
             setEmbedUrl(defaultEmbed.embedUrl)
-            setEpisodeRefUrl(selectedEpisode.href)
+            setEpisodeRefUrl(selectedEpisode?.href || '')
 
             localStorage.setItem(cacheKey, JSON.stringify({ embedUrl: defaultEmbed.embedUrl, enEmbeds: hiData.embeds }))
             setLoading(false)
@@ -528,7 +551,7 @@ export function EpisodePlayer({
           }
         }
 
-        const unifiedEp = selectedEpisode.unifiedData
+        const unifiedEp = selectedEpisode?.unifiedData
         if (!unifiedEp) {
           throw new Error("No unified data available for this episode")
         }
@@ -552,7 +575,7 @@ export function EpisodePlayer({
           if (unityData.ok && unityData.stream_url) {
             const direct = unityData.stream_url
             setStreamUrl(direct)
-            setEpisodeRefUrl(selectedEpisode.href)
+            setEpisodeRefUrl(selectedEpisode?.href || '')
             setProxyUrl(direct) // Unity MP4 should be playable directly
 
             localStorage.setItem(cacheKey, JSON.stringify({ streamUrl: direct, proxyUrl: direct }))
@@ -587,7 +610,7 @@ export function EpisodePlayer({
 
           if (aggData.ok && aggData.proxyUrl) {
             setStreamUrl(aggData.streamUrl)
-            setEpisodeRefUrl(selectedEpisode.href)
+            setEpisodeRefUrl(selectedEpisode?.href || '')
             setProxyUrl(aggData.proxyUrl)
             
             // Update available qualities and audio types
@@ -682,7 +705,7 @@ export function EpisodePlayer({
           console.log("[v0] Using AnimeSaturn proxy URL:", proxied)
           setStreamUrl(rawStreamUrl)
           setProxyUrl(proxied)
-          setEpisodeRefUrl(selectedEpisode.href)
+          setEpisodeRefUrl(selectedEpisode?.href || '')
 
           // Cache the result
           localStorage.setItem(cacheKey, JSON.stringify({ streamUrl: rawStreamUrl, proxyUrl: proxied }))
@@ -690,7 +713,7 @@ export function EpisodePlayer({
           const direct = serverData.stream_url
           console.log("[v0] Got AnimePahe stream URL:", direct)
           setStreamUrl(direct)
-          setEpisodeRefUrl(selectedEpisode.href)
+          setEpisodeRefUrl(selectedEpisode?.href || '')
 
           // For AnimePahe, we don't need a proxy - just use the stream URL directly
           setProxyUrl(direct)
@@ -701,7 +724,7 @@ export function EpisodePlayer({
           const direct = serverData.stream_url
           console.log("[v0] Got AnimeWorld direct stream URL (no proxy):", direct)
           setStreamUrl(direct)
-          setEpisodeRefUrl(selectedEpisode.href)
+          setEpisodeRefUrl(selectedEpisode?.href || '')
 
           setProxyUrl(direct)
 
@@ -1124,7 +1147,7 @@ export function EpisodePlayer({
                   Server:
                 </Label>
                 <Select
-                  value={selectedEnEmbed}
+                  value={selectedEnEmbed || undefined}
                   onValueChange={(v) => {
                     setSelectedEnEmbed(v)
                     const embed = enEmbeds.find((e) => e.name === v)

@@ -24,6 +24,7 @@ interface SyncData {
 
 async function scrapeSyncData(url: string): Promise<SyncData | null> {
   try {
+    console.log("[en/metadata] Attempting to fetch:", url)
     const res = await fetch(url, {
       headers: {
         "User-Agent":
@@ -35,21 +36,29 @@ async function scrapeSyncData(url: string): Promise<SyncData | null> {
     })
 
     if (!res.ok) {
-      console.warn("[en/metadata] HiAnime fetch failed:", res.status)
+      console.warn("[en/metadata] HiAnime fetch failed:", res.status, res.statusText)
       return null
     }
 
     const html = await res.text()
+    console.log("[en/metadata] Successfully fetched HTML, length:", html.length)
 
     // Extract the JSON inside <script id="syncData" type="application/json">...</script>
     const regex = /<script\s+id=["']syncData["'][^>]*>([\s\S]*?)<\/script>/i
     const match = html.match(regex)
     if (!match?.[1]) {
-      console.warn("[en/metadata] syncData script tag not found")
+      console.warn("[en/metadata] syncData script tag not found in HTML")
       return null
     }
 
     const data: SyncData = JSON.parse(match[1].trim())
+    console.log("[en/metadata] Successfully parsed syncData:", {
+      page: data.page,
+      name: data.name,
+      anime_id: data.anime_id,
+      mal_id: data.mal_id,
+      anilist_id: data.anilist_id
+    })
     return data
   } catch (err: any) {
     console.error("[en/metadata] Error scraping syncData:", err?.message)
@@ -284,7 +293,18 @@ export async function GET(req: NextRequest) {
     }
 
     // 3. Fetch full metadata from AniList
-    const media = await fetchAniListMedia(anilistId)
+    let media = await fetchAniListMedia(anilistId)
+
+    // If AniList returns 404, try MAL fallback
+    if (!media && syncData.mal_id) {
+      console.log("[en/metadata] AniList 404 for ID", anilistId, "trying MAL fallback with:", syncData.mal_id)
+      const fallbackAnilistId = await resolveAniListIdFromMal(syncData.mal_id)
+      if (fallbackAnilistId) {
+        console.log("[en/metadata] MAL fallback resolved to AniList ID:", fallbackAnilistId)
+        media = await fetchAniListMedia(fallbackAnilistId)
+        anilistId = fallbackAnilistId
+      }
+    }
 
     if (!media) {
       return NextResponse.json(

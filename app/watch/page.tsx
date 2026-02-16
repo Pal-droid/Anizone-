@@ -61,12 +61,20 @@ export default function WatchPage() {
 
     const slug = path.split("/").pop() || ""
     const namePart = path.split("/").at(2) || slug
-    const name = namePart.replace(/\.([A-Za-z0-9_-]+)$/, "").replace(/-/g, " ")
-    const capitalizedName = name
-      .split(" ")
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-      .join(" ")
-    setTitle(capitalizedName || "Anime")
+    
+    // Skip path-based title extraction for English paths (/en/ID/sub)
+    // Let the metadata API set the proper title instead
+    const isEnglishPath = path.includes("/en/")
+    if (!isEnglishPath) {
+      const name = namePart.replace(/\.([A-Za-z0-9_-]+)$/, "").replace(/-/g, " ")
+      const capitalizedName = name
+        .split(" ")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(" ")
+      setTitle(capitalizedName || "Anime")
+    } else {
+      setTitle("Loading...") // Will be updated by metadata API
+    }
 
     const fetchData = async () => {
       try {
