@@ -46,7 +46,7 @@ export function OngoingAnime() {
     <Card>
       <CardHeader className="py-3">
         <CardTitle className="text-base flex items-center gap-2">
-          <Play size={16} />
+          <Play size={16} className="text-primary" />
           Anime in Corso
         </CardTitle>
       </CardHeader>

@@ -812,7 +812,7 @@ export function EpisodePlayer({
   }, [selectedEpisode, seriesKeyForStore, seriesTitle, isEmbedServer])
 
   useEffect(() => {
-    if (!isEmbedServer || !selectedEpisode) return
+    if (!embedUrl || isAnimePahe || isUnity || isAnimeGG || !selectedEpisode) return
     const iframe = iframeRef.current
     if (!iframe) return
 
@@ -855,6 +855,29 @@ export function EpisodePlayer({
         }
       }
 
+      // General embed video ended handler for all embed types
+      if (e.data.type === "videoEnded") {
+        console.log("[v0] Embed video ended detected! autoNext:", autoNext, "selectedEpisode:", selectedEpisode?.num)
+
+        if (autoUpdateProgress && selectedEpisode) {
+          updateAniListProgress(selectedEpisode.num)
+        }
+
+        if (!autoNext || !selectedEpisode) {
+          console.log("[v0] Embed auto-next skipped - autoNext:", autoNext, "selectedEpisode:", selectedEpisode)
+          return
+        }
+        const idx = episodes.findIndex((ep) => epKey(ep) === epKey(selectedEpisode))
+        console.log("[v0] Embed auto-next - current index:", idx, "total episodes:", episodes.length)
+        if (idx >= 0 && idx + 1 < episodes.length) {
+          const next = episodes[idx + 1]
+          console.log("[v0] Embed auto-next - moving to episode:", next.num)
+          setSelectedKey(epKey(next))
+        } else {
+          console.log("[v0] Embed auto-next - no next episode available")
+        }
+      }
+
       if (e.data.type === "saturn-progress" && typeof e.data.currentTime === "number") {
         saveProgress(e.data.currentTime)
       }
@@ -877,7 +900,7 @@ export function EpisodePlayer({
       window.removeEventListener("message", handleMessage)
       iframe.removeEventListener("load", sendResume)
     }
-  }, [isEmbedServer, selectedEpisode, path, autoNext, autoUpdateProgress, episodes])
+  }, [embedUrl, isAnimePahe, isUnity, isAnimeGG, selectedEpisode, path, autoNext, autoUpdateProgress, episodes])
 
   const updateAniListProgress = async (episodeNum: number) => {
     try {
