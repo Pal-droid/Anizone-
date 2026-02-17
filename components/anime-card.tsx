@@ -90,7 +90,6 @@ function getSourceIconUrl(name: string) {
   if (name === "AnimeWorld") return "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://animeworld.ac&size=48"
   if (name === "AnimeSaturn") return "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://animesaturn.cx&size=48"
   if (name === "AnimePahe") return "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://animepahe.si&size=48"
-  if (name === "Unity") return "https://www.animeunity.so/apple-touch-icon.png"
   if (name === "AnimeGG") return "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/refs/heads/main/public/animegg.png"
   if (name === "HNime") return "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://hianime.to&size=48"
   return null
@@ -138,9 +137,8 @@ export function AnimeCard({ title, href, image, isDub, dubLanguage, compactSourc
   const hasAnimeWorld = sources?.some((s) => s.name === "AnimeWorld")
   const hasAnimeSaturn = sources?.some((s) => s.name === "AnimeSaturn")
   const hasAnimePahe = sources?.some((s) => s.name === "AnimePahe")
-  const hasUnity = sources?.some((s) => s.name === "Unity")
   const hasAnimeGG = sources?.some((s) => s.name === "AnimeGG")
-  const showBadges = sources && sources.length > 0 && (hasAnimeWorld || hasAnimeSaturn || hasAnimePahe || hasUnity || hasAnimeGG)
+  const showBadges = sources && sources.length > 0 && (hasAnimeWorld || hasAnimeSaturn || hasAnimePahe || hasAnimeGG)
 
   const compactBadgeSources = sources && sources.length > 0 ? sources.slice(0, 2) : []
   const remainingSourcesCount = sources && sources.length > 2 ? sources.length - 2 : 0
@@ -277,11 +275,6 @@ export function AnimeCard({ title, href, image, isDub, dubLanguage, compactSourc
                         alt="AnimePahe"
                         className="w-full h-full object-cover rounded"
                       />
-                    </div>
-                  )}
-                  {hasUnity && (
-                    <div className="w-7 h-7 rounded-lg overflow-hidden bg-background/90 p-1 shadow-lg backdrop-blur-sm">
-                      <img src="https://www.animeunity.so/apple-touch-icon.png" alt="Unity" className="w-full h-full object-cover rounded" />
                     </div>
                   )}
                   {hasAnimeGG && (

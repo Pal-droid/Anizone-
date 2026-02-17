@@ -79,26 +79,7 @@ export function WatchInfo({
   }, [seriesPath])
 
   const unityId = useMemo(() => {
-    // First check passed sources prop
-    if (sources) {
-      const unitySource = sources.find((s) => s.name === "Unity")
-      if (unitySource?.id) {
-        return unitySource.id
-      }
-    }
-    // Fallback to sessionStorage
-    try {
-      const storedSources = sessionStorage.getItem(`anizone:sources:${path}`)
-      if (storedSources) {
-        const parsedSources = JSON.parse(storedSources)
-        const unitySource = parsedSources.find((s: any) => s.name === "Unity")
-        if (unitySource?.id) {
-          return unitySource.id
-        }
-      }
-    } catch (e) {
-      // Ignore
-    }
+    // Unity is temporarily disabled
     return null
   }, [sources, path])
 
@@ -184,7 +165,6 @@ export function WatchInfo({
               const priorityOrder = [
                 { name: "AnimeWorld", param: "path", transform: (s: any) => s.url || `/play/${s.id}` },
                 { name: "AnimeSaturn", param: "path", transform: (s: any) => s.url || s.id },
-                { name: "AnimeUnity", param: "unityId", transform: (s: any) => s.id },
                 { name: "AnimePahe", param: "animepaheId", transform: (s: any) => s.id },
               ]
 
@@ -215,11 +195,7 @@ export function WatchInfo({
         // Add supplementary IDs if available
         if (animepaheId && !metaUrl.includes("animepaheId")) {
           metaUrl += `&animepaheId=${encodeURIComponent(animepaheId)}`
-          console.log("[v0] WatchInfo - Including AnimePahe ID:", animepaheId)
-        }
-        if (unityId && !metaUrl.includes("unityId")) {
-          metaUrl += `&unityId=${encodeURIComponent(unityId)}`
-          console.log("[v0] WatchInfo - Including Unity ID:", unityId)
+          console.log("[v0] WatchInfo - Including AnimePaHe ID:", animepaheId)
         }
 
         console.log("[v0] WatchInfo - Fetching metadata from:", metaUrl)

@@ -163,7 +163,7 @@ export function EpisodePlayer({
     if (isEnglishServer) return ["HNime"]
     const serverNames = sources?.map((s) => s.name) || []
     return serverNames.filter(
-      (name) => name === "AnimeWorld" || name === "AnimeSaturn" || name === "AnimePahe" || name === "Unity" || name === "AnimeGG",
+      (name) => name === "AnimeWorld" || name === "AnimeSaturn" || name === "AnimePahe" || name === "AnimeGG",
     )
   }, [sources, isEnglishServer])
 
@@ -172,16 +172,14 @@ export function EpisodePlayer({
       AnimeWorld: "World",
       AnimeSaturn: "Saturn",
       AnimePahe: "Pahe",
-      Unity: "Unity",
       AnimeGG: "AGG",
       HNime: "HNime",
     }),
-    [],
+    []
   )
 
   const isEmbedServer = false // AnimeSaturn now uses proxy URL instead of embed
   const isAnimePahe = selectedServer === "AnimePahe"
-  const isUnity = selectedServer === "Unity"
   const isAnimeGG = selectedServer === "AnimeGG"
   const isHNime = selectedServer === "HNime"
 
@@ -251,7 +249,7 @@ export function EpisodePlayer({
 
   useEffect(() => {
     if (availableServers.length > 0 && !availableServers.includes(selectedServer)) {
-      const serverPriority = ["AnimeWorld", "AnimeSaturn", "Unity", "AnimePahe", "AnimeGG"]
+      const serverPriority = ["AnimeWorld", "AnimeSaturn", "AnimePahe", "AnimeGG"]
       const prioritizedServer = serverPriority.find((s) => availableServers.includes(s))
       if (prioritizedServer) {
         setSelectedServer(prioritizedServer)
@@ -317,7 +315,6 @@ export function EpisodePlayer({
         const awSource = sources?.find((s) => s.name === "AnimeWorld")
         const asSource = sources?.find((s) => s.name === "AnimeSaturn")
         const apSource = sources?.find((s) => s.name === "AnimePahe")
-        const auSource = sources?.find((s) => s.name === "Unity")
         const agSource = sources?.find((s) => s.name === "AnimeGG")
 
         console.log(
@@ -327,8 +324,6 @@ export function EpisodePlayer({
           asSource?.id,
           "AP:",
           apSource?.id,
-          "AU:",
-          auSource?.id,
           "AG:",
           agSource?.id,
         )
@@ -338,7 +333,6 @@ export function EpisodePlayer({
         if (apSource?.id) {
           params.set("AP", apSource.id)
         }
-        if (auSource?.id) params.set("AU", auSource.id)
         if (agSource?.id) params.set("AG", agSource.id)
 
         console.log("[v0] Fetching episodes with params:", params.toString())
@@ -370,14 +364,12 @@ export function EpisodePlayer({
             href:
               ep.sources?.AnimeWorld?.url ||
               ep.sources?.AnimeSaturn?.url ||
-              ep.sources?.Unity?.url ||
               ep.sources?.AnimePahe?.url ||
               ep.sources?.AnimeGG?.url ||
               "",
             id:
               ep.sources?.AnimeWorld?.id ||
               ep.sources?.AnimeSaturn?.id ||
-              ep.sources?.Unity?.id ||
               ep.sources?.AnimePahe?.id ||
               ep.sources?.AnimeGG?.id ||
               "",
@@ -554,36 +546,6 @@ export function EpisodePlayer({
         const unifiedEp = selectedEpisode?.unifiedData
         if (!unifiedEp) {
           throw new Error("No unified data available for this episode")
-        }
-
-        if (selectedServer === "Unity" && unifiedEp.sources?.Unity?.id) {
-          const episodeId = unifiedEp.sources.Unity.id
-          console.log("[v0] Using Unity for stream - episode ID:", episodeId)
-
-          const unityRes = await fetch(`/api/unity-stream?episode_id=${episodeId}`, {
-            signal: abort.signal,
-          })
-
-          if (!unityRes.ok) {
-            const errorText = await unityRes.text()
-            throw new Error(`Unity stream API failed: ${errorText}`)
-          }
-
-          const unityData = await unityRes.json()
-          console.log("[v0] Unity stream data:", unityData)
-
-          if (unityData.ok && unityData.stream_url) {
-            const direct = unityData.stream_url
-            setStreamUrl(direct)
-            setEpisodeRefUrl(selectedEpisode?.href || '')
-            setProxyUrl(direct) // Unity MP4 should be playable directly
-
-            localStorage.setItem(cacheKey, JSON.stringify({ streamUrl: direct, proxyUrl: direct }))
-            setLoading(false)
-            return
-          } else {
-            throw new Error(unityData.error || "Failed to get Unity stream")
-          }
         }
 
         // Handle AnimeGG (AGG) server
@@ -835,7 +797,7 @@ export function EpisodePlayer({
   }, [selectedEpisode, seriesKeyForStore, seriesTitle, isEmbedServer])
 
   useEffect(() => {
-    if (!embedUrl || isAnimePahe || isUnity || isAnimeGG || !selectedEpisode) return
+    if (!embedUrl || isAnimePahe || isAnimeGG || !selectedEpisode) return
     const iframe = iframeRef.current
     if (!iframe) return
 
@@ -923,7 +885,7 @@ export function EpisodePlayer({
       window.removeEventListener("message", handleMessage)
       iframe.removeEventListener("load", sendResume)
     }
-  }, [embedUrl, isAnimePahe, isUnity, isAnimeGG, selectedEpisode, path, autoNext, autoUpdateProgress, episodes])
+  }, [embedUrl, isAnimePahe, isAnimeGG, selectedEpisode, path, autoNext, autoUpdateProgress, episodes])
 
   const updateAniListProgress = async (episodeNum: number) => {
     try {
@@ -1278,7 +1240,7 @@ export function EpisodePlayer({
             <Loader2 className="h-5 w-5 animate-spin" />
             Caricamento...
           </div>
-        ) : embedUrl && !isAnimePahe && !isUnity && !isAnimeGG ? (
+        ) : embedUrl && !isAnimePahe && !isAnimeGG ? (
           <iframe
             key={embedUrl}
             ref={iframeRef}
@@ -1324,7 +1286,7 @@ export function EpisodePlayer({
         )}
       </div>
 
-      {(isEmbedServer || isAnimePahe || isUnity || isAnimeGG || isHNime) && (
+      {(isEmbedServer || isAnimePahe || isAnimeGG || isHNime) && (
         <div className="text-xs text-muted-foreground">
           Stai guardando tramite{" "}
           {serverDisplayNames[selectedServer as keyof typeof serverDisplayNames] || selectedServer}.

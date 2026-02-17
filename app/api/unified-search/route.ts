@@ -154,11 +154,13 @@ export async function GET(req: NextRequest) {
 
         // Transform unified results to our format
         let items = enrichedData.map((result) => {
-          const animeWorldSource = result.sources.find((s) => s.name === "AnimeWorld")
-          const animeSaturnSource = result.sources.find((s) => s.name === "AnimeSaturn")
-          const animeUnitySource = result.sources.find((s) => s.name === "Unity")
-          const animePaheSource = result.sources.find((s) => s.name === "AnimePahe")
-          const animeGGSource = result.sources.find((s) => s.name === "AnimeGG")
+          // Filter out Unity sources from the result
+          const filteredSources = result.sources.filter((s) => s.name !== "Unity")
+          
+          const animeWorldSource = filteredSources.find((s) => s.name === "AnimeWorld")
+          const animeSaturnSource = filteredSources.find((s) => s.name === "AnimeSaturn")
+          const animePaheSource = filteredSources.find((s) => s.name === "AnimePahe")
+          const animeGGSource = filteredSources.find((s) => s.name === "AnimeGG")
 
           const isItalianDub = result.title.includes("(ITA)")
           const isEnglishDub = !!animeGGSource && result.isDub === true
@@ -173,15 +175,17 @@ export async function GET(req: NextRequest) {
           const dubLanguage = dubLanguages.length > 0 ? dubLanguages.join("/") : undefined
 
           const primaryUrl =
-            animeWorldSource?.url || animeSaturnSource?.url || animeUnitySource?.url || animePaheSource?.url || animeGGSource?.url || ""
+            animeWorldSource?.url || animeSaturnSource?.url || animePaheSource?.url || animeGGSource?.url || ""
 
           console.log(
             "Result:",
             result.title,
             "has_multi_servers:",
             result.has_multi_servers,
-            "sources:",
+            "original sources:",
             result.sources.map((s) => s.name),
+            "filtered sources:",
+            filteredSources.map((s) => s.name),
           )
 
           return {
@@ -190,8 +194,8 @@ export async function GET(req: NextRequest) {
             image: result.images.poster || result.images.cover || "",
             isDub: isItalianDub || isEnglishDub || isKoreanDub,
             dubLanguage,
-            sources: result.sources,
-            has_multi_servers: result.has_multi_servers,
+            sources: filteredSources,
+            has_multi_servers: filteredSources.length > 1,
             description: result.description,
             anilistId: result.anilistId,
             animepaheId: result.animepaheId,
