@@ -153,14 +153,21 @@ export async function GET(req: NextRequest) {
         const enrichedData = await enrichWithAnimePaheMetadata(unifiedData)
 
         // Transform unified results to our format
-        let items = enrichedData.map((result) => {
-          // Filter out Unity sources from the result
-          const filteredSources = result.sources.filter((s) => s.name !== "Unity")
-          
-          const animeWorldSource = filteredSources.find((s) => s.name === "AnimeWorld")
-          const animeSaturnSource = filteredSources.find((s) => s.name === "AnimeSaturn")
-          const animePaheSource = filteredSources.find((s) => s.name === "AnimePahe")
-          const animeGGSource = filteredSources.find((s) => s.name === "AnimeGG")
+        let items = enrichedData
+          .map((result) => {
+            // Filter out Unity sources from the result
+            const filteredSources = result.sources.filter((s) => s.name !== "Unity")
+            
+            // Skip items that have no sources after filtering out Unity
+            if (filteredSources.length === 0) {
+              console.log("Skipping item with no sources after Unity filter:", result.title)
+              return null
+            }
+            
+            const animeWorldSource = filteredSources.find((s) => s.name === "AnimeWorld")
+            const animeSaturnSource = filteredSources.find((s) => s.name === "AnimeSaturn")
+            const animePaheSource = filteredSources.find((s) => s.name === "AnimePahe")
+            const animeGGSource = filteredSources.find((s) => s.name === "AnimeGG")
 
           const isItalianDub = result.title.includes("(ITA)")
           const isEnglishDub = !!animeGGSource && result.isDub === true
@@ -202,6 +209,9 @@ export async function GET(req: NextRequest) {
             metadata: result.metadata,
           }
         })
+
+        // Filter out null items (those with only Unity sources)
+        items = items.filter(item => item !== null)
 
         if (dubParam === "0") {
           // Sub only - exclude any dub
