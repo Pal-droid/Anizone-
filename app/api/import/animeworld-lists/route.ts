@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const response = await fetch(
-      `https://yummy-aggie-hachi-api-2-81154aaf.koyeb.app/scrape/${encodeURIComponent(userId)}`,
+      `http://world-list.zeabur.app/scrape/${encodeURIComponent(userId)}`,
     )
 
     if (!response.ok) {

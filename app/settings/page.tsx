@@ -75,7 +75,7 @@ function ColorWheel({
     }
 
     // Draw the selector indicator
-    const indicatorAngle = ((selectedHue - 90) * Math.PI) / 180
+    const indicatorAngle = (selectedHue * Math.PI) / 180
     const indicatorRadius = (outerRadius + innerRadius) / 2
     const indicatorX = center + indicatorRadius * Math.cos(indicatorAngle)
     const indicatorY = center + indicatorRadius * Math.sin(indicatorAngle)
@@ -94,7 +94,7 @@ function ColorWheel({
 
   useEffect(() => {
     drawWheel()
-  }, [drawWheel])
+  }, [drawWheel, selectedHue])
 
   const getHueFromPosition = useCallback((clientX: number, clientY: number) => {
     const canvas = canvasRef.current
@@ -111,7 +111,7 @@ function ColorWheel({
 
     if (distance < innerRadius * 0.7 || distance > outerRadius * 1.2) return null
 
-    let angle = Math.atan2(y, x) * (180 / Math.PI) + 90
+    let angle = Math.atan2(y, x) * (180 / Math.PI)
     if (angle < 0) angle += 360
     return Math.round(angle) % 360
   }, [])
