@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 
-const EMBED_BASE = "https://anizonee.zeabur.app/e"
+const EMBED_BASE = "https://anizonee.vercel.app/e"
 
 type ServerStream = {
   url: string
