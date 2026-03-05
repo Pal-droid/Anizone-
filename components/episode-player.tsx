@@ -146,9 +146,25 @@ export function EpisodePlayer({
   })
   const [enEmbeds, setEnEmbeds] = useState<Array<{ name: string; embedUrl: string }>>([])
   const [selectedEnEmbed, setSelectedEnEmbed] = useState<string | null>(null)
+  const [useEmbedPlayer, setUseEmbedPlayer] = useState<boolean>(false)
   const videoEndedRef = useRef<boolean>(false)
 
   const seriesKeyForStore = useMemo(() => seriesBaseFromPath(path), [path])
+
+  // Read video player preference from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("anizone:videoPlayer")
+      setUseEmbedPlayer(saved === "embed")
+    } catch {}
+
+    const handleChange = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      setUseEmbedPlayer(detail?.player === "embed")
+    }
+    window.addEventListener("anizone:videoplayer-changed", handleChange)
+    return () => window.removeEventListener("anizone:videoplayer-changed", handleChange)
+  }, [])
 
   // Update isEnglishServer when path changes
   useEffect(() => {
@@ -485,7 +501,7 @@ export function EpisodePlayer({
       setEpisodeRefUrl(null)
       setProxyUrl(null)
 
-      const cacheKey = `anizone:stream:${epKey(selectedEpisode!)}:${selectedServer}:${selectedResolution}:${isAnimeGG ? `${aggAudioType}:${aggSelectedQuality}` : ""}${isHNime ? `:en:${selectedEnEmbed}` : ""}`
+      const cacheKey = `anizone:stream:${epKey(selectedEpisode!)}:${selectedServer}:${selectedResolution}:${isAnimeGG ? `${aggAudioType}:${aggSelectedQuality}` : ""}${isHNime ? `:en:${selectedEnEmbed}` : ""}${useEmbedPlayer ? ":embed" : ""}`
       const cached = localStorage.getItem(cacheKey)
       if (cached) {
         try {
@@ -527,15 +543,23 @@ export function EpisodePlayer({
           console.log("[v0] HNime stream data:", hiData)
 
           if (hiData.ok && hiData.embeds && hiData.embeds.length > 0) {
-            setEnEmbeds(hiData.embeds)
+            // When useEmbedPlayer is on, replace needP=1 with needP=0
+            const processedEmbeds = useEmbedPlayer
+              ? hiData.embeds.map((e: any) => ({
+                  ...e,
+                  embedUrl: e.embedUrl.replace("needP=1", "needP=0"),
+                }))
+              : hiData.embeds
+
+            setEnEmbeds(processedEmbeds)
             const defaultEmbed = selectedEnEmbed
-              ? hiData.embeds.find((e: any) => e.name === selectedEnEmbed) || hiData.embeds[0]
-              : hiData.embeds[0]
+              ? processedEmbeds.find((e: any) => e.name === selectedEnEmbed) || processedEmbeds[0]
+              : processedEmbeds[0]
             setSelectedEnEmbed(defaultEmbed.name)
             setEmbedUrl(defaultEmbed.embedUrl)
             setEpisodeRefUrl(selectedEpisode?.href || '')
 
-            localStorage.setItem(cacheKey, JSON.stringify({ embedUrl: defaultEmbed.embedUrl, enEmbeds: hiData.embeds }))
+            localStorage.setItem(cacheKey, JSON.stringify({ embedUrl: defaultEmbed.embedUrl, enEmbeds: processedEmbeds }))
             setLoading(false)
             return
           } else {
@@ -570,10 +594,9 @@ export function EpisodePlayer({
           const aggData = await aggRes.json()
           console.log("[v0] AnimeGG stream data:", aggData)
 
-          if (aggData.ok && aggData.proxyUrl) {
+          if (aggData.ok && (aggData.proxyUrl || aggData.streamUrl)) {
             setStreamUrl(aggData.streamUrl)
             setEpisodeRefUrl(selectedEpisode?.href || '')
-            setProxyUrl(aggData.proxyUrl)
             
             // Update available qualities and audio types
             if (aggData.availableQualities) {
@@ -587,14 +610,33 @@ export function EpisodePlayer({
               setAggSelectedQuality(aggData.selectedQuality)
             }
 
-            localStorage.setItem(cacheKey, JSON.stringify({ 
-              streamUrl: aggData.streamUrl, 
-              proxyUrl: aggData.proxyUrl,
-              availableQualities: aggData.availableQualities,
-              hasSub: aggData.hasSub,
-              hasDub: aggData.hasDub,
-              selectedQuality: aggData.selectedQuality
-            }))
+            if (useEmbedPlayer) {
+              const embedParams = new URLSearchParams()
+              embedParams.set("sHI", aggData.streamUrl || aggData.proxyUrl)
+              embedParams.set("needP", "0")
+              const builtEmbedUrl = `https://anizonee.vercel.app/e?${embedParams.toString()}`
+              console.log("[v0] Embed mode: built embed URL for AnimeGG:", builtEmbedUrl)
+              setEmbedUrl(builtEmbedUrl)
+              setProxyUrl(null)
+              localStorage.setItem(cacheKey, JSON.stringify({ 
+                streamUrl: aggData.streamUrl, 
+                embedUrl: builtEmbedUrl,
+                availableQualities: aggData.availableQualities,
+                hasSub: aggData.hasSub,
+                hasDub: aggData.hasDub,
+                selectedQuality: aggData.selectedQuality
+              }))
+            } else {
+              setProxyUrl(aggData.proxyUrl)
+              localStorage.setItem(cacheKey, JSON.stringify({ 
+                streamUrl: aggData.streamUrl, 
+                proxyUrl: aggData.proxyUrl,
+                availableQualities: aggData.availableQualities,
+                hasSub: aggData.hasSub,
+                hasDub: aggData.hasDub,
+                selectedQuality: aggData.selectedQuality
+              }))
+            }
             setLoading(false)
             return
           } else {
@@ -666,32 +708,61 @@ export function EpisodePlayer({
           console.log("[v0] Got AnimeSaturn stream URL:", rawStreamUrl)
           console.log("[v0] Using AnimeSaturn proxy URL:", proxied)
           setStreamUrl(rawStreamUrl)
-          setProxyUrl(proxied)
           setEpisodeRefUrl(selectedEpisode?.href || '')
 
-          // Cache the result
-          localStorage.setItem(cacheKey, JSON.stringify({ streamUrl: rawStreamUrl, proxyUrl: proxied }))
+          if (useEmbedPlayer) {
+            // Build embed URL using the external embed service with needP=0 and asP=1 for Saturn
+            const embedParams = new URLSearchParams()
+            embedParams.set("sHI", rawStreamUrl)
+            embedParams.set("needP", "0")
+            embedParams.set("asP", "1")
+            const builtEmbedUrl = `https://anizonee.vercel.app/e?${embedParams.toString()}`
+            console.log("[v0] Embed mode: built embed URL for AnimeSaturn:", builtEmbedUrl)
+            setEmbedUrl(builtEmbedUrl)
+            setProxyUrl(null)
+            localStorage.setItem(cacheKey, JSON.stringify({ streamUrl: rawStreamUrl, embedUrl: builtEmbedUrl }))
+          } else {
+            setProxyUrl(proxied)
+            localStorage.setItem(cacheKey, JSON.stringify({ streamUrl: rawStreamUrl, proxyUrl: proxied }))
+          }
         } else if (selectedServer === "AnimePahe" && serverData.stream_url) {
           const direct = serverData.stream_url
           console.log("[v0] Got AnimePahe stream URL:", direct)
           setStreamUrl(direct)
           setEpisodeRefUrl(selectedEpisode?.href || '')
 
-          // For AnimePahe, we don't need a proxy - just use the stream URL directly
-          setProxyUrl(direct)
-
-          // Cache the result
-          localStorage.setItem(cacheKey, JSON.stringify({ streamUrl: direct, proxyUrl: direct }))
+          if (useEmbedPlayer) {
+            const embedParams = new URLSearchParams()
+            embedParams.set("sHI", direct)
+            embedParams.set("needP", "0")
+            const builtEmbedUrl = `https://anizonee.vercel.app/e?${embedParams.toString()}`
+            console.log("[v0] Embed mode: built embed URL for AnimePahe:", builtEmbedUrl)
+            setEmbedUrl(builtEmbedUrl)
+            setProxyUrl(null)
+            localStorage.setItem(cacheKey, JSON.stringify({ streamUrl: direct, embedUrl: builtEmbedUrl }))
+          } else {
+            setProxyUrl(direct)
+            localStorage.setItem(cacheKey, JSON.stringify({ streamUrl: direct, proxyUrl: direct }))
+          }
         } else if (selectedServer === "AnimeWorld" && serverData.stream_url) {
           const direct = serverData.stream_url
           console.log("[v0] Got AnimeWorld direct stream URL (no proxy):", direct)
           setStreamUrl(direct)
           setEpisodeRefUrl(selectedEpisode?.href || '')
 
-          setProxyUrl(direct)
-
-          // Cache the result
-          localStorage.setItem(cacheKey, JSON.stringify({ streamUrl: direct, proxyUrl: direct }))
+          if (useEmbedPlayer) {
+            const embedParams = new URLSearchParams()
+            embedParams.set("sHI", direct)
+            embedParams.set("needP", "0")
+            const builtEmbedUrl = `https://anizonee.vercel.app/e?${embedParams.toString()}`
+            console.log("[v0] Embed mode: built embed URL for AnimeWorld:", builtEmbedUrl)
+            setEmbedUrl(builtEmbedUrl)
+            setProxyUrl(null)
+            localStorage.setItem(cacheKey, JSON.stringify({ streamUrl: direct, embedUrl: builtEmbedUrl }))
+          } else {
+            setProxyUrl(direct)
+            localStorage.setItem(cacheKey, JSON.stringify({ streamUrl: direct, proxyUrl: direct }))
+          }
         } else {
           throw new Error(`Invalid stream data format for ${selectedServer}`)
         }
@@ -706,7 +777,7 @@ export function EpisodePlayer({
 
     load()
     return () => abort.abort()
-  }, [selectedEpisode, selectedServer, selectedResolution, isAnimeGG, aggAudioType, aggSelectedQuality, isHNime])
+  }, [selectedEpisode, selectedServer, selectedResolution, isAnimeGG, aggAudioType, aggSelectedQuality, isHNime, useEmbedPlayer])
 
   useEffect(() => {
     if (selectedServer !== "AnimePahe" || !selectedEpisode) return
@@ -1240,7 +1311,7 @@ export function EpisodePlayer({
             <Loader2 className="h-5 w-5 animate-spin" />
             Caricamento...
           </div>
-        ) : embedUrl && !isAnimePahe && !isAnimeGG ? (
+        ) : embedUrl && (useEmbedPlayer || (!isAnimePahe && !isAnimeGG)) ? (
           <iframe
             key={embedUrl}
             ref={iframeRef}
@@ -1286,14 +1357,15 @@ export function EpisodePlayer({
         )}
       </div>
 
-      {(isEmbedServer || isAnimePahe || isAnimeGG || isHNime) && (
+      {(isEmbedServer || isAnimePahe || isAnimeGG || isHNime || useEmbedPlayer) && (
         <div className="text-xs text-muted-foreground">
           Stai guardando tramite{" "}
           {serverDisplayNames[selectedServer as keyof typeof serverDisplayNames] || selectedServer}.
-          {isAnimePahe && ` Risoluzione: ${selectedResolution}p.`}
-          {isAnimeGG && ` Audio: ${aggAudioType === "dub" ? "Dub" : "Sub"}. Qualità: ${aggSelectedQuality}.`}
+          {isAnimePahe && !useEmbedPlayer && ` Risoluzione: ${selectedResolution}p.`}
+          {isAnimeGG && !useEmbedPlayer && ` Audio: ${aggAudioType === "dub" ? "Dub" : "Sub"}. Qualità: ${aggSelectedQuality}.`}
           {isHNime && selectedEnEmbed && ` ${selectedEnEmbed}.`}
-          {(isEmbedServer || isHNime) &&
+          {useEmbedPlayer && " Modalità Embed attiva."}
+          {(isEmbedServer || isHNime || useEmbedPlayer) &&
             " Il controllo della riproduzione e il salvataggio della posizione potrebbero essere limitati."}
         </div>
       )}

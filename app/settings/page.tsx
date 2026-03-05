@@ -17,7 +17,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { Globe, Info, Palette, Sun, Moon, Monitor, Trash2, AlertTriangle, Check, RotateCcw } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Globe, Info, Palette, Sun, Moon, Monitor, Trash2, AlertTriangle, Check, RotateCcw, Play } from "lucide-react"
 import { motion } from "framer-motion"
 import { useTheme } from "next-themes"
 import { toast } from "@/hooks/use-toast"
@@ -122,7 +123,7 @@ function ColorWheel({
       if (hue !== null) {
         isDragging.current = true
         onHueChange(hue)
-        ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+          ; (e.target as HTMLElement).setPointerCapture(e.pointerId)
       }
     },
     [getHueFromPosition, onHueChange],
@@ -165,6 +166,7 @@ function ColorWheel({
 
 export default function SettingsPage() {
   const [preferredLanguage, setPreferredLanguage] = useState<"it" | "en">("it")
+  const [videoPlayer, setVideoPlayer] = useState<"legacy" | "embed">("legacy")
   const [accentHue, setAccentHue] = useState(DEFAULT_HUE)
   const [mounted, setMounted] = useState(false)
   const { theme, setTheme } = useTheme()
@@ -176,12 +178,16 @@ export default function SettingsPage() {
       if (saved === "en" || saved === "it") {
         setPreferredLanguage(saved)
       }
+      const savedPlayer = localStorage.getItem("anizone:videoPlayer")
+      if (savedPlayer === "legacy" || savedPlayer === "embed") {
+        setVideoPlayer(savedPlayer)
+      }
       const savedHue = localStorage.getItem("anizone:accentHue")
       if (savedHue) {
         const hue = Number(savedHue)
         if (!isNaN(hue)) setAccentHue(hue)
       }
-    } catch {}
+    } catch { }
   }, [])
 
   const handleLanguageChange = (value: string) => {
@@ -190,7 +196,16 @@ export default function SettingsPage() {
     try {
       localStorage.setItem("anizone:preferredLanguage", lang)
       window.dispatchEvent(new CustomEvent("anizone:language-changed", { detail: { language: lang } }))
-    } catch {}
+    } catch { }
+  }
+
+  const handleVideoPlayerChange = (value: string) => {
+    const player = value as "legacy" | "embed"
+    setVideoPlayer(player)
+    try {
+      localStorage.setItem("anizone:videoPlayer", player)
+      window.dispatchEvent(new CustomEvent("anizone:videoplayer-changed", { detail: { player } }))
+    } catch { }
   }
 
   const handleAccentChange = (hue: number) => {
@@ -198,7 +213,7 @@ export default function SettingsPage() {
     try {
       localStorage.setItem("anizone:accentHue", String(hue))
       window.dispatchEvent(new CustomEvent("anizone:accent-changed", { detail: { hue } }))
-    } catch {}
+    } catch { }
   }
 
   const handleResetAccent = () => {
@@ -235,7 +250,7 @@ export default function SettingsPage() {
   const handleResetAllData = async () => {
     try {
       // 1. Log out from AniList (clear server cookie)
-      await fetch("/api/anilist/auth", { method: "DELETE" }).catch(() => {})
+      await fetch("/api/anilist/auth", { method: "DELETE" }).catch(() => { })
 
       // 2. Log out from Anizone auth
       localStorage.removeItem("anizone_user")
@@ -389,6 +404,53 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
+            {/* Video Player Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Play className="w-5 h-5 text-primary" />
+                  Video Player
+                </CardTitle>
+                <CardDescription>
+                  Scegli come riprodurre i video degli episodi
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label htmlFor="video-player-select" className="text-sm font-medium">
+                      Modalità Player
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Legacy usa il player HTML5 nativo, Embed usa il player esterno integrato.
+                    </p>
+                  </div>
+                  <Select value={videoPlayer} onValueChange={handleVideoPlayerChange}>
+                    <SelectTrigger className="w-[140px]" id="video-player-select">
+                      <SelectValue placeholder="Seleziona player" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="legacy">Legacy</SelectItem>
+                      <SelectItem value="embed">Embed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50 border">
+                  <Info className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Differenze tra i player</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      <strong>Legacy:</strong> Player HTML5 nativo del browser. (Più veloce).
+                    </p>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      <strong>Embed:</strong> Player esterno integrato. Supporta anche il salvataggio della posizione.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Theme Settings */}
             <Card>
               <CardHeader>
@@ -408,11 +470,10 @@ export default function SettingsPage() {
                     <div className="grid grid-cols-3 gap-3">
                       <button
                         onClick={() => setTheme("light")}
-                        className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                          theme === "light"
-                            ? "border-primary bg-primary/10"
-                            : "border-border hover:border-primary/50 bg-card"
-                        }`}
+                        className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${theme === "light"
+                          ? "border-primary bg-primary/10"
+                          : "border-border hover:border-primary/50 bg-card"
+                          }`}
                       >
                         <Sun className="w-6 h-6" />
                         <span className="text-sm font-medium">Chiaro</span>
@@ -420,11 +481,10 @@ export default function SettingsPage() {
                       </button>
                       <button
                         onClick={() => setTheme("dark")}
-                        className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                          theme === "dark"
-                            ? "border-primary bg-primary/10"
-                            : "border-border hover:border-primary/50 bg-card"
-                        }`}
+                        className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${theme === "dark"
+                          ? "border-primary bg-primary/10"
+                          : "border-border hover:border-primary/50 bg-card"
+                          }`}
                       >
                         <Moon className="w-6 h-6" />
                         <span className="text-sm font-medium">Scuro</span>
@@ -432,11 +492,10 @@ export default function SettingsPage() {
                       </button>
                       <button
                         onClick={() => setTheme("system")}
-                        className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                          theme === "system"
-                            ? "border-primary bg-primary/10"
-                            : "border-border hover:border-primary/50 bg-card"
-                        }`}
+                        className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${theme === "system"
+                          ? "border-primary bg-primary/10"
+                          : "border-border hover:border-primary/50 bg-card"
+                          }`}
                       >
                         <Monitor className="w-6 h-6" />
                         <span className="text-sm font-medium">Sistema</span>
@@ -469,11 +528,10 @@ export default function SettingsPage() {
                       <button
                         key={preset.name}
                         onClick={() => handleAccentChange(preset.hue)}
-                        className={`relative w-10 h-10 rounded-full border-2 transition-all hover:scale-110 active:scale-95 ${
-                          accentHue === preset.hue
-                            ? "border-foreground ring-2 ring-foreground/20 scale-110"
-                            : "border-transparent"
-                        }`}
+                        className={`relative w-10 h-10 rounded-full border-2 transition-all hover:scale-110 active:scale-95 ${accentHue === preset.hue
+                          ? "border-foreground ring-2 ring-foreground/20 scale-110"
+                          : "border-transparent"
+                          }`}
                         style={{ backgroundColor: preset.color }}
                         title={preset.name}
                         aria-label={`Colore accento ${preset.name}`}
