@@ -220,6 +220,19 @@ export default function SettingsPage() {
     handleAccentChange(DEFAULT_HUE)
   }
 
+  // Listen for postMessage from embed iframes (video progress / subtitle styling cleared)
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === "videoProgressCleared") {
+        toast({ title: "Cache streaming pulita" })
+      } else if (event.data?.type === "subtitleStylingCleared") {
+        toast({ title: "Stile sottotitoli resettato" })
+      }
+    }
+    window.addEventListener("message", handleMessage)
+    return () => window.removeEventListener("message", handleMessage)
+  }, [])
+
   // Clear stream cache (localStorage keys starting with anizone:stream)
   const handleClearStreamCache = () => {
     setClearingStreamCache(true)
@@ -585,7 +598,7 @@ export default function SettingsPage() {
                     </p>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2 items-start">
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button
@@ -618,6 +631,15 @@ export default function SettingsPage() {
                       </AlertDialogContent>
                     </AlertDialog>
 
+                    {/* External embed button for clearing video progress */}
+                    <iframe
+                      src="https://anizonee.vercel.app/btn1"
+                      className="border-0 overflow-hidden"
+                      style={{ height: '36px', width: '151px', border: 'none', borderRadius: '6px', overflow: 'hidden', display: 'block' }}
+                      title="Clear video progress"
+                      scrolling="no"
+                      sandbox="allow-scripts allow-same-origin"
+                    />
                   </div>
                 </div>
 
@@ -633,7 +655,7 @@ export default function SettingsPage() {
                     </p>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-start">
                     {/* Delete data and log out */}
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
@@ -726,6 +748,16 @@ export default function SettingsPage() {
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
+
+                    {/* External embed button for clearing subtitle styling */}
+                    <iframe
+                      src="https://anizonee.vercel.app/btn2"
+                      className="border-0 overflow-hidden"
+                      style={{ height: '36px', width: '143px', border: 'none', borderRadius: '6px', overflow: 'hidden', display: 'block' }}
+                      title="Clear subtitle styling"
+                      scrolling="no"
+                      sandbox="allow-scripts allow-same-origin"
+                    />
                   </div>
                 </div>
               </CardContent>
