@@ -33,6 +33,7 @@ export const SlideOutMenu = forwardRef<SlideOutMenuHandle, SlideOutMenuProps>(({
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [preferredLanguage, setPreferredLanguage] = useState("it") // Default language
+  const [showDomains, setShowDomains] = useState(false)
 
   const handleLanguageChange = (value: string) => {
     setPreferredLanguage(value)
@@ -253,6 +254,65 @@ export const SlideOutMenu = forwardRef<SlideOutMenuHandle, SlideOutMenuProps>(({
               <span className="block text-xs text-muted-foreground mt-0.5">Aiutaci a migliorare</span>
             </div>
           </button>
+
+          {/* Domini Ufficiali */}
+          <button
+            onClick={() => setShowDomains((v) => !v)}
+            className="flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-200 w-full text-foreground hover:bg-muted/50 group ripple"
+          >
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+              <Globe size={20} />
+            </div>
+            <div className="flex-1 text-left">
+              <span className="block font-medium text-sm">Domini ufficiali</span>
+              <span className="block text-xs text-muted-foreground mt-0.5">Siti verificati</span>
+            </div>
+            <ChevronRight
+              size={16}
+              className={cn(
+                "text-muted-foreground transition-transform duration-200",
+                showDomains ? "rotate-90" : "group-hover:translate-x-0.5",
+              )}
+            />
+          </button>
+
+          {/* Domains Dropdown */}
+          {showDomains && (
+            <div className="mx-4 mt-1 mb-1 rounded-2xl border border-border bg-muted/20 overflow-hidden">
+              <a
+                href="https://ani-zone.vercel.app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors group"
+              >
+                <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shrink-0">
+                  <Globe size={15} className="text-primary-foreground" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="block font-medium text-sm text-foreground">Ani-Zone</span>
+                  <span className="block text-xs text-muted-foreground truncate">ani-zone.vercel.app</span>
+                </div>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/15 text-primary shrink-0">
+                  Consigliato
+                </span>
+              </a>
+              <div className="mx-3 h-px bg-border" />
+              <a
+                href="https://anizonee.netlify.app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors group"
+              >
+                <div className="w-8 h-8 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                  <Globe size={15} className="text-muted-foreground" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="block font-medium text-sm text-foreground">AniZonee</span>
+                  <span className="block text-xs text-muted-foreground truncate">anizonee.netlify.app</span>
+                </div>
+              </a>
+            </div>
+          )}
         </nav>
 
         {/* Footer */}
