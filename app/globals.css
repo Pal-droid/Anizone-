@@ -272,6 +272,11 @@
     display: none;
   }
 
+  /* Safe area padding for devices with notches/home indicators */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 8px);
+  }
+
   /* Keep existing animations */
   @keyframes float {
     0%,

@@ -17,6 +17,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 interface SlideOutMenuProps {
   hideButton?: boolean
+  currentPath?: string
+  onClose?: () => void
 }
 
 export interface SlideOutMenuHandle {
@@ -24,8 +26,9 @@ export interface SlideOutMenuHandle {
   close: () => void
 }
 
-export const SlideOutMenu = forwardRef<SlideOutMenuHandle, SlideOutMenuProps>(({ hideButton = false }, ref) => {
-  const pathname = usePathname() // Use this instead of props
+export const SlideOutMenu = forwardRef<SlideOutMenuHandle, SlideOutMenuProps>(({ hideButton = false, currentPath, onClose }, ref) => {
+  const routerPathname = usePathname()
+  const pathname = currentPath ?? routerPathname
   const [isOpen, setIsOpen] = useState(false)
   const [showBugReport, setShowBugReport] = useState(false)
   const [faviconError, setFaviconError] = useState(false)
@@ -41,8 +44,16 @@ export const SlideOutMenu = forwardRef<SlideOutMenuHandle, SlideOutMenuProps>(({
 
   useImperativeHandle(ref, () => ({
     open: () => setIsOpen(true),
-    close: () => setIsOpen(false),
+    close: () => {
+      setIsOpen(false)
+      onClose?.()
+    },
   }))
+
+  const handleClose = () => {
+    setIsOpen(false)
+    onClose?.()
+  }
 
   useEffect(() => {
     document.body.style.overflow = isOpen ? "hidden" : ""
@@ -96,7 +107,7 @@ export const SlideOutMenu = forwardRef<SlideOutMenuHandle, SlideOutMenuProps>(({
             ? "bg-background/60 opacity-100 pointer-events-auto"
             : "bg-transparent opacity-0 pointer-events-none",
         )}
-        onClick={() => setIsOpen(false)}
+        onClick={handleClose}
       />
 
       {/* Menu Content */}
@@ -128,7 +139,7 @@ export const SlideOutMenu = forwardRef<SlideOutMenuHandle, SlideOutMenuProps>(({
               </div>
             </div>
             <button
-              onClick={() => setIsOpen(false)}
+              onClick={handleClose}
               className="w-10 h-10 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
             >
               <X size={20} />
@@ -141,7 +152,7 @@ export const SlideOutMenu = forwardRef<SlideOutMenuHandle, SlideOutMenuProps>(({
           <div className="px-3 pt-3 pb-2">
             <Link
               href="/profile"
-              onClick={() => setIsOpen(false)}
+              onClick={handleClose}
               className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer group"
             >
               <Avatar className="w-10 h-10">
@@ -173,7 +184,7 @@ export const SlideOutMenu = forwardRef<SlideOutMenuHandle, SlideOutMenuProps>(({
                 <Link
                   key={item.key}
                   href={item.href}
-                  onClick={() => setIsOpen(false)}
+                  onClick={handleClose}
                   className={cn(
                     "flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-200 group relative overflow-hidden ripple",
                     active ? "bg-primary/15 text-primary" : "text-foreground hover:bg-muted/50",
@@ -228,7 +239,7 @@ export const SlideOutMenu = forwardRef<SlideOutMenuHandle, SlideOutMenuProps>(({
           {/* Settings */}
           <Link
             href="/settings"
-            onClick={() => setIsOpen(false)}
+            onClick={handleClose}
             className="flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-200 text-foreground hover:bg-muted/50 group ripple"
           >
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
