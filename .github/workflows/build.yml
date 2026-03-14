@@ -15,77 +15,58 @@ on:
           - x64
 
 jobs:
-  build-arm64:
-    if: github.event.inputs.architecture == 'all' || github.event.inputs.architecture == 'arm64'
+  build:
+    name: Build for ${{ matrix.arch }}
     runs-on: ubuntu-latest
+    if: github.event.inputs.architecture == 'all' || github.event.inputs.architecture == matrix.arch
+    strategy:
+      matrix:
+        arch: [arm64, armv7, x64]
+        include:
+          - arch: arm64
+            target: linux-arm64-20.11.0
+            output: anizone-android-arm64
+          - arch: armv7
+            target: linux-armv7-20.11.0
+            output: anizone-android-armv7
+          - arch: x64
+            target: linux-x64-20.11.0
+            output: anizone-android-x64
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - uses: pnpm/action-setup@v3
-        with:
-          version: 8
-      
-      - run: pnpm install
-      - run: echo 'module.exports = { output: "standalone" }' > next.config.js
-      - run: NEXT_TURBOPACK=0 pnpm build
-      
-      - run: cd .next/standalone && pnpm install --prod
-      - run: npm install -g nexe
-      - run: nexe .next/standalone/server.js --target linux-arm64-20.11.0 --output anizone-android-arm64
-      
-      - uses: actions/upload-artifact@v4
-        with:
-          name: anizone-android-arm64
-          path: anizone-android-arm64
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-  build-armv7:
-    if: github.event.inputs.architecture == 'all' || github.event.inputs.architecture == 'armv7'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - uses: pnpm/action-setup@v3
-        with:
-          version: 8
-      
-      - run: pnpm install
-      - run: echo 'module.exports = { output: "standalone" }' > next.config.js
-      - run: NEXT_TURBOPACK=0 pnpm build
-      
-      - run: cd .next/standalone && pnpm install --prod
-      - run: npm install -g nexe
-      - run: nexe .next/standalone/server.js --target linux-armv7-20.11.0 --output anizone-android-armv7
-      
-      - uses: actions/upload-artifact@v4
-        with:
-          name: anizone-android-armv7
-          path: anizone-android-armv7
 
-  build-x64:
-    if: github.event.inputs.architecture == 'all' || github.event.inputs.architecture == 'x64'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - uses: pnpm/action-setup@v3
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
         with:
           version: 8
-      
-      - run: pnpm install
-      - run: echo 'module.exports = { output: "standalone" }' > next.config.js
-      - run: NEXT_TURBOPACK=0 pnpm build
-      
-      - run: cd .next/standalone && pnpm install --prod
-      - run: npm install -g nexe
-      - run: nexe .next/standalone/server.js --target linux-x64-20.11.0 --output anizone-android-x64
-      
-      - uses: actions/upload-artifact@v4
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build Next.js app
+        run: |
+          echo 'module.exports = { output: "standalone" }' > next.config.js
+          NEXT_TURBOPACK=0 pnpm build
+
+      - name: Prepare standalone
+        run: |
+          cd .next/standalone
+          pnpm install --prod
+
+      - name: Install nexe
+        run: npm install -g nexe
+
+      - name: Build binary
+        run: nexe .next/standalone/server.js --target ${{ matrix.target }} --output ${{ matrix.output }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: anizone-android-x64
-          path: anizone-android-x64
+          name: ${{ matrix.output }}
+          path: ${{ matrix.output }}
