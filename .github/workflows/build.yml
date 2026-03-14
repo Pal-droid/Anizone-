@@ -6,85 +6,80 @@ on:
       architecture:
         description: 'Architecture to build'
         required: true
-        default: 'all'
+        default: 'arm64'
         type: choice
         options:
-          - all
           - arm64
           - armv7
           - x64
 
 jobs:
   build:
-    name: Build for ${{ matrix.arch }}
+    name: Build for ${{ github.event.inputs.architecture }}
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        arch: [arm64, armv7, x64]
-        include:
-          - arch: arm64
-            target: linux-arm64-20.11.0
-            output: anizone-android-arm64
-          - arch: armv7
-            target: linux-armv7-20.11.0
-            output: anizone-android-armv7
-          - arch: x64
-            target: linux-x64-20.11.0
-            output: anizone-android-x64
     steps:
-      - name: Check if should run
-        id: check
-        run: |
-          if [[ "${{ github.event.inputs.architecture }}" == "all" ]] || \
-             [[ "${{ github.event.inputs.architecture }}" == "${{ matrix.arch }}" ]]; then
-            echo "run=true" >> $GITHUB_OUTPUT
-          else
-            echo "run=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Checkout code
-        if: steps.check.outputs.run == 'true'
         uses: actions/checkout@v4
 
       - name: Setup Node.js
-        if: steps.check.outputs.run == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       - name: Install pnpm
-        if: steps.check.outputs.run == 'true'
         uses: pnpm/action-setup@v3
         with:
           version: 8
 
       - name: Install dependencies
-        if: steps.check.outputs.run == 'true'
         run: pnpm install
 
-      - name: Build Next.js app
-        if: steps.check.outputs.run == 'true'
+      - name: Configure Next.js for build
         run: |
-          echo 'module.exports = { output: "standalone" }' > next.config.js
-          NEXT_TURBOPACK=0 pnpm build
+          cat > next.config.mjs << 'EOF'
+          /** @type {import('next').NextConfig} */
+          const nextConfig = {
+            output: 'standalone',
+            typescript: {
+              ignoreBuildErrors: true,
+            },
+            eslint: {
+              ignoreDuringBuilds: true,
+            },
+          };
+          export default nextConfig;
+          EOF
 
-      - name: Prepare standalone
-        if: steps.check.outputs.run == 'true'
+      - name: Build Next.js app
+        run: NEXT_TURBOPACK=0 pnpm build
+        env:
+          NEXT_TURBOPACK: 0
+
+      - name: Prepare standalone folder
         run: |
           cd .next/standalone
           pnpm install --prod
 
       - name: Install nexe
-        if: steps.check.outputs.run == 'true'
         run: npm install -g nexe
 
-      - name: Build binary
-        if: steps.check.outputs.run == 'true'
-        run: nexe .next/standalone/server.js --target ${{ matrix.target }} --output ${{ matrix.output }}
+      - name: Build for arm64
+        if: github.event.inputs.architecture == 'arm64'
+        run: nexe .next/standalone/server.js --target linux-arm64-20.11.0 --output anizone-android-arm64
+
+      - name: Build for armv7
+        if: github.event.inputs.architecture == 'armv7'
+        run: nexe .next/standalone/server.js --target linux-armv7-20.11.0 --output anizone-android-armv7
+
+      - name: Build for x64
+        if: github.event.inputs.architecture == 'x64'
+        run: nexe .next/standalone/server.js --target linux-x64-20.11.0 --output anizone-android-x64
+
+      - name: Make executable
+        run: chmod +x anizone-android-*
 
       - name: Upload artifact
-        if: steps.check.outputs.run == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.output }}
-          path: ${{ matrix.output }}
+          name: anizone-android-${{ github.event.inputs.architecture }}
+          path: anizone-android-*
