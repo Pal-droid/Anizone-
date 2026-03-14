@@ -61,44 +61,33 @@ jobs:
           pnpm install --prod --no-optional
           ls -la
 
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y python3 make g++
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Install nexe
-        run: npm install -g nexe
-
-      - name: Build for arm64
+      - name: Build for arm64 using Docker
         if: github.event.inputs.architecture == 'arm64'
         run: |
           cd .next/standalone
-          nexe server.js \
-            --target linux-arm64-20.11.0 \
-            --output ../../anizone-android-arm64 \
-            --build \
-            --verbose \
-            --python $(which python3)
+          docker run --rm -v $PWD:/app -w /app \
+            --platform linux/arm64 \
+            node:20-bookworm-slim \
+            bash -c "apt-get update && apt-get install -y python3 make g++ && npm install -g nexe && nexe server.js --target linux-arm64-20.11.0 --output /app/anizone-android-arm64 --build --verbose"
 
-      - name: Build for armv7
+      - name: Build for armv7 using Docker
         if: github.event.inputs.architecture == 'armv7'
         run: |
           cd .next/standalone
-          nexe server.js \
-            --target linux-armv7-20.11.0 \
-            --output ../../anizone-android-armv7 \
-            --build \
-            --verbose \
-            --python $(which python3)
+          docker run --rm -v $PWD:/app -w /app \
+            --platform linux/arm/v7 \
+            node:20-bookworm-slim \
+            bash -c "apt-get update && apt-get install -y python3 make g++ && npm install -g nexe && nexe server.js --target linux-armv7-20.11.0 --output /app/anizone-android-armv7 --build --verbose"
 
-      - name: Build for x64
+      - name: Build for x64 (native)
         if: github.event.inputs.architecture == 'x64'
         run: |
           cd .next/standalone
-          nexe server.js \
-            --target linux-x64-20.11.0 \
-            --output ../../anizone-android-x64 \
-            --verbose
+          npm install -g nexe
+          nexe server.js --target linux-x64-20.11.0 --output ../../anizone-android-x64 --verbose
 
       - name: Make executable
         run: chmod +x anizone-android-* || true
