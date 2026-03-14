@@ -58,9 +58,13 @@ jobs:
       - name: Prepare standalone folder
         run: |
           cd .next/standalone
-          pnpm install --prod
-          # List files to verify
+          pnpm install --prod --no-optional
           ls -la
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 make g++
 
       - name: Install nexe
         run: npm install -g nexe
@@ -69,22 +73,32 @@ jobs:
         if: github.event.inputs.architecture == 'arm64'
         run: |
           cd .next/standalone
-          nexe server.js --target linux-arm64-20.11.0 --output ../../anizone-android-arm64 --verbose
+          nexe server.js \
+            --target linux-arm64-20.11.0 \
+            --output ../../anizone-android-arm64 \
+            --build \
+            --verbose \
+            --python $(which python3)
 
       - name: Build for armv7
         if: github.event.inputs.architecture == 'armv7'
         run: |
           cd .next/standalone
-          nexe server.js --target linux-armv7-20.11.0 --output ../../anizone-android-armv7 --verbose
+          nexe server.js \
+            --target linux-armv7-20.11.0 \
+            --output ../../anizone-android-armv7 \
+            --build \
+            --verbose \
+            --python $(which python3)
 
       - name: Build for x64
         if: github.event.inputs.architecture == 'x64'
         run: |
           cd .next/standalone
-          nexe server.js --target linux-x64-20.11.0 --output ../../anizone-android-x64 --verbose
-
-      - name: Go back to root and check files
-        run: ls -la
+          nexe server.js \
+            --target linux-x64-20.11.0 \
+            --output ../../anizone-android-x64 \
+            --verbose
 
       - name: Make executable
         run: chmod +x anizone-android-* || true
