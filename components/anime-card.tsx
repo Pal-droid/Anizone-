@@ -91,7 +91,7 @@ function getSourceIconUrl(name: string) {
   if (name === "AnimeSaturn") return "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://animesaturn.cx&size=48"
   if (name === "AnimePahe") return "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://animepahe.si&size=48"
   if (name === "AnimeGG") return "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/refs/heads/main/public/animegg.png"
-  if (name === "HNime") return "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://hianime.to&size=48"
+  if (name === "HNime") return "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://hianimez.org&size=48"
   return null
 }
 
