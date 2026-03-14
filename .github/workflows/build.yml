@@ -8,39 +8,26 @@ on:
 
 jobs:
   build:
-    name: Build for ${{ matrix.target }}
+    name: Build for ${{ matrix.arch }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
-          # Android ARM64 (modern phones, 64-bit)
           - arch: arm64
             target: linux-arm64-20.11.0
             output: anizone-android-arm64
             node: '20'
           
-          # Android ARMv7 (older phones, 32-bit)
           - arch: armv7
             target: linux-armv7-20.11.0
             output: anizone-android-armv7
             node: '20'
           
-          # Android x86_64 (emulators, some devices)
           - arch: x64
             target: linux-x64-20.11.0
             output: anizone-android-x64
             node: '20'
-          
-          # Also build for desktop (optional)
-          - arch: desktop-linux
-            target: linux-x64-20.11.0
-            output: anizone-linux-x64
-            node: '20'
-          
-          - arch: desktop-windows
-            target: windows-x64-20.11.0
-            output: anizone-windows-x64.exe
-            node: '20'
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
@@ -90,7 +77,6 @@ jobs:
       - name: Prepare standalone folder
         run: |
           cd .next/standalone
-          # Create minimal package.json
           cat > package.json << 'EOF'
           {
             "name": "anizone",
@@ -104,7 +90,7 @@ jobs:
       - name: Install nexe
         run: npm install -g nexe
 
-      - name: Build binary for ${{ matrix.target }}
+      - name: Build binary for ${{ matrix.arch }}
         run: |
           nexe .next/standalone/server.js \
             --target ${{ matrix.target }} \
