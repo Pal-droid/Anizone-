@@ -18,7 +18,6 @@ jobs:
   build:
     name: Build for ${{ matrix.arch }}
     runs-on: ubuntu-latest
-    if: github.event.inputs.architecture == 'all' || github.event.inputs.architecture == matrix.arch
     strategy:
       matrix:
         arch: [arm64, armv7, x64]
@@ -33,39 +32,58 @@ jobs:
             target: linux-x64-20.11.0
             output: anizone-android-x64
     steps:
+      - name: Check if should run
+        id: check
+        run: |
+          if [[ "${{ github.event.inputs.architecture }}" == "all" ]] || \
+             [[ "${{ github.event.inputs.architecture }}" == "${{ matrix.arch }}" ]]; then
+            echo "run=true" >> $GITHUB_OUTPUT
+          else
+            echo "run=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Checkout code
+        if: steps.check.outputs.run == 'true'
         uses: actions/checkout@v4
 
       - name: Setup Node.js
+        if: steps.check.outputs.run == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       - name: Install pnpm
+        if: steps.check.outputs.run == 'true'
         uses: pnpm/action-setup@v3
         with:
           version: 8
 
       - name: Install dependencies
+        if: steps.check.outputs.run == 'true'
         run: pnpm install
 
       - name: Build Next.js app
+        if: steps.check.outputs.run == 'true'
         run: |
           echo 'module.exports = { output: "standalone" }' > next.config.js
           NEXT_TURBOPACK=0 pnpm build
 
       - name: Prepare standalone
+        if: steps.check.outputs.run == 'true'
         run: |
           cd .next/standalone
           pnpm install --prod
 
       - name: Install nexe
+        if: steps.check.outputs.run == 'true'
         run: npm install -g nexe
 
       - name: Build binary
+        if: steps.check.outputs.run == 'true'
         run: nexe .next/standalone/server.js --target ${{ matrix.target }} --output ${{ matrix.output }}
 
       - name: Upload artifact
+        if: steps.check.outputs.run == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.output }}
