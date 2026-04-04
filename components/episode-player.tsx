@@ -1306,17 +1306,22 @@ export function EpisodePlayer({
                     setSelectedKey(key)
                     saveContinueForClick(e)
                   }}
-                  className={`shrink-0 snap-start px-3 h-9 rounded-full text-sm border ${
-                    active
-                      ? "bg-neutral-100 text-black border-neutral-100 dark:bg-neutral-900 dark:text-white dark:border-neutral-900"
-                      : isWatched
-                        ? "bg-neutral-300 text-neutral-500 dark:bg-neutral-700 dark:text-neutral-500 opacity-60"
-                        : "bg-white text-black dark:bg-neutral-800 dark:text-white/90"
+                  className={`shrink-0 snap-start px-3 h-9 rounded-full text-sm border relative ${
+                    active && isWatched
+                      ? "bg-neutral-200 text-neutral-600 border-neutral-300 dark:bg-neutral-800 dark:text-neutral-400 dark:border-neutral-700 ring-2 ring-neutral-400 dark:ring-neutral-500"
+                      : active
+                        ? "bg-neutral-100 text-black border-neutral-100 dark:bg-neutral-900 dark:text-white dark:border-neutral-900"
+                        : isWatched
+                          ? "bg-neutral-300 text-neutral-500 dark:bg-neutral-700 dark:text-neutral-500 opacity-60"
+                          : "bg-white text-black dark:bg-neutral-800 dark:text-white/90"
                   }`}
                   aria-pressed={active}
                   title={isWatched ? `Episodio ${e.num} (già visto)` : `Episodio ${e.num}`}
                 >
                   {"E" + e.num}
+                  {isWatched && (
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-500 rounded-full border border-white dark:border-neutral-900" />
+                  )}
                 </button>
               )
             })
