@@ -37,23 +37,19 @@ function seriesBaseFromPath(path: string) {
 
 function extractAnimeIdFromUrl(url: string): string {
   try {
-    // Handle relative paths first (like /en/19318/sub)
     if (url.startsWith('/')) {
       const pathParts = url.split("/").filter(Boolean)
-      // Handle /en/19318/sub format - extract the numeric ID
       if (pathParts.length >= 2) {
         const potentialId = pathParts[1]
         if (/^\d+$/.test(potentialId)) {
           return potentialId
         }
       }
-      // Handle /play/ID format
       if (pathParts[0] === "play" && pathParts[1]) {
         return pathParts[1]
       }
     }
     
-    // Handle full URLs
     const urlObj = new URL(url)
     const pathParts = urlObj.pathname.split("/").filter(Boolean)
     if (pathParts.length >= 2 && pathParts[0] === "play") {
@@ -73,7 +69,6 @@ function extractAnimeIdFromUrl(url: string): string {
     if (pathMatch && pathMatch[1]) {
       return pathMatch[1]
     }
-    // For relative paths like /en/19318/sub, try to extract the numeric part
     const pathMatch2 = url.match(/\/(\d+)/)
     if (pathMatch2 && pathMatch2[1]) {
       return pathMatch2[1]
@@ -83,7 +78,6 @@ function extractAnimeIdFromUrl(url: string): string {
 }
 
 function extractAnimeIdFromSourceId(sourceId: string): string {
-  // If it contains a slash, it might be an episode ID - extract the anime part
   if (sourceId.includes("/")) {
     return sourceId.split("/")[0]
   }
@@ -152,7 +146,6 @@ export function EpisodePlayer({
 
   const seriesKeyForStore = useMemo(() => seriesBaseFromPath(path), [path])
 
-  // Read video player preference from localStorage
   useEffect(() => {
     try {
       const saved = localStorage.getItem("anizone:videoPlayer")
@@ -167,7 +160,6 @@ export function EpisodePlayer({
     return () => window.removeEventListener("anizone:videoplayer-changed", handleChange)
   }, [])
 
-  // Update isEnglishServer when path changes
   useEffect(() => {
     const isEn = path.startsWith("/en/") || !!sessionStorage.getItem(`anizone:isEnglish:${path}`)
     setIsEnglishServer(isEn)
@@ -195,7 +187,7 @@ export function EpisodePlayer({
     []
   )
 
-  const isEmbedServer = false // AnimeSaturn now uses proxy URL instead of embed
+  const isEmbedServer = false
   const isAnimePahe = selectedServer === "AnimePahe"
   const isAnimeGG = selectedServer === "AnimeGG"
   const isHNime = selectedServer === "HNime"
@@ -292,7 +284,6 @@ export function EpisodePlayer({
       setEpisodesError(null)
 
       try {
-        // English server (HNime) episode loading
         if (isEnglishServer) {
           const hnSource = sources?.find((s) => s.name === "HNime")
           const sourceId = hnSource?.id || path.replace("/en/", "")
@@ -324,7 +315,6 @@ export function EpisodePlayer({
           return
         }
 
-        // Italian server episode loading (existing logic)
         console.log("[v0] Loading episodes for server:", selectedServer, "with sources:", sources)
 
         const params = new URLSearchParams()
@@ -347,9 +337,7 @@ export function EpisodePlayer({
 
         if (awSource?.id) params.set("AW", awSource.id)
         if (asSource?.id) params.set("AS", asSource.id)
-        if (apSource?.id) {
-          params.set("AP", apSource.id)
-        }
+        if (apSource?.id) params.set("AP", apSource.id)
         if (agSource?.id) params.set("AG", agSource.id)
 
         console.log("[v0] Fetching episodes with params:", params.toString())
@@ -449,7 +437,6 @@ export function EpisodePlayer({
           setUserProgress(0)
         }
 
-        // Fetch the anime's media status (RELEASING, FINISHED, etc.)
         try {
           const mediaStatus = await aniListManager.getMediaStatus(Number(metaData.anilistId))
           setAnimeMediaStatus(mediaStatus)
@@ -472,7 +459,6 @@ export function EpisodePlayer({
 
     console.log("[v0] Auto-selecting episode - userProgress:", userProgress, "isInWatchingList:", isInWatchingList)
 
-    // If user is watching and has progress, select next unwatched episode
     if (isInWatchingList && userProgress > 0) {
       const nextEpisode = episodes.find((ep) => ep.num === userProgress + 1)
       if (nextEpisode) {
@@ -481,8 +467,6 @@ export function EpisodePlayer({
         return
       }
 
-      // If next episode not found and first episode is 1,
-      // check if the anime is RELEASING - if so, track the first episode
       const firstEpisode = episodes.find((ep) => ep.num === 1)
       if (firstEpisode && animeMediaStatus === "RELEASING") {
         console.log("[v0] Anime is RELEASING and no next episode available, tracking first episode")
@@ -491,13 +475,11 @@ export function EpisodePlayer({
       }
     }
 
-    // Otherwise, select episode 1 by default
     const firstEpisode = episodes.find((ep) => ep.num === 1)
     if (firstEpisode) {
       console.log("[v0] Auto-selecting episode 1")
       setSelectedKey(epKey(firstEpisode))
     } else if (episodes.length > 0) {
-      // Fallback to first available episode
       console.log("[v0] Auto-selecting first available episode:", episodes[0].num)
       setSelectedKey(epKey(episodes[0]))
     }
@@ -544,7 +526,6 @@ export function EpisodePlayer({
       try {
         console.log("[v0] Loading stream for episode:", selectedEpisode, "server:", selectedServer)
 
-        // Handle HNime (English) server
         if (isHNime) {
           const episodeId = selectedEpisode?.unifiedData?.sources?.HNime?.id || selectedEpisode?.id || ''
           console.log("[v0] Using HNime for stream - episode ID:", episodeId)
@@ -562,7 +543,6 @@ export function EpisodePlayer({
           console.log("[v0] HNime stream data:", hiData)
 
           if (hiData.ok && hiData.embeds && hiData.embeds.length > 0) {
-            // When useEmbedPlayer is on, replace needP=1 with needP=0
             const processedEmbeds = useEmbedPlayer
               ? hiData.embeds.map((e: any) => ({
                   ...e,
@@ -591,7 +571,6 @@ export function EpisodePlayer({
           throw new Error("No unified data available for this episode")
         }
 
-        // Handle AnimeGG (AGG) server
         if (selectedServer === "AnimeGG" && unifiedEp.sources?.AnimeGG?.id) {
           const episodeId = unifiedEp.sources.AnimeGG.id
           console.log("[v0] Using AnimeGG for stream - episode ID:", episodeId, "audio:", aggAudioType, "quality:", aggSelectedQuality)
@@ -617,14 +596,12 @@ export function EpisodePlayer({
             setStreamUrl(aggData.streamUrl)
             setEpisodeRefUrl(selectedEpisode?.href || '')
             
-            // Update available qualities and audio types
             if (aggData.availableQualities) {
               setAggAvailableQualities(aggData.availableQualities)
             }
             setAggHasSub(aggData.hasSub ?? true)
             setAggHasDub(aggData.hasDub ?? false)
             
-            // Update selected quality if it changed
             if (aggData.selectedQuality) {
               setAggSelectedQuality(aggData.selectedQuality)
             }
@@ -722,17 +699,17 @@ export function EpisodePlayer({
 
         if (selectedServer === "AnimeSaturn" && serverData.stream_url) {
           const rawStreamUrl = serverData.stream_url
-          // Build proxy URL using our local AnimeSaturn proxy
-          const proxied = `/api/animesaturn-proxy?url=${encodeURIComponent(rawStreamUrl)}`
+          // ✅ FIX: use window.location.origin so the proxy URL is always absolute
+          // and works regardless of which domain the app is deployed on
+          const absoluteProxyUrl = `${window.location.origin}/api/animesaturn-proxy?url=${encodeURIComponent(rawStreamUrl)}`
           console.log("[v0] Got AnimeSaturn stream URL:", rawStreamUrl)
-          console.log("[v0] Using AnimeSaturn proxy URL:", proxied)
+          console.log("[v0] Using AnimeSaturn absolute proxy URL:", absoluteProxyUrl)
           setStreamUrl(rawStreamUrl)
           setEpisodeRefUrl(selectedEpisode?.href || '')
 
           if (useEmbedPlayer) {
-            // Build embed URL using the external embed service with the proxied URL
             const embedParams = new URLSearchParams()
-            embedParams.set("sHI", proxied)
+            embedParams.set("sHI", absoluteProxyUrl)
             embedParams.set("needP", "0")
             const builtEmbedUrl = `https://anizonee.vercel.app/e?${embedParams.toString()}`
             console.log("[v0] Embed mode: built embed URL for AnimeSaturn:", builtEmbedUrl)
@@ -740,8 +717,10 @@ export function EpisodePlayer({
             setProxyUrl(null)
             localStorage.setItem(cacheKey, JSON.stringify({ streamUrl: rawStreamUrl, embedUrl: builtEmbedUrl }))
           } else {
-            setProxyUrl(proxied)
-            localStorage.setItem(cacheKey, JSON.stringify({ streamUrl: rawStreamUrl, proxyUrl: proxied }))
+            // For non-embed mode keep using the relative path for the local video player
+            const relativeProxyUrl = `/api/animesaturn-proxy?url=${encodeURIComponent(rawStreamUrl)}`
+            setProxyUrl(relativeProxyUrl)
+            localStorage.setItem(cacheKey, JSON.stringify({ streamUrl: rawStreamUrl, proxyUrl: relativeProxyUrl }))
           }
         } else if (selectedServer === "AnimePahe" && serverData.stream_url) {
           const direct = serverData.stream_url
@@ -836,7 +815,6 @@ export function EpisodePlayer({
 
       if (available.length > 0) {
         setAvailableResolutions(available)
-        // If current resolution is not available, switch to highest available
         if (!available.includes(selectedResolution)) {
           setSelectedResolution(available[0])
         }
@@ -929,7 +907,6 @@ export function EpisodePlayer({
         }
       }
 
-      // General embed video ended handler for all embed types
       if (e.data.type === "videoEnded") {
         console.log("[v0] Embed video ended detected! autoNext:", autoNext, "selectedEpisode:", selectedEpisode?.num)
 
@@ -967,7 +944,6 @@ export function EpisodePlayer({
     }
 
     sendResume()
-
     iframe.addEventListener("load", sendResume)
 
     return () => {
@@ -998,13 +974,11 @@ export function EpisodePlayer({
         return
       }
 
-      // Get current status
       const currentStatus = await aniListManager.getMediaListStatus(Number(metaData.anilistId), "ANIME")
 
       console.log("[v0] Auto-updating AniList: episode", episodeNum, "for anime", metaData.anilistId)
       console.log("[v0] Current status:", currentStatus)
 
-      // If status is PLANNING, change it to CURRENT
       const newStatus = currentStatus.status === "PLANNING" ? "CURRENT" : currentStatus.status || "CURRENT"
 
       await aniListManager.updateAnimeEntry(Number(metaData.anilistId), newStatus, episodeNum)
@@ -1014,7 +988,6 @@ export function EpisodePlayer({
       setIsInWatchingList(true)
       setUserProgress(episodeNum)
 
-      // Broadcast status change event so QuickListManager can update
       window.dispatchEvent(
         new CustomEvent("anizone:status-updated", {
           detail: { mediaId: metaData.anilistId, status: newStatus, progress: episodeNum },
@@ -1030,17 +1003,14 @@ export function EpisodePlayer({
       const seriesKey = seriesBaseFromPath(path)
       const seriesPath = seriesKey
 
-      // Check if video ended and user is navigating to next episode
       if (videoEndedRef.current && selectedEpisode && ep.num > selectedEpisode.num) {
         hasNavigatedToNextRef.current = true
 
-        // Update AniList progress if available
         const meta = sessionStorage.getItem(`anizone:meta:${path}`)
         if (meta) {
           try {
             const metaData = JSON.parse(meta)
             if (metaData.anilistId) {
-              // Dynamic import to avoid circular dependencies
               const { aniListManager } = await import("@/lib/anilist")
               const user = aniListManager.getUser()
 
@@ -1060,7 +1030,6 @@ export function EpisodePlayer({
         }
       }
 
-      // Reset flags for new episode
       videoEndedRef.current = false
       hasNavigatedToNextRef.current = false
 
