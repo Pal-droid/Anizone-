@@ -141,6 +141,7 @@ export function EpisodePlayer({
   const [aggSelectedQuality, setAggSelectedQuality] = useState<string>("1080p")
   const [userProgress, setUserProgress] = useState<number>(0)
   const [isInWatchingList, setIsInWatchingList] = useState<boolean>(false)
+  const [animeMediaStatus, setAnimeMediaStatus] = useState<string | null>(null)
   const [isEnglishServer, setIsEnglishServer] = useState<boolean>(() => {
     return path.startsWith("/en/") || !!sessionStorage.getItem(`anizone:isEnglish:${path}`)
   })
@@ -439,13 +440,22 @@ export function EpisodePlayer({
 
         console.log("[v0] AniList progress result:", result)
 
-        if (result.status === "CURRENT") {
+        if (result.status === "CURRENT" || result.status === "REPEATING") {
           setIsInWatchingList(true)
           setUserProgress(result.progress || 0)
           console.log("[v0] User is watching this anime, progress:", result.progress)
         } else {
           setIsInWatchingList(false)
           setUserProgress(0)
+        }
+
+        // Fetch the anime's media status (RELEASING, FINISHED, etc.)
+        try {
+          const mediaStatus = await aniListManager.getMediaStatus(Number(metaData.anilistId))
+          setAnimeMediaStatus(mediaStatus)
+          console.log("[v0] Anime media status:", mediaStatus)
+        } catch (e) {
+          console.error("[v0] Error fetching anime media status:", e)
         }
       } catch (error) {
         console.error("[v0] Error fetching AniList progress:", error)
@@ -470,6 +480,15 @@ export function EpisodePlayer({
         setSelectedKey(epKey(nextEpisode))
         return
       }
+
+      // If next episode not found and first episode is 1,
+      // check if the anime is RELEASING - if so, track the first episode
+      const firstEpisode = episodes.find((ep) => ep.num === 1)
+      if (firstEpisode && animeMediaStatus === "RELEASING") {
+        console.log("[v0] Anime is RELEASING and no next episode available, tracking first episode")
+        setSelectedKey(epKey(firstEpisode))
+        return
+      }
     }
 
     // Otherwise, select episode 1 by default
@@ -482,7 +501,7 @@ export function EpisodePlayer({
       console.log("[v0] Auto-selecting first available episode:", episodes[0].num)
       setSelectedKey(epKey(episodes[0]))
     }
-  }, [episodes, userProgress, isInWatchingList, selectedKey])
+  }, [episodes, userProgress, isInWatchingList, selectedKey, animeMediaStatus])
 
   const selectedEpisode = useMemo(
     () => (selectedKey ? (episodes.find((e) => epKey(e) === selectedKey) ?? null) : null),
