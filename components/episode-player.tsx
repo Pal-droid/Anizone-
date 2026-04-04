@@ -730,11 +730,10 @@ export function EpisodePlayer({
           setEpisodeRefUrl(selectedEpisode?.href || '')
 
           if (useEmbedPlayer) {
-            // Build embed URL using the external embed service with needP=0 and asP=1 for Saturn
+            // Build embed URL using the external embed service with the proxied URL
             const embedParams = new URLSearchParams()
-            embedParams.set("sHI", rawStreamUrl)
+            embedParams.set("sHI", proxied)
             embedParams.set("needP", "0")
-            embedParams.set("asP", "1")
             const builtEmbedUrl = `https://anizonee.vercel.app/e?${embedParams.toString()}`
             console.log("[v0] Embed mode: built embed URL for AnimeSaturn:", builtEmbedUrl)
             setEmbedUrl(builtEmbedUrl)
