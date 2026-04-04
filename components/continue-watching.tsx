@@ -37,15 +37,20 @@ export function ContinueWatching() {
       try {
         const animeList = await aniListManager.getUserAnimeList()
 
-        // Get CURRENT status entries
+        // Get CURRENT and REPEATING status entries
         const currentList = animeList.lists?.find((list: any) => list.status === "CURRENT")
-        if (!currentList) {
+        const repeatingList = animeList.lists?.find((list: any) => list.status === "REPEATING")
+        const combinedEntries = [
+          ...(currentList?.entries || []),
+          ...(repeatingList?.entries || []),
+        ]
+        if (combinedEntries.length === 0) {
           setEntries([])
           setLoading(false)
           return
         }
 
-        const mapped: ContinueEntry[] = currentList.entries.map((entry: any) => {
+        const mapped: ContinueEntry[] = combinedEntries.map((entry: any) => {
           return {
             seriesKey: entry.media.id.toString(),
             seriesPath: entry.media.id.toString(),

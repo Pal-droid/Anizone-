@@ -501,6 +501,24 @@ class AniListManager {
     }
   }
 
+  async getMediaStatus(mediaId: number): Promise<string | null> {
+    const query = `
+      query ($id: Int) {
+        Media(id: $id, type: ANIME) {
+          status
+        }
+      }
+    `
+
+    try {
+      const data = await this.makeGraphQLRequest(query, { id: mediaId })
+      return data.data?.Media?.status || null
+    } catch (error) {
+      console.error("[v0] Error fetching media status:", error)
+      return null
+    }
+  }
+
   async getUserStatistics(): Promise<any> {
     if (!this.user) return null
 
