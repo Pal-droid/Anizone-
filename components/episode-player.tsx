@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Loader2 } from "lucide-react"
+import { Check, Loader2 } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -1286,7 +1286,7 @@ export function EpisodePlayer({
           </div>
         </div>
 
-        <div className="flex gap-2 overflow-x-auto no-scrollbar snap-x pb-1">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar snap-x pb-1 py-2 -my-2">
           {episodesLoading ? (
             Array.from({ length: 10 }).map((_, i) => (
               <div key={i} className="h-9 w-14 rounded-full bg-neutral-800 animate-pulse shrink-0" />
@@ -1320,7 +1320,9 @@ export function EpisodePlayer({
                 >
                   {"E" + e.num}
                   {isWatched && (
-                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-500 rounded-full border border-white dark:border-neutral-900" />
+                    <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-green-500 rounded-full border border-white dark:border-neutral-900 flex items-center justify-center">
+                      <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                    </span>
                   )}
                 </button>
               )
