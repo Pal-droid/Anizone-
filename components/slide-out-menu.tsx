@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { useState, useEffect, forwardRef, useImperativeHandle } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation" // Added this
-import { Menu, X, Film, BookOpen, Search, List, Calendar, Bug, ChevronRight, User, LogOut, Settings, Globe } from "lucide-react"
+import { Menu, X, Film, BookOpen, Search, List, Calendar, Bug, ChevronRight, User, LogOut, Settings, Globe, ExternalLink, Star } from "lucide-react"
 import { BugReportDialog } from "@/components/bug-report-dialog"
 import { cn } from "@/lib/utils"
 import { useAniList } from "@/contexts/anilist-context"
@@ -253,6 +253,49 @@ export const SlideOutMenu = forwardRef<SlideOutMenuHandle, SlideOutMenuProps>(({
               <span className="block text-xs text-muted-foreground mt-0.5">Aiutaci a migliorare</span>
             </div>
           </button>
+
+          <div className="my-4 mx-4 h-px bg-border" />
+
+          {/* Domini alternativi */}
+          <div className="px-4 mb-2">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Domini alternativi</span>
+          </div>
+          <a
+            href="https://ani-zone.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-200 w-full text-foreground hover:bg-muted/50 group ripple"
+          >
+            <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center text-green-600 dark:text-green-400">
+              <Globe size={20} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="block font-medium text-sm truncate">ani-zone.vercel.app</span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/15 text-green-600 dark:text-green-400 text-[10px] font-semibold uppercase tracking-wide shrink-0">
+                  <Star size={10} />
+                  Consigliato
+                </span>
+              </div>
+              <span className="block text-xs text-muted-foreground mt-0.5">Vercel</span>
+            </div>
+            <ExternalLink size={14} className="text-muted-foreground shrink-0" />
+          </a>
+          <a
+            href="https://anizonee.netlify.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-200 w-full text-foreground hover:bg-muted/50 group ripple"
+          >
+            <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400">
+              <Globe size={20} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="block font-medium text-sm truncate">anizonee.netlify.app</span>
+              <span className="block text-xs text-muted-foreground mt-0.5">Netlify</span>
+            </div>
+            <ExternalLink size={14} className="text-muted-foreground shrink-0" />
+          </a>
         </nav>
 
         {/* Footer */}
