@@ -17,13 +17,11 @@ import {
   Loader2,
   FileJson,
   ExternalLink,
-  BookOpen,
 } from "lucide-react"
 import Image from "next/image"
 
 interface ImportExportProps {
   animeCollection: any
-  mangaCollection: any
   user: any
   onImportComplete: () => void
 }
@@ -63,11 +61,10 @@ interface ImportItem {
   error: string | null
 }
 
-export function ListsImportExport({ animeCollection, mangaCollection, user, onImportComplete }: ImportExportProps) {
+export function ListsImportExport({ animeCollection, user, onImportComplete }: ImportExportProps) {
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
   const [importDialogOpen, setImportDialogOpen] = useState(false)
   const [importSource, setImportSource] = useState<"animeworld" | "anilist" | "animeunity">("animeworld")
-  const [importType, setImportType] = useState<"anime" | "manga">("anime")
 
   // AnimeWorld state
   const [awSearchQuery, setAwSearchQuery] = useState("")
@@ -113,7 +110,6 @@ export function ListsImportExport({ animeCollection, mangaCollection, user, onIm
         name: user.name,
       },
       anime: animeCollection,
-      manga: mangaCollection,
     }
 
     const blob = new Blob([JSON.stringify(exportData, null, 2)], {
@@ -265,7 +261,7 @@ export function ListsImportExport({ animeCollection, mangaCollection, user, onIm
         const existingIds = getExistingAniListIds()
         const items: ImportItem[] = []
 
-        const collection = importType === "anime" ? data.anime : data.manga
+        const collection = data.anime
         if (collection?.lists) {
           collection.lists.forEach((list: any) => {
             list.entries.forEach((entry: any) => {
@@ -416,7 +412,7 @@ export function ListsImportExport({ animeCollection, mangaCollection, user, onIm
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Esporta Liste</DialogTitle>
-            <DialogDescription>Scarica un backup completo delle tue liste anime e manga</DialogDescription>
+            <DialogDescription>Scarica un backup completo delle tue liste anime</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
@@ -427,16 +423,13 @@ export function ListsImportExport({ animeCollection, mangaCollection, user, onIm
                 </div>
                 <div>
                   <p className="font-medium">Backup JSON</p>
-                  <p className="text-sm text-muted-foreground">Include anime e manga</p>
+                  <p className="text-sm text-muted-foreground">Include anime</p>
                 </div>
               </div>
 
               <div className="flex gap-4 text-sm text-muted-foreground">
                 <span>
                   Anime: {animeCollection?.lists?.reduce((acc: number, list: any) => acc + list.entries.length, 0) || 0}
-                </span>
-                <span>
-                  Manga: {mangaCollection?.lists?.reduce((acc: number, list: any) => acc + list.entries.length, 0) || 0}
                 </span>
               </div>
             </Card>
@@ -457,17 +450,7 @@ export function ListsImportExport({ animeCollection, mangaCollection, user, onIm
             <DialogDescription>Importa le tue liste da altri servizi su AniList</DialogDescription>
           </DialogHeader>
 
-          <Tabs
-            value={importType}
-            onValueChange={(v) => setImportType(v as "anime" | "manga")}
-            className="flex-1 min-h-0 flex flex-col"
-          >
-            <TabsList className="grid w-full grid-cols-2 mb-4 flex-shrink-0">
-              <TabsTrigger value="anime">Anime</TabsTrigger>
-              <TabsTrigger value="manga">Manga</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="anime" className="mt-0 flex-1 min-h-0 flex flex-col">
+          <div className="flex-1 min-h-0 flex flex-col">
               <Tabs
                 value={importSource}
                 onValueChange={(v) => {
@@ -696,22 +679,7 @@ export function ListsImportExport({ animeCollection, mangaCollection, user, onIm
                   )}
                 </TabsContent>
               </Tabs>
-            </TabsContent>
-
-            <TabsContent value="manga" className="mt-0 flex-1 overflow-hidden flex flex-col">
-              <Card className="p-8 text-center space-y-4 border-dashed">
-                <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto">
-                  <BookOpen className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-xl font-semibold">Prossimamente...</h3>
-                  <p className="text-muted-foreground max-w-md mx-auto">
-                    L'importazione delle liste manga sarà disponibile a breve
-                  </p>
-                </div>
-              </Card>
-            </TabsContent>
-          </Tabs>
+          </div>
         </DialogContent>
       </Dialog>
     </>

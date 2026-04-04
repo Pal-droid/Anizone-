@@ -15,16 +15,9 @@ export interface AniListUser {
       count: number
       minutesWatched: number
     }
-    manga?: {
-      count: number
-      chaptersRead: number
-    }
   }
   favourites?: {
     anime?: {
-      nodes?: Array<{ id: number }>
-    }
-    manga?: {
       nodes?: Array<{ id: number }>
     }
   }
@@ -199,51 +192,6 @@ class AniListManager {
     }
   }
 
-  // Fetch user's manga list from AniList
-  async getUserMangaList(): Promise<any> {
-    if (!this.user) throw new Error("Not authenticated")
-
-    const query = `
-      query ($userId: Int) {
-        MediaListCollection(userId: $userId, type: MANGA) {
-          lists {
-            name
-            status
-            entries {
-              id
-              mediaId
-              status
-              progress
-              score
-              media {
-                id
-                title {
-                  romaji
-                  english
-                  native
-                }
-                coverImage {
-                  large
-                  medium
-                }
-                chapters
-              }
-            }
-          }
-        }
-      }
-    `
-    try {
-      console.log("[v0] Fetching manga list for user:", this.user.id)
-      const data = await this.makeGraphQLRequest(query, { userId: this.user.id })
-      console.log("[v0] Manga list response:", data)
-      return data.data.MediaListCollection
-    } catch (error) {
-      console.error("[v0] Error fetching manga list:", error)
-      throw error
-    }
-  }
-
   // Update anime entry on AniList
   async updateAnimeEntry(mediaId: number, status: string, progress?: number): Promise<boolean> {
     if (!this.user) return false
@@ -267,36 +215,6 @@ class AniListManager {
         toast({
           title: "Errore",
           description: "Impossibile aggiornare l'anime. Riprova più tardi.",
-          variant: "destructive",
-        })
-      }
-      return false
-    }
-  }
-
-  // Update manga entry on AniList
-  async updateMangaEntry(mediaId: number, status: string, progress?: number): Promise<boolean> {
-    if (!this.user) return false
-
-    const mutation = `
-      mutation ($mediaId: Int, $status: MediaListStatus, $progress: Int) {
-        SaveMediaListEntry(mediaId: $mediaId, status: $status, progress: $progress) {
-          id
-          status
-          progress
-        }
-      }
-    `
-
-    try {
-      await this.makeGraphQLRequest(mutation, { mediaId, status, progress })
-      return true
-    } catch (error) {
-      console.error("[v0] Error updating manga entry:", error)
-      if (error instanceof Error && !error.message.includes("Rate limit")) {
-        toast({
-          title: "Errore",
-          description: "Impossibile aggiornare il manga. Riprova più tardi.",
           variant: "destructive",
         })
       }
@@ -334,7 +252,7 @@ class AniListManager {
 
   async getMediaListStatus(
     mediaId: number,
-    type: "ANIME" | "MANGA",
+    type: "ANIME",
   ): Promise<{ status: string | null; progress: number }> {
     if (!this.user) return { status: null, progress: 0 }
 
@@ -381,11 +299,6 @@ class AniListManager {
                 id
               }
             }
-            manga {
-              nodes {
-                id
-              }
-            }
           }
         }
       }
@@ -394,8 +307,7 @@ class AniListManager {
     try {
       const data = await this.makeGraphQLRequest(query, { userId: this.user.id })
       const animeIds = data.data?.User?.favourites?.anime?.nodes?.map((n: any) => n.id) || []
-      const mangaIds = data.data?.User?.favourites?.manga?.nodes?.map((n: any) => n.id) || []
-      return [...animeIds, ...mangaIds].includes(mediaId)
+      return animeIds.includes(mediaId)
     } catch (error) {
       console.error("Error checking favorite status:", error)
       return false
@@ -406,14 +318,9 @@ class AniListManager {
     if (!this.user) return false
 
     const mutation = `
-      mutation ($animeId: Int, $mangaId: Int) {
-        ToggleFavourite(animeId: $animeId, mangaId: $mangaId) {
+      mutation ($animeId: Int) {
+        ToggleFavourite(animeId: $animeId) {
           anime {
-            nodes {
-              id
-            }
-          }
-          manga {
             nodes {
               id
             }
@@ -423,15 +330,8 @@ class AniListManager {
     `
 
     try {
-      // We need to determine if this is anime or manga
-      // For now, try anime first, then manga if it fails
-      try {
-        await this.makeGraphQLRequest(mutation, { animeId: mediaId })
-        return true
-      } catch {
-        await this.makeGraphQLRequest(mutation, { mangaId: mediaId })
-        return true
-      }
+      await this.makeGraphQLRequest(mutation, { animeId: mediaId })
+      return true
     } catch (error) {
       console.error("[v0] Error toggling favorite:", error)
       if (error instanceof Error && !error.message.includes("Rate limit")) {
@@ -445,8 +345,8 @@ class AniListManager {
     }
   }
 
-  async getUserFavorites(): Promise<{ anime: any[]; manga: any[] }> {
-    if (!this.user) return { anime: [], manga: [] }
+  async getUserFavorites(): Promise<{ anime: any[] }> {
+    if (!this.user) return { anime: [] }
 
     const query = `
       query ($userId: Int) {
@@ -468,22 +368,6 @@ class AniListManager {
                 format
               }
             }
-            manga {
-              nodes {
-                id
-                title {
-                  romaji
-                  english
-                  native
-                }
-                coverImage {
-                  large
-                  medium
-                }
-                chapters
-                format
-              }
-            }
           }
         }
       }
@@ -493,11 +377,10 @@ class AniListManager {
       const data = await this.makeGraphQLRequest(query, { userId: this.user.id })
       return {
         anime: data.data?.User?.favourites?.anime?.nodes || [],
-        manga: data.data?.User?.favourites?.manga?.nodes || [],
       }
     } catch (error) {
       console.error("[v0] Error fetching favorites:", error)
-      return { anime: [], manga: [] }
+      return { anime: [] }
     }
   }
 
@@ -529,10 +412,6 @@ class AniListManager {
             anime {
               count
               minutesWatched
-            }
-            manga {
-              count
-              chaptersRead
             }
           }
         }

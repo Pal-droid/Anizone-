@@ -65,7 +65,7 @@ export function AniListAuthPanel() {
           ) : (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Accedi con il tuo account AniList per sincronizzare le tue liste anime e manga
+                Accedi con il tuo account AniList per sincronizzare le tue liste anime
               </p>
               <Button onClick={() => setDialogOpen(true)} className="w-full">
                 Accedi con AniList

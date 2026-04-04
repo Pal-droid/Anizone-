@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation"
 
 export function HeroSearch() {
   const [query, setQuery] = useState("")
-  const [contentType, setContentType] = useState("anime")
   const router = useRouter()
   const searchParams = useSearchParams()
   const [error, setError] = useState<string | null>(null)
@@ -23,7 +22,6 @@ export function HeroSearch() {
     if (query.trim()) {
       const params = new URLSearchParams({
         keyword: query.trim(),
-        tab: contentType, // Add tab parameter to specify which tab to show
       })
       router.push(`/search?${params}`)
     } else {
@@ -59,32 +57,6 @@ export function HeroSearch() {
         </div>
       )}
 
-      <div className="flex justify-center">
-        <div className="inline-flex rounded-lg border border-border/30 glass p-1">
-          <button
-            type="button"
-            onClick={() => setContentType("anime")}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-smooth ${
-              contentType === "anime"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-accent/10"
-            }`}
-          >
-            Anime
-          </button>
-          <button
-            type="button"
-            onClick={() => setContentType("manga")}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-smooth ${
-              contentType === "manga"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-accent/10"
-            }`}
-          >
-            Manga
-          </button>
-        </div>
-      </div>
     </div>
   )
 }

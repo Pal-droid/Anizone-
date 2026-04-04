@@ -32,15 +32,15 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: "Anizone - Guarda e leggi Anime & Manga in italiano",
-  description: "Cerca Anime & Manga con episodi sub/dub e scans ITA",
+  title: "Anizone - Guarda Anime in italiano",
+  description: "Cerca Anime con episodi sub/dub ITA",
   generator: "pal",
   icons: {
     icon: "/favicon.ico",
   },
   openGraph: {
-    title: "Anizone - Guarda e leggi Anime & Manga in italiano",
-    description: "Cerca Anime & Manga con episodi sub/dub e scans ITA",
+    title: "Anizone - Guarda Anime in italiano",
+    description: "Cerca Anime con episodi sub/dub ITA",
     url: "/",
     siteName: "Anizone",
     type: "website",

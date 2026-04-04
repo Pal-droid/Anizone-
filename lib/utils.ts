@@ -49,22 +49,3 @@ export function deobfuscateUrl(obfuscatedUrl: string): string {
     return obfuscatedUrl
   }
 }
-
-export function obfuscateId(id: string): string {
-  try {
-    // Simple ID obfuscation for manga IDs
-    const encoded = btoa(id)
-    return encoded.replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, ".")
-  } catch {
-    return id
-  }
-}
-
-export function deobfuscateId(obfuscatedId: string): string {
-  try {
-    const restored = obfuscatedId.replace(/-/g, "+").replace(/_/g, "/").replace(/\./g, "=")
-    return atob(restored)
-  } catch {
-    return obfuscatedId
-  }
-}
