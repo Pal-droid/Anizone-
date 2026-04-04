@@ -20,13 +20,13 @@ interface EditListEntryDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   entry: any
-  mediaType: "anime" | "manga"
+  mediaType?: "anime"
   onSave: (updates: { status?: string; progress?: number; score?: number }) => Promise<void>
 }
 
 const STATUS_OPTIONS = [
   { value: "CURRENT", label: "In corso" },
-  { value: "PLANNING", label: "Da guardare/leggere" },
+  { value: "PLANNING", label: "Da guardare" },
   { value: "COMPLETED", label: "Completato" },
   { value: "PAUSED", label: "In pausa" },
   { value: "DROPPED", label: "Abbandonato" },
@@ -39,7 +39,7 @@ export function EditListEntryDialog({ open, onOpenChange, entry, mediaType, onSa
   const [score, setScore] = useState(entry.score || 0)
   const [isSaving, setIsSaving] = useState(false)
 
-  const maxProgress = mediaType === "anime" ? entry.media.episodes || 999 : entry.media.chapters || 999
+  const maxProgress = entry.media.episodes || 999
 
   useEffect(() => {
     if (open) {
@@ -73,7 +73,7 @@ export function EditListEntryDialog({ open, onOpenChange, entry, mediaType, onSa
         <DialogHeader>
           <DialogTitle>Modifica {entry.media.title.romaji}</DialogTitle>
           <DialogDescription>
-            Aggiorna lo stato, il progresso e il punteggio per questo {mediaType === "anime" ? "anime" : "manga"}.
+            Aggiorna lo stato, il progresso e il punteggio per questo anime.
           </DialogDescription>
         </DialogHeader>
 
@@ -97,7 +97,7 @@ export function EditListEntryDialog({ open, onOpenChange, entry, mediaType, onSa
           <div className="space-y-2">
             <Label>
               Progresso: {progress}
-              {maxProgress < 999 && ` / ${maxProgress}`} {mediaType === "anime" ? "episodi" : "capitoli"}
+              {maxProgress < 999 && ` / ${maxProgress}`} episodi
             </Label>
             <div className="flex gap-3 items-center">
               <Input

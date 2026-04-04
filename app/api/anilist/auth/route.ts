@@ -20,18 +20,9 @@ async function verifyAniListToken(token: string) {
             count
             minutesWatched
           }
-          manga {
-            count
-            chaptersRead
-          }
         }
         favourites {
           anime {
-            nodes {
-              id
-            }
-          }
-          manga {
             nodes {
               id
             }

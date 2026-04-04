@@ -78,19 +78,13 @@ export function QuickListActions({ seriesKey, seriesPath, title, image, classNam
   const [isLoading, setIsLoading] = useState(false)
   const [isHydrated, setIsHydrated] = useState(false)
 
-  // ✅ determine type + key
-  let type: "manga" | "anime"
+  const type = "anime"
   let keyToUse: string
 
-  if (pathname.startsWith("/manga/")) {
-    type = "manga"
-    keyToUse = normalizeSeriesKey(seriesKey)
-  } else if (pathname.startsWith("/watch")) {
-    type = "anime"
+  if (pathname.startsWith("/watch")) {
     const queryPath = searchParams.get("path")
     keyToUse = queryPath ? normalizeSeriesKey(decodeURIComponent(queryPath)) : normalizeSeriesKey(seriesKey)
   } else {
-    type = "anime" // fallback
     keyToUse = normalizeSeriesKey(seriesKey)
   }
 

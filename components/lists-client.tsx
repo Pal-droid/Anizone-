@@ -11,25 +11,14 @@ import { AniListAuthPanel } from "@/components/anilist-auth-panel"
 import { SlideOutMenu } from "@/components/slide-out-menu"
 import { EditListEntryDialog } from "@/components/edit-list-entry-dialog"
 import { ListsImportExport } from "@/components/lists-import-export"
-import { Film, BookOpen, Trash2, RefreshCw, Star, ArrowRight, Edit, Search, LogOut, Heart } from "lucide-react"
+import { Film, Trash2, RefreshCw, Star, ArrowRight, Edit, Search, LogOut, Heart } from "lucide-react"
 import { useAniList } from "@/contexts/anilist-context"
 import { aniListManager } from "@/lib/anilist"
 import { FavoriteButton } from "@/components/favorite-button"
 
-type MediaType = "anime" | "manga"
-
 const ANIME_STATUS_MAP: Record<string, string> = {
   CURRENT: "In corso",
   PLANNING: "Da guardare",
-  COMPLETED: "Completati",
-  PAUSED: "In pausa",
-  DROPPED: "Abbandonati",
-  REPEATING: "In revisione",
-}
-
-const MANGA_STATUS_MAP: Record<string, string> = {
-  CURRENT: "In corso",
-  PLANNING: "Da leggere",
   COMPLETED: "Completati",
   PAUSED: "In pausa",
   DROPPED: "Abbandonati",
@@ -47,10 +36,8 @@ const STATUS_COLORS: Record<string, string> = {
 
 export function ListsClient() {
   const { user, isLoading, logout } = useAniList()
-  const [activeMediaType, setActiveMediaType] = useState<MediaType>("anime")
   const [animeCollection, setAnimeCollection] = useState<any>(null)
-  const [mangaCollection, setMangaCollection] = useState<any>(null)
-  const [favorites, setFavorites] = useState<{ anime: any[]; manga: any[] }>({ anime: [], manga: [] })
+  const [favorites, setFavorites] = useState<{ anime: any[] }>({ anime: [] })
   const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set())
   const [loading, setLoading] = useState(false)
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({})
@@ -65,8 +52,7 @@ export function ListsClient() {
       loadLists()
     } else {
       setAnimeCollection(null)
-      setMangaCollection(null)
-      setFavorites({ anime: [], manga: [] })
+      setFavorites({ anime: [] })
       setFavoriteIds(new Set())
     }
   }, [user])
@@ -74,19 +60,16 @@ export function ListsClient() {
   const loadLists = async () => {
     setLoading(true)
     try {
-      const [animeData, mangaData, favoritesData] = await Promise.all([
+      const [animeData, favoritesData] = await Promise.all([
         aniListManager.getUserAnimeList(),
-        aniListManager.getUserMangaList(),
         aniListManager.getUserFavorites(),
       ])
 
       setAnimeCollection(animeData)
-      setMangaCollection(mangaData)
-      setFavorites(favoritesData)
+      setFavorites({ anime: favoritesData.anime || [] })
 
       const allFavoriteIds = new Set<number>([
         ...(favoritesData.anime || []).map((item: any) => item.id),
-        ...(favoritesData.manga || []).map((item: any) => item.id),
       ])
       setFavoriteIds(allFavoriteIds)
     } catch (error) {
@@ -110,7 +93,6 @@ export function ListsClient() {
     setFavorites((prev) => {
       // Find the media in collections
       let media = null
-      let type: "anime" | "manga" = "anime"
 
       // Search in anime collection
       if (animeCollection?.lists) {
@@ -123,31 +105,17 @@ export function ListsClient() {
         }
       }
 
-      // Search in manga collection if not found
-      if (!media && mangaCollection?.lists) {
-        type = "manga"
-        for (const list of mangaCollection.lists) {
-          const found = list.entries?.find((e: any) => e.media?.id === mediaId)
-          if (found) {
-            media = found.media
-            break
-          }
-        }
-      }
-
       if (!media) return prev
 
       if (isFavorite) {
-        // Add to favorites
         return {
           ...prev,
-          [type]: [...(prev[type] || []), media],
+          anime: [...(prev.anime || []), media],
         }
       } else {
-        // Remove from favorites
         return {
           ...prev,
-          [type]: prev[type].filter((item: any) => item.id !== mediaId),
+          anime: prev.anime.filter((item: any) => item.id !== mediaId),
         }
       }
     })
@@ -183,10 +151,7 @@ export function ListsClient() {
 
     console.log("[v0] Saving entry updates:", updates)
 
-    const updateMethod =
-      activeMediaType === "anime"
-        ? aniListManager.updateAnimeEntry.bind(aniListManager)
-        : aniListManager.updateMangaEntry.bind(aniListManager)
+    const updateMethod = aniListManager.updateAnimeEntry.bind(aniListManager)
 
     const variables: any = { mediaId: editingEntry.media.id }
     if (updates.status) variables.status = updates.status
@@ -298,7 +263,7 @@ export function ListsClient() {
               <div className="space-y-2">
                 <h3 className="text-xl font-semibold">Inizia a tracciare i tuoi anime</h3>
                 <p className="text-muted-foreground max-w-md mx-auto">
-                  Accedi con AniList per visualizzare e gestire le tue liste di anime e manga in un unico posto
+                  Accedi con AniList per visualizzare e gestire le tue liste di anime in un unico posto
                 </p>
               </div>
             </Card>
@@ -308,9 +273,9 @@ export function ListsClient() {
     )
   }
 
-  const currentCollection = activeMediaType === "anime" ? animeCollection : mangaCollection
-  const statusMap = activeMediaType === "anime" ? ANIME_STATUS_MAP : MANGA_STATUS_MAP
-  const currentFavorites = activeMediaType === "anime" ? favorites.anime : favorites.manga
+  const currentCollection = animeCollection
+  const statusMap = ANIME_STATUS_MAP
+  const currentFavorites = favorites.anime || []
   const filteredFavorites = currentFavorites.filter(filterFavoritesBySearch)
 
   return (
@@ -376,7 +341,6 @@ export function ListsClient() {
             )}
             <ListsImportExport
               animeCollection={animeCollection}
-              mangaCollection={mangaCollection}
               user={user}
               onImportComplete={loadLists}
             />
@@ -398,7 +362,7 @@ export function ListsClient() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               type="text"
-              placeholder={`Cerca ${activeMediaType === "anime" ? "anime" : "manga"} per titolo...`}
+              placeholder="Cerca anime per titolo..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -406,19 +370,7 @@ export function ListsClient() {
           </div>
         )}
 
-        <Tabs value={activeMediaType} onValueChange={(v) => setActiveMediaType(v as MediaType)}>
-          <TabsList className="grid w-full max-w-md grid-cols-2 mb-8 mx-auto">
-            <TabsTrigger value="anime" className="gap-2">
-              <Film className="h-4 w-4" />
-              Anime
-            </TabsTrigger>
-            <TabsTrigger value="manga" className="gap-2">
-              <BookOpen className="h-4 w-4" />
-              Manga
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value={activeMediaType} className="mt-0">
+        <div>
             {loading ? (
               <div className="space-y-8">
                 {[...Array(3)].map((_, i) => (
@@ -434,18 +386,14 @@ export function ListsClient() {
               </div>
             ) : !currentCollection ? (
               <Card className="p-12 text-center space-y-4 border-dashed">
-                <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto">
-                  {activeMediaType === "anime" ? (
-                    <Film className="h-8 w-8 text-muted-foreground" />
-                  ) : (
-                    <BookOpen className="h-8 w-8 text-muted-foreground" />
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-xl font-semibold">Nessuna lista disponibile</h3>
-                  <p className="text-muted-foreground max-w-md mx-auto">
-                    Inizia ad aggiungere {activeMediaType === "anime" ? "anime" : "manga"} alla tua lista su AniList
-                  </p>
+                  <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto">
+                      <Film className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-semibold">Nessuna lista disponibile</h3>
+                    <p className="text-muted-foreground max-w-md mx-auto">
+                      Inizia ad aggiungere anime alla tua lista su AniList
+                    </p>
                 </div>
               </Card>
             ) : (
@@ -688,22 +636,18 @@ export function ListsClient() {
                                               className="bg-primary h-full rounded-full transition-all duration-300"
                                               style={{
                                                 width: `${
-                                                  activeMediaType === "anime" && entry.media.episodes
+                                                  entry.media.episodes
                                                     ? (entry.progress / entry.media.episodes) * 100
-                                                    : activeMediaType === "manga" && entry.media.chapters
-                                                      ? (entry.progress / entry.media.chapters) * 100
-                                                      : 0
+                                                    : 0
                                                 }%`,
                                               }}
                                             />
                                           </div>
                                           <span className="shrink-0">
                                             {entry.progress}
-                                            {activeMediaType === "anime" && entry.media.episodes
+                                            {entry.media.episodes
                                               ? `/${entry.media.episodes}`
-                                              : activeMediaType === "manga" && entry.media.chapters
-                                                ? `/${entry.media.chapters}`
-                                                : ""}
+                                              : ""}
                                           </span>
                                         </div>
                                       )}
@@ -757,15 +701,14 @@ export function ListsClient() {
                 </div>
               </>
             )}
-          </TabsContent>
-        </Tabs>
+        </div>
 
         {editingEntry && (
           <EditListEntryDialog
             open={editDialogOpen}
             onOpenChange={setEditDialogOpen}
             entry={editingEntry}
-            mediaType={activeMediaType}
+            mediaType="anime"
             onSave={handleSaveEntry}
           />
         )}

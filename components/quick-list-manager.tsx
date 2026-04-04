@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Play, Check, Pause, X, RotateCcw, BookOpen, Edit } from "lucide-react"
+import { Plus, Play, Check, Pause, X, RotateCcw, Edit } from "lucide-react"
 import { aniListManager } from "@/lib/anilist"
 import { useAniList } from "@/contexts/anilist-context"
 
@@ -19,15 +19,6 @@ const ANIME_LIST_CONFIG = {
   REPEATING: { label: "In revisione", icon: RotateCcw, color: "bg-indigo-500 hover:bg-indigo-600" },
 }
 
-// Configuration for manga lists - mapped to AniList statuses
-const MANGA_LIST_CONFIG = {
-  PLANNING: { label: "Da leggere", icon: Plus, color: "bg-blue-500 hover:bg-blue-600" },
-  CURRENT: { label: "In corso", icon: Play, color: "bg-green-500 hover:bg-green-600" },
-  COMPLETED: { label: "Completati", icon: Check, color: "bg-purple-500 hover:bg-purple-600" },
-  PAUSED: { label: "In pausa", icon: Pause, color: "bg-yellow-500 hover:bg-yellow-600" },
-  DROPPED: { label: "Abbandonati", icon: X, color: "bg-red-500 hover:bg-red-600" },
-  REPEATING: { label: "In revisione", icon: RotateCcw, color: "bg-indigo-500 hover:bg-indigo-600" },
-}
 
 interface QuickListManagerProps {
   itemId: string
@@ -42,15 +33,8 @@ export function QuickListManager({ itemId, itemTitle, itemImage, anilistMediaId,
   const searchParams = useSearchParams()
   const { user } = useAniList()
 
-  // Auto-detect type
-  let type: "anime" | "manga"
-  if (pathname.startsWith("/manga/")) {
-    type = "manga"
-  } else {
-    type = "anime"
-  }
-
-  const LIST_CONFIG = type === "anime" ? ANIME_LIST_CONFIG : MANGA_LIST_CONFIG
+  const type = "anime"
+  const LIST_CONFIG = ANIME_LIST_CONFIG
 
   const [currentStatus, setCurrentStatus] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -92,7 +76,7 @@ export function QuickListManager({ itemId, itemTitle, itemImage, anilistMediaId,
     console.log("[v0] Current anime AniList ID:", mediaId)
 
     try {
-      const result = await aniListManager.getMediaListStatus(mediaId, type === "anime" ? "ANIME" : "MANGA")
+      const result = await aniListManager.getMediaListStatus(mediaId, "ANIME")
 
       console.log("[v0] Current list status for media", mediaId, ":", result)
 
@@ -148,7 +132,7 @@ export function QuickListManager({ itemId, itemTitle, itemImage, anilistMediaId,
           query,
           variables: {
             search: itemTitle,
-            type: type === "anime" ? "ANIME" : "MANGA",
+            type: "ANIME",
           },
         }),
       })
@@ -179,9 +163,7 @@ export function QuickListManager({ itemId, itemTitle, itemImage, anilistMediaId,
     setLoading(true)
     try {
       const success =
-        type === "anime"
-          ? await aniListManager.updateAnimeEntry(mediaId!, targetStatus, progress)
-          : await aniListManager.updateMangaEntry(mediaId!, targetStatus, progress)
+        await aniListManager.updateAnimeEntry(mediaId!, targetStatus, progress)
 
       if (success) {
         const newStatus = targetStatus === currentStatus ? null : targetStatus
@@ -219,8 +201,7 @@ export function QuickListManager({ itemId, itemTitle, itemImage, anilistMediaId,
           onClick={() => (window.location.href = "/lists")}
           className="flex items-center justify-center gap-2 whitespace-nowrap"
         >
-          <BookOpen className="h-4 w-4" />
-          <span>Accedi con AniList per aggiungere alle liste</span>
+              <span>Accedi con AniList per aggiungere alle liste</span>
         </Button>
       </div>
     )
@@ -250,13 +231,13 @@ export function QuickListManager({ itemId, itemTitle, itemImage, anilistMediaId,
     return (
       <div className="flex flex-col gap-2 p-3 border rounded-lg bg-background">
         <p className="text-sm font-medium">
-          {type === "anime" ? "Episodio attuale:" : "Capitolo attuale:"}
+          Episodio attuale:
           {currentProgress > 0 && <span className="text-muted-foreground ml-2">(attuale: {currentProgress})</span>}
         </p>
         <div className="flex gap-2">
           <Input
             type="number"
-            placeholder={type === "anime" ? "Es. 5" : "Es. 15"}
+            placeholder="Es. 5"
             value={progressValue}
             onChange={(e) => setProgressValue(e.target.value)}
             className="w-20"
