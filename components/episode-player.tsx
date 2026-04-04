@@ -631,7 +631,8 @@ export function EpisodePlayer({
 
             if (useEmbedPlayer) {
               const embedParams = new URLSearchParams()
-              embedParams.set("sHI", aggData.streamUrl || aggData.proxyUrl)
+              // Always pass proxyUrl to embed service if available, fallback to streamUrl
+              embedParams.set("sHI", aggData.proxyUrl || aggData.streamUrl)
               embedParams.set("needP", "0")
               const builtEmbedUrl = `https://anizonee.vercel.app/e?${embedParams.toString()}`
               console.log("[v0] Embed mode: built embed URL for AnimeGG:", builtEmbedUrl)
@@ -732,7 +733,8 @@ export function EpisodePlayer({
           if (useEmbedPlayer) {
             // Build embed URL using the external embed service with needP=0 and asP=1 for Saturn
             const embedParams = new URLSearchParams()
-            embedParams.set("sHI", rawStreamUrl)
+            // Pass the proxied URL to the embed service instead of the raw Saturn URL
+            embedParams.set("sHI", proxied)
             embedParams.set("needP", "0")
             embedParams.set("asP", "1")
             const builtEmbedUrl = `https://anizonee.vercel.app/e?${embedParams.toString()}`
