@@ -128,11 +128,6 @@ export function EpisodePlayer({
   const [autoNext, setAutoNext] = useState<boolean>(true)
   const [autoUpdateProgress, setAutoUpdateProgress] = useState<boolean>(true)
   const [availableResolutions, setAvailableResolutions] = useState<string[]>(["1080", "720", "480", "360"])
-  const [aggAudioType, setAggAudioType] = useState<"sub" | "dub">("sub")
-  const [aggHasSub, setAggHasSub] = useState<boolean>(true)
-  const [aggHasDub, setAggHasDub] = useState<boolean>(false)
-  const [aggAvailableQualities, setAggAvailableQualities] = useState<string[]>([])
-  const [aggSelectedQuality, setAggSelectedQuality] = useState<string>("1080p")
   const [userProgress, setUserProgress] = useState<number>(0)
   const [isInWatchingList, setIsInWatchingList] = useState<boolean>(false)
   const [animeMediaStatus, setAnimeMediaStatus] = useState<string | null>(null)
@@ -172,7 +167,7 @@ export function EpisodePlayer({
     if (isEnglishServer) return ["HNime"]
     const serverNames = sources?.map((s) => s.name) || []
     return serverNames.filter(
-      (name) => name === "AnimeWorld" || name === "AnimeSaturn" || name === "AnimePahe" || name === "AnimeGG",
+      (name) => name === "AnimeWorld" || name === "AnimeSaturn" || name === "AnimePahe",
     )
   }, [sources, isEnglishServer])
 
@@ -181,7 +176,6 @@ export function EpisodePlayer({
       AnimeWorld: "World",
       AnimeSaturn: "Saturn",
       AnimePahe: "Pahe",
-      AnimeGG: "AGG",
       HNime: "HNime",
     }),
     []
@@ -189,7 +183,6 @@ export function EpisodePlayer({
 
   const isEmbedServer = false
   const isAnimePahe = selectedServer === "AnimePahe"
-  const isAnimeGG = selectedServer === "AnimeGG"
   const isHNime = selectedServer === "HNime"
 
   useEffect(() => {
@@ -258,7 +251,7 @@ export function EpisodePlayer({
 
   useEffect(() => {
     if (availableServers.length > 0 && !availableServers.includes(selectedServer)) {
-      const serverPriority = ["AnimeWorld", "AnimeSaturn", "AnimePahe", "AnimeGG"]
+      const serverPriority = ["AnimeWorld", "AnimeSaturn", "AnimePahe"]
       const prioritizedServer = serverPriority.find((s) => availableServers.includes(s))
       if (prioritizedServer) {
         setSelectedServer(prioritizedServer)
@@ -322,8 +315,6 @@ export function EpisodePlayer({
         const awSource = sources?.find((s) => s.name === "AnimeWorld")
         const asSource = sources?.find((s) => s.name === "AnimeSaturn")
         const apSource = sources?.find((s) => s.name === "AnimePahe")
-        const agSource = sources?.find((s) => s.name === "AnimeGG")
-
         console.log(
           "[v0] Found sources - AW:",
           awSource?.id,
@@ -331,14 +322,11 @@ export function EpisodePlayer({
           asSource?.id,
           "AP:",
           apSource?.id,
-          "AG:",
-          agSource?.id,
         )
 
         if (awSource?.id) params.set("AW", awSource.id)
         if (asSource?.id) params.set("AS", asSource.id)
         if (apSource?.id) params.set("AP", apSource.id)
-        if (agSource?.id) params.set("AG", agSource.id)
 
         console.log("[v0] Fetching episodes with params:", params.toString())
 
@@ -370,13 +358,11 @@ export function EpisodePlayer({
               ep.sources?.AnimeWorld?.url ||
               ep.sources?.AnimeSaturn?.url ||
               ep.sources?.AnimePahe?.url ||
-              ep.sources?.AnimeGG?.url ||
               "",
             id:
               ep.sources?.AnimeWorld?.id ||
               ep.sources?.AnimeSaturn?.id ||
               ep.sources?.AnimePahe?.id ||
-              ep.sources?.AnimeGG?.id ||
               "",
             unifiedData: ep,
           }))
@@ -502,7 +488,7 @@ export function EpisodePlayer({
       setEpisodeRefUrl(null)
       setProxyUrl(null)
 
-      const cacheKey = `anizone:stream:${epKey(selectedEpisode!)}:${selectedServer}:${selectedResolution}:${isAnimeGG ? `${aggAudioType}:${aggSelectedQuality}` : ""}${isHNime ? `:en:${selectedEnEmbed}` : ""}${useEmbedPlayer ? ":embed" : ""}`
+      const cacheKey = `anizone:stream:${epKey(selectedEpisode!)}:${selectedServer}:${selectedResolution}:${isHNime ? `:en:${selectedEnEmbed}` : ""}${useEmbedPlayer ? ":embed" : ""}`
       const cached = localStorage.getItem(cacheKey)
       if (cached) {
         try {
@@ -569,75 +555,6 @@ export function EpisodePlayer({
         const unifiedEp = selectedEpisode?.unifiedData
         if (!unifiedEp) {
           throw new Error("No unified data available for this episode")
-        }
-
-        if (selectedServer === "AnimeGG" && unifiedEp.sources?.AnimeGG?.id) {
-          const episodeId = unifiedEp.sources.AnimeGG.id
-          console.log("[v0] Using AnimeGG for stream - episode ID:", episodeId, "audio:", aggAudioType, "quality:", aggSelectedQuality)
-
-          const aggParams = new URLSearchParams()
-          aggParams.set("AG", episodeId)
-          aggParams.set("AG_AUDIO", aggAudioType)
-          aggParams.set("AG_RES", aggSelectedQuality)
-
-          const aggRes = await fetch(`/api/stream?${aggParams}`, {
-            signal: abort.signal,
-          })
-
-          if (!aggRes.ok) {
-            const errorText = await aggRes.text()
-            throw new Error(`AnimeGG stream API failed: ${errorText}`)
-          }
-
-          const aggData = await aggRes.json()
-          console.log("[v0] AnimeGG stream data:", aggData)
-
-          if (aggData.ok && (aggData.proxyUrl || aggData.streamUrl)) {
-            setStreamUrl(aggData.streamUrl)
-            setEpisodeRefUrl(selectedEpisode?.href || '')
-            
-            if (aggData.availableQualities) {
-              setAggAvailableQualities(aggData.availableQualities)
-            }
-            setAggHasSub(aggData.hasSub ?? true)
-            setAggHasDub(aggData.hasDub ?? false)
-            
-            if (aggData.selectedQuality) {
-              setAggSelectedQuality(aggData.selectedQuality)
-            }
-
-            if (useEmbedPlayer) {
-              const embedParams = new URLSearchParams()
-              embedParams.set("sHI", aggData.streamUrl || aggData.proxyUrl)
-              embedParams.set("needP", "0")
-              const builtEmbedUrl = `https://anizonee.vercel.app/e?${embedParams.toString()}`
-              console.log("[v0] Embed mode: built embed URL for AnimeGG:", builtEmbedUrl)
-              setEmbedUrl(builtEmbedUrl)
-              setProxyUrl(null)
-              localStorage.setItem(cacheKey, JSON.stringify({ 
-                streamUrl: aggData.streamUrl, 
-                embedUrl: builtEmbedUrl,
-                availableQualities: aggData.availableQualities,
-                hasSub: aggData.hasSub,
-                hasDub: aggData.hasDub,
-                selectedQuality: aggData.selectedQuality
-              }))
-            } else {
-              setProxyUrl(aggData.proxyUrl)
-              localStorage.setItem(cacheKey, JSON.stringify({ 
-                streamUrl: aggData.streamUrl, 
-                proxyUrl: aggData.proxyUrl,
-                availableQualities: aggData.availableQualities,
-                hasSub: aggData.hasSub,
-                hasDub: aggData.hasDub,
-                selectedQuality: aggData.selectedQuality
-              }))
-            }
-            setLoading(false)
-            return
-          } else {
-            throw new Error(aggData.error || "Failed to get AnimeGG stream")
-          }
         }
 
         const params = new URLSearchParams()
@@ -774,7 +691,7 @@ export function EpisodePlayer({
 
     load()
     return () => abort.abort()
-  }, [selectedEpisode, selectedServer, selectedResolution, isAnimeGG, aggAudioType, aggSelectedQuality, isHNime, useEmbedPlayer])
+  }, [selectedEpisode, selectedServer, selectedResolution, isHNime, useEmbedPlayer])
 
   useEffect(() => {
     if (selectedServer !== "AnimePahe" || !selectedEpisode) return
@@ -864,7 +781,7 @@ export function EpisodePlayer({
   }, [selectedEpisode, seriesKeyForStore, seriesTitle, isEmbedServer])
 
   useEffect(() => {
-    if (!embedUrl || isAnimePahe || isAnimeGG || !selectedEpisode) return
+    if (!embedUrl || isAnimePahe || !selectedEpisode) return
     const iframe = iframeRef.current
     if (!iframe) return
 
@@ -950,7 +867,7 @@ export function EpisodePlayer({
       window.removeEventListener("message", handleMessage)
       iframe.removeEventListener("load", sendResume)
     }
-  }, [embedUrl, isAnimePahe, isAnimeGG, selectedEpisode, path, autoNext, autoUpdateProgress, episodes])
+  }, [embedUrl, isAnimePahe, selectedEpisode, path, autoNext, autoUpdateProgress, episodes])
 
   const updateAniListProgress = async (episodeNum: number) => {
     try {
@@ -1188,56 +1105,6 @@ export function EpisodePlayer({
               </div>
             )}
 
-            {isAnimeGG && (
-              <>
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="agg-audio-select" className="text-xs text-muted-foreground">
-                    Audio:
-                  </Label>
-                  <Select 
-                    value={aggAudioType} 
-                    onValueChange={(v) => setAggAudioType(v as "sub" | "dub")}
-                    disabled={!aggHasSub && !aggHasDub}
-                  >
-                    <SelectTrigger className="w-[80px] h-7 text-xs" id="agg-audio-select">
-                      <SelectValue placeholder="Audio" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {aggHasSub && (
-                        <SelectItem value="sub" className="text-xs">
-                          Sub
-                        </SelectItem>
-                      )}
-                      {aggHasDub && (
-                        <SelectItem value="dub" className="text-xs">
-                          Dub
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {aggAvailableQualities.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="agg-quality-select" className="text-xs text-muted-foreground">
-                      Qualità:
-                    </Label>
-                    <Select value={aggSelectedQuality} onValueChange={setAggSelectedQuality}>
-                      <SelectTrigger className="w-[90px] h-7 text-xs" id="agg-quality-select">
-                        <SelectValue placeholder="Qualità" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {aggAvailableQualities.map((quality) => (
-                          <SelectItem key={quality} value={quality} className="text-xs">
-                            {quality}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </>
-            )}
-
             <div className="flex items-center gap-2">
               <Switch id="auto-next" checked={autoNext} onCheckedChange={setAutoNext} />
               <Label htmlFor="auto-next" className="text-xs text-muted-foreground cursor-pointer">
@@ -1305,7 +1172,7 @@ export function EpisodePlayer({
             <Loader2 className="h-5 w-5 animate-spin" />
             Caricamento...
           </div>
-        ) : embedUrl && (useEmbedPlayer || (!isAnimePahe && !isAnimeGG)) ? (
+        ) : embedUrl && (useEmbedPlayer || !isAnimePahe) ? (
           <iframe
             key={embedUrl}
             ref={iframeRef}
@@ -1336,7 +1203,7 @@ export function EpisodePlayer({
               setError("Errore di riproduzione. Riprovo...")
               if (selectedEpisode)
                 localStorage.removeItem(
-                  `anizone:stream:${epKey(selectedEpisode)}:${selectedServer}:${selectedResolution}:${isAnimeGG ? `${aggAudioType}:${aggSelectedQuality}` : ""}`,
+                  `anizone:stream:${epKey(selectedEpisode)}:${selectedServer}:${selectedResolution}`,
                 )
               setProxyUrl(null)
               setTimeout(() => {
@@ -1351,12 +1218,11 @@ export function EpisodePlayer({
         )}
       </div>
 
-      {(isEmbedServer || isAnimePahe || isAnimeGG || isHNime || useEmbedPlayer) && (
+      {(isEmbedServer || isAnimePahe || isHNime || useEmbedPlayer) && (
         <div className="text-xs text-muted-foreground">
           Stai guardando tramite{" "}
           {serverDisplayNames[selectedServer as keyof typeof serverDisplayNames] || selectedServer}.
           {isAnimePahe && !useEmbedPlayer && ` Risoluzione: ${selectedResolution}p.`}
-          {isAnimeGG && !useEmbedPlayer && ` Audio: ${aggAudioType === "dub" ? "Dub" : "Sub"}. Qualità: ${aggSelectedQuality}.`}
           {isHNime && selectedEnEmbed && ` ${selectedEnEmbed}.`}
           {useEmbedPlayer && " Modalità Embed attiva."}
           {(isEmbedServer || isHNime || useEmbedPlayer) &&
