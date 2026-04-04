@@ -7,12 +7,9 @@ import {
   mapLocalToBackendKey,
   mapBackendToLocalKey,
   getBackendAnimeData,
-  getBackendMangaData,
   getBackendLightNovelData,
   getBackendContinueWatching,
-  getBackendContinueReading,
   saveBackendAnimeData,
-  saveBackendMangaData,
   saveBackendContinueWatching,
 } from "@/lib/backend"
 
@@ -37,12 +34,10 @@ function attachUserCookieIfNeeded(req: NextRequest, res: NextResponse, userId: s
 
 async function backendGetData(token: string): Promise<BackendUserData> {
   try {
-    const [animeData, mangaData, lightNovelData, continueWatching, continueReading] = await Promise.all([
+    const [animeData, lightNovelData, continueWatching] = await Promise.all([
       getBackendAnimeData(token),
-      getBackendMangaData(token),
       getBackendLightNovelData(token),
       getBackendContinueWatching(token),
-      getBackendContinueReading(token),
     ])
 
     return {
@@ -51,18 +46,9 @@ async function backendGetData(token: string): Promise<BackendUserData> {
         episode: value.episode?.num || 0,
         position_seconds: value.positionSeconds || 0,
       })),
-      continue_reading: continueReading || {},
       continue_watching_series_movies: {},
       anime_lists: animeData || {
         da_guardare: [],
-        in_corso: [],
-        completati: [],
-        in_pausa: [],
-        abbandonati: [],
-        in_revisione: [],
-      },
-      manga_lists: mangaData || {
-        da_leggere: [],
         in_corso: [],
         completati: [],
         in_pausa: [],
@@ -96,7 +82,6 @@ async function backendSaveData(token: string, data: BackendUserData) {
   try {
     await Promise.all([
       saveBackendAnimeData(token, data.anime_lists),
-      saveBackendMangaData(token, data.manga_lists),
       saveBackendContinueWatching(token, data.continue_watching),
     ])
   } catch (error: any) {
@@ -129,17 +114,6 @@ function mapBackendToLocal(data: BackendUserData) {
     }
   }
 
-  // manga lists
-  if (data.manga_lists) {
-    for (const [k, arr] of Object.entries(data.manga_lists)) {
-      const localKey = mapBackendToLocalKey[k as keyof typeof mapBackendToLocalKey] as ListName | undefined
-      if (!localKey) continue
-      for (const id of arr || []) {
-        lists[localKey][id] = { seriesKey: id, seriesPath: id, title: id, addedAt: Date.now() }
-      }
-    }
-  }
-
   const continueWatching: Record<string, any> = {}
   for (const cw of data.continue_watching || []) {
     continueWatching[cw.anime_id] = {
@@ -164,10 +138,8 @@ function mergeLocalChangeIntoBackend(
 ): BackendUserData {
   const data: BackendUserData = {
     continue_watching: Array.isArray(backend.continue_watching) ? [...backend.continue_watching] : [],
-    continue_reading: { ...backend.continue_reading },
     continue_watching_series_movies: { ...backend.continue_watching_series_movies },
     anime_lists: { ...backend.anime_lists },
-    manga_lists: { ...backend.manga_lists },
     lightnovel_lists: { ...backend.lightnovel_lists },
     series_movies_lists: { ...backend.series_movies_lists },
   }
@@ -183,8 +155,7 @@ function mergeLocalChangeIntoBackend(
     else data.continue_watching.push(item)
   } else if (op.type === "list-add") {
     let targetLists: BackendLists
-    if (op.contentType === "manga") targetLists = data.manga_lists
-    else if (op.contentType === "light-novel") targetLists = data.lightnovel_lists
+    if (op.contentType === "light-novel") targetLists = data.lightnovel_lists
     else targetLists = data.anime_lists
 
     const key = mapLocalToBackendKey[op.list]
@@ -193,8 +164,7 @@ function mergeLocalChangeIntoBackend(
     targetLists[key] = Array.from(set)
   } else if (op.type === "list-remove") {
     let targetLists: BackendLists
-    if (op.contentType === "manga") targetLists = data.manga_lists
-    else if (op.contentType === "light-novel") targetLists = data.lightnovel_lists
+    if (op.contentType === "light-novel") targetLists = data.lightnovel_lists
     else targetLists = data.anime_lists
 
     const key = mapLocalToBackendKey[op.list]
@@ -294,9 +264,7 @@ export async function POST(req: NextRequest) {
         }
         case "list-add": {
           const addBody = body as ListAddBody
-          const contentType = addBody.seriesPath.startsWith("/manga/")
-            ? "manga"
-            : addBody.seriesPath.startsWith("/light-novel/")
+          const contentType = addBody.seriesPath.startsWith("/light-novel/")
               ? "light-novel"
               : "anime"
 
@@ -310,9 +278,7 @@ export async function POST(req: NextRequest) {
         }
         case "list-remove": {
           const removeBody = body as ListRemoveBody
-          const contentType = removeBody.seriesPath.startsWith("/manga/")
-            ? "manga"
-            : removeBody.seriesPath.startsWith("/light-novel/")
+          const contentType = removeBody.seriesPath.startsWith("/light-novel/")
               ? "light-novel"
               : "anime"
 

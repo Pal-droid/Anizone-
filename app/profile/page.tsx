@@ -5,7 +5,7 @@ import { aniListManager } from "@/lib/anilist"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { User, Film, BookOpen, Heart, ExternalLink, Clock, ChevronDown } from "lucide-react"
+import { User, Film, Heart, ExternalLink, Clock, ChevronDown } from "lucide-react"
 import { SlideOutMenu } from "@/components/slide-out-menu"
 import { useEffect, useState, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
@@ -51,7 +51,6 @@ export default function ProfilePage() {
   const { user, isLoading } = useAniList()
   const [activities, setActivities] = useState<Activity[]>([])
   const [animeLists, setAnimeLists] = useState<MediaList[]>([])
-  const [mangaLists, setMangaLists] = useState<MediaList[]>([])
   const [isExpanded, setIsExpanded] = useState(false)
   const [loadingLists, setLoadingLists] = useState(false)
   const loadingRef = useRef(false)
@@ -82,9 +81,8 @@ export default function ProfilePage() {
     `;
 
     try {
-      const [animeData, mangaData, activityRes] = await Promise.all([
+      const [animeData, activityRes] = await Promise.all([
         aniListManager.getUserAnimeList(),
-        aniListManager.getUserMangaList(),
         fetch('https://graphql.anilist.co', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -93,7 +91,6 @@ export default function ProfilePage() {
       ])
 
       setAnimeLists(animeData?.lists || [])
-      setMangaLists(mangaData?.lists || [])
       setActivities(activityRes?.data?.Page?.activities || [])
       dataLoadedRef.current = true
     } catch (error) {
@@ -198,9 +195,7 @@ export default function ProfilePage() {
 
             <div className="grid grid-cols-3 gap-4">
               <StatsCard icon={<Film size={20} />} label="Anime" value={user.statistics?.anime?.count} sub="titoli" color="blue" />
-              <StatsCard icon={<BookOpen size={20} />} label="Manga" value={user.statistics?.manga?.count} sub="titoli" color="green" />
-              {/* FIXED: Larger Heart Icon */}
-              <StatsCard icon={<Heart size={28} className="fill-current" />} label="Preferiti" value={(user.favourites?.anime?.nodes?.length || 0) + (user.favourites?.manga?.nodes?.length || 0)} sub="totali" color="pink" />
+              <StatsCard icon={<Heart size={28} className="fill-current" />} label="Preferiti" value={user.favourites?.anime?.nodes?.length || 0} sub="totali" color="pink" />
             </div>
           </div>
         </motion.div>
@@ -228,7 +223,7 @@ export default function ProfilePage() {
                         transition={{ duration: 0.3 }}
                       >
                         <Link
-                          href={`https://anilist.co/${activity.type === 'ANIME_LIST' ? 'anime' : 'manga'}/${activity.media.id}`}
+                          href={`https://anilist.co/anime/${activity.media.id}`}
                           target="_blank"
                           className="flex items-start gap-4 p-3 rounded-lg border-l-2 border-transparent hover:border-l-primary hover:bg-muted/50 transition-all group"
                         >

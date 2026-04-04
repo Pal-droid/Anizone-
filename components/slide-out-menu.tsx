@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { useState, useEffect, forwardRef, useImperativeHandle } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation" // Added this
-import { Menu, X, Film, BookOpen, Search, List, Calendar, Bug, ChevronRight, User, LogOut, Settings, Globe, ExternalLink, Star } from "lucide-react"
+import { Menu, X, Film, Search, List, Calendar, Bug, ChevronRight, User, LogOut, Settings, Globe, ExternalLink, Star } from "lucide-react"
 import { BugReportDialog } from "@/components/bug-report-dialog"
 import { cn } from "@/lib/utils"
 import { useAniList } from "@/contexts/anilist-context"
@@ -52,8 +52,7 @@ export const SlideOutMenu = forwardRef<SlideOutMenuHandle, SlideOutMenuProps>(({
 
   const menuItems = [
     { href: "/", icon: Film, label: "Anime", description: "Guarda serie e film", key: "anime" },
-    { href: "/manga", icon: BookOpen, label: "Manga", description: "Leggi capitoli ITA", key: "manga" },
-    { href: "/search", icon: Search, label: "Cerca", description: "Trova anime e manga", key: "search" },
+    { href: "/search", icon: Search, label: "Cerca", description: "Trova anime", key: "search" },
     { href: "/lists", icon: List, label: "Le mie liste", description: "Preferiti e cronologia", key: "lists" },
     { href: "/schedule", icon: Calendar, label: "Calendario", description: "Prossime uscite", key: "schedule" },
   ]

@@ -3,10 +3,10 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Film, BookOpen, Book, ExternalLink } from "lucide-react"
-import { obfuscateUrl, obfuscateId } from "@/lib/utils"
+import { Film, Book, ExternalLink } from "lucide-react"
+import { obfuscateUrl } from "@/lib/utils"
 
-type ContentType = "anime" | "manga" | "light-novel" | "series-movies"
+type ContentType = "anime" | "light-novel" | "series-movies"
 
 interface ListItemCardProps {
   itemId: string
@@ -41,9 +41,8 @@ export function ListItemCard({ itemId, contentType, listName, onRemove, fetchMet
       case "series-movies":
         const animePath = `/play/${itemId}/episode-1`
         return `/watch?p=${obfuscateUrl(animePath)}`
-      case "manga":
       case "light-novel":
-        return `/manga/${obfuscateId(itemId)}`
+        return `#`
       default:
         return "#"
     }
@@ -54,8 +53,6 @@ export function ListItemCard({ itemId, contentType, listName, onRemove, fetchMet
       case "anime":
       case "series-movies":
         return Film
-      case "manga":
-        return BookOpen
       case "light-novel":
         return Book
       default:
@@ -89,11 +86,9 @@ export function ListItemCard({ itemId, contentType, listName, onRemove, fetchMet
         <p className="text-xs text-muted-foreground">
           {contentType === "anime"
             ? "Anime"
-            : contentType === "manga"
-              ? "Manga"
-              : contentType === "light-novel"
-                ? "Romanzo"
-                : "Serie/Film"}
+            : contentType === "light-novel"
+              ? "Romanzo"
+              : "Serie/Film"}
         </p>
       </div>
 
