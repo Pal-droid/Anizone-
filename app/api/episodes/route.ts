@@ -118,16 +118,14 @@ export const GET = withCors(async (req: NextRequest) => {
     const asId = searchParams.get("AS")
     const apId = searchParams.get("AP")
     const auId = searchParams.get("AU")
-    const agId = searchParams.get("AG")
 
-    if (awId || asId || apId || auId || agId) {
+    if (awId || asId || apId || auId) {
       try {
         const params = new URLSearchParams()
         if (awId) params.set("AW", awId)
         if (asId) params.set("AS", asId.toLowerCase())
         if (apId) params.set("AP", apId)
         if (auId) params.set("AU", auId)
-        if (agId) params.set("AG", agId)
 
         const unifiedRes = await fetch(`https://aw-au-as-api.vercel.app/api/episodes?${params}`, {
           headers: {
@@ -151,12 +149,11 @@ export const GET = withCors(async (req: NextRequest) => {
                 const asSource = ep.sources?.AnimeSaturn
                 const apSource = ep.sources?.AnimePahe
                 const auSource = ep.sources?.Unity
-                const agSource = ep.sources?.AnimeGG
 
                 return {
                   num: ep.num || ep.episode_number,
-                  href: awSource?.url || asSource?.url || apSource?.url || auSource?.url || agSource?.url || "",
-                  id: awSource?.id || asSource?.id || apSource?.id || auSource?.id || agSource?.id || "",
+                  href: awSource?.url || asSource?.url || apSource?.url || auSource?.url || "",
+                  id: awSource?.id || asSource?.id || apSource?.id || auSource?.id || "",
                   sources: {
                     AnimeWorld: awSource
                       ? {
@@ -187,13 +184,6 @@ export const GET = withCors(async (req: NextRequest) => {
                           id: auSource.id,
                         }
                       : { available: false },
-                    AnimeGG: agSource
-                      ? {
-                          available: !!agSource.available || !!agSource.url,
-                          url: agSource.url || "",
-                          id: agSource.id,
-                        }
-                      : { available: false },
                   },
                 }
               })
@@ -219,7 +209,7 @@ export const GET = withCors(async (req: NextRequest) => {
 
     if (!path) {
       return NextResponse.json(
-        { ok: false, error: "Parametro mancante. Usa AW=<id>, AS=<id>, AP=<id>, AU=<id> oppure path=<path>" },
+        { ok: false, error: "Parametro mancante. Usa AW=<id>, AS=<id>, AP=<id> oppure path=<path>" },
         { status: 400 },
       )
     }

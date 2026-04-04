@@ -167,10 +167,9 @@ export async function GET(req: NextRequest) {
             const animeWorldSource = filteredSources.find((s) => s.name === "AnimeWorld")
             const animeSaturnSource = filteredSources.find((s) => s.name === "AnimeSaturn")
             const animePaheSource = filteredSources.find((s) => s.name === "AnimePahe")
-            const animeGGSource = filteredSources.find((s) => s.name === "AnimeGG")
 
           const isItalianDub = result.title.includes("(ITA)")
-          const isEnglishDub = !!animeGGSource && result.isDub === true
+          const isEnglishDub = result.isDub === true
           const isKoreanDub = result.title.includes("(KOR)") || result.title.includes("(한국어)")
           
           // Build dub language string based on available dubs
@@ -182,7 +181,7 @@ export async function GET(req: NextRequest) {
           const dubLanguage = dubLanguages.length > 0 ? dubLanguages.join("/") : undefined
 
           const primaryUrl =
-            animeWorldSource?.url || animeSaturnSource?.url || animePaheSource?.url || animeGGSource?.url || ""
+            animeWorldSource?.url || animeSaturnSource?.url || animePaheSource?.url || ""
 
           console.log(
             "Result:",
