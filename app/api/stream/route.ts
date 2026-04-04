@@ -18,8 +18,6 @@ function pickBest(candidates: string[]): string | null {
   return candidates[0]
 }
 
-const ANIMESATURN_PROXY = "https://animesaturn-proxy.onrender.com/embed"
-
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
@@ -99,13 +97,13 @@ export async function GET(req: NextRequest) {
           const animeSaturnData = streamData.AnimeSaturn
 
           if (animeSaturnData?.available && animeSaturnData.stream_url) {
-            // Build the embed URL using the proxy
-            const embedUrl = `${ANIMESATURN_PROXY}?url=${encodeURIComponent(animeSaturnData.stream_url)}`
+            // Build the embed URL using the local proxy
+            const proxyUrl = `/api/animesaturn-proxy?url=${encodeURIComponent(animeSaturnData.stream_url)}`
 
             return NextResponse.json({
               ok: true,
               streamUrl: animeSaturnData.stream_url,
-              embedUrl: embedUrl,
+              proxyUrl: proxyUrl,
               source: "https://aw-au-as-api.vercel.app/api/stream",
               server: "AnimeSaturn",
               unified: true,
