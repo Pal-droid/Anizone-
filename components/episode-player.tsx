@@ -1149,7 +1149,7 @@ export function EpisodePlayer({
         <EpisodeCountdown nextEpisodeDate={nextEpisodeDate} nextEpisodeTime={nextEpisodeTime} className="text-sm" />
       )}
 
-      <div className="w-full">
+      <div className="w-full overflow-visible">
         <div className="mb-2 flex items-center justify-between">
           <div className="text-sm font-medium">Episodi</div>
           <div className="flex items-center gap-3 flex-wrap">
@@ -1286,7 +1286,7 @@ export function EpisodePlayer({
           </div>
         </div>
 
-        <div className="flex gap-2 overflow-x-auto no-scrollbar snap-x pb-1 py-2 -my-2">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar snap-x pb-2 pt-3 -mt-1 -mb-1 px-0.5">
           {episodesLoading ? (
             Array.from({ length: 10 }).map((_, i) => (
               <div key={i} className="h-9 w-14 rounded-full bg-neutral-800 animate-pulse shrink-0" />

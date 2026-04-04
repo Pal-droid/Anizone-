@@ -1,5 +1,5 @@
 import type React from "react"
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
 import "./globals.css"
 import { AniListProvider } from "@/contexts/anilist-context"
@@ -20,22 +20,23 @@ const jetbrainsMono = JetBrains_Mono({
   variable: "--font-mono",
 })
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f8f7ff" },
+    { media: "(prefers-color-scheme: dark)", color: "#1a1820" },
+  ],
+}
+
 export const metadata: Metadata = {
   title: "Anizone - Guarda e leggi Anime & Manga in italiano",
   description: "Cerca Anime & Manga con episodi sub/dub e scans ITA",
   generator: "pal",
   icons: {
     icon: "/favicon.ico",
-  },
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f8f7ff" },
-    { media: "(prefers-color-scheme: dark)", color: "#1a1820" },
-  ],
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
   },
   openGraph: {
     title: "Anizone - Guarda e leggi Anime & Manga in italiano",
