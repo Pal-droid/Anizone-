@@ -1184,7 +1184,7 @@ export function EpisodePlayer({
             frameBorder="0"
             scrolling="no"
             allowFullScreen
-            sandbox="allow-scripts allow-same-origin"
+            sandbox="allow-scripts allow-same-origin allow-popups"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             title={`${seriesTitle} - Episodio ${selectedEpisode?.num || ""}`}
           />
