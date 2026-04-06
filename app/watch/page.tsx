@@ -111,7 +111,10 @@ export default function WatchPage() {
         // This handles random anime navigation where sources aren't pre-populated
         const isAnimeWorldPath = path.startsWith("/play/")
         if (isAnimeWorldPath && !mappedSources.some((s) => s.name === "AnimeWorld")) {
-          mappedSources = [{ name: "AnimeWorld", url: `https://www.animeworld.ac${path}`, id: path }]
+          // Extract just the anime ID from the path (e.g., "hoshizora-kiseki.pVq2r" from "/play/hoshizora-kiseki.pVq2r/80Aihn")
+          const pathParts = path.split("/").filter(Boolean)
+          const animeId = pathParts[1] // parts[0] is "play", parts[1] is the anime ID
+          mappedSources = [{ name: "AnimeWorld", url: `https://www.animeworld.ac${path}`, id: animeId }]
         }
 
         setSources(mappedSources)
