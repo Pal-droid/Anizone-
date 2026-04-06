@@ -107,6 +107,13 @@ export default function WatchPage() {
           mappedSources = [{ name: "HNime", url: "", id: hiId }]
         }
 
+        // For AnimeWorld paths (e.g. /play/...), ensure we have the AnimeWorld source
+        // This handles random anime navigation where sources aren't pre-populated
+        const isAnimeWorldPath = path.startsWith("/play/")
+        if (isAnimeWorldPath && !mappedSources.some((s) => s.name === "AnimeWorld")) {
+          mappedSources = [{ name: "AnimeWorld", url: `https://www.animeworld.ac${path}`, id: path }]
+        }
+
         setSources(mappedSources)
         setLoadingSources(false)
 

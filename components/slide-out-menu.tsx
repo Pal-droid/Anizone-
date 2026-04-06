@@ -233,7 +233,7 @@ export const SlideOutMenu = forwardRef<SlideOutMenuHandle, SlideOutMenuProps>(({
             >
               <Shuffle size={20} className={loadingRandom ? "animate-spin" : ""} />
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 text-left">
               <span className="block font-medium text-sm">{loadingRandom ? "Ricerca..." : "Anime casuale"}</span>
               <span className="block text-xs text-muted-foreground mt-0.5 truncate">Scopri qualcosa di nuovo</span>
             </div>
