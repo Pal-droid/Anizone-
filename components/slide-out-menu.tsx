@@ -8,10 +8,10 @@ import { Select } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { useState, useEffect, forwardRef, useImperativeHandle } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation" // Added this
-import { Menu, X, Film, Search, List, Calendar, Bug, ChevronRight, User, LogOut, Settings, Globe, ExternalLink, Star } from "lucide-react"
+import { usePathname, useRouter } from "next/navigation"
+import { Menu, X, Film, Search, List, Calendar, Bug, ChevronRight, User, LogOut, Settings, Globe, ExternalLink, Star, Shuffle } from "lucide-react"
 import { BugReportDialog } from "@/components/bug-report-dialog"
-import { cn } from "@/lib/utils"
+import { cn, obfuscateUrl } from "@/lib/utils"
 import { useAniList } from "@/contexts/anilist-context"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
@@ -25,8 +25,10 @@ export interface SlideOutMenuHandle {
 }
 
 export const SlideOutMenu = forwardRef<SlideOutMenuHandle, SlideOutMenuProps>(({ hideButton = false }, ref) => {
-  const pathname = usePathname() // Use this instead of props
+  const pathname = usePathname()
+  const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
+  const [loadingRandom, setLoadingRandom] = useState(false)
   const [showBugReport, setShowBugReport] = useState(false)
   const [faviconError, setFaviconError] = useState(false)
   const { user, logout, isLoading } = useAniList()
@@ -60,6 +62,23 @@ export const SlideOutMenu = forwardRef<SlideOutMenuHandle, SlideOutMenuProps>(({
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/"
     return pathname.startsWith(href)
+  }
+
+  const handleRandomAnime = async () => {
+    setLoadingRandom(true)
+    setIsOpen(false)
+    try {
+      const res = await fetch("/api/random-anime")
+      const data = await res.json()
+      if (data.ok && data.path) {
+        const obfuscated = obfuscateUrl(data.path)
+        router.push(`/watch?p=${encodeURIComponent(obfuscated)}`)
+      }
+    } catch (e) {
+      // silently fail
+    } finally {
+      setLoadingRandom(false)
+    }
   }
 
   const handleBugReport = () => {
@@ -199,6 +218,26 @@ export const SlideOutMenu = forwardRef<SlideOutMenuHandle, SlideOutMenuProps>(({
               )
             })}
           </div>
+
+          {/* Random Anime */}
+          <button
+            onClick={handleRandomAnime}
+            disabled={loadingRandom}
+            className="flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-200 w-full text-foreground hover:bg-muted/50 group ripple disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <div
+              className={cn(
+                "w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
+                "bg-muted/50 text-muted-foreground group-hover:bg-muted",
+              )}
+            >
+              <Shuffle size={20} className={loadingRandom ? "animate-spin" : ""} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="block font-medium text-sm">{loadingRandom ? "Ricerca..." : "Anime casuale"}</span>
+              <span className="block text-xs text-muted-foreground mt-0.5 truncate">Scopri qualcosa di nuovo</span>
+            </div>
+          </button>
 
           <div className="my-4 mx-4 h-px bg-border" />
 
