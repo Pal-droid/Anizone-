@@ -107,6 +107,16 @@ export default function WatchPage() {
           mappedSources = [{ name: "HNime", url: "", id: hiId }]
         }
 
+        // For AnimeWorld paths (e.g. /play/...), ensure we have the AnimeWorld source
+        // This handles random anime navigation where sources aren't pre-populated
+        const isAnimeWorldPath = path.startsWith("/play/")
+        if (isAnimeWorldPath && !mappedSources.some((s) => s.name === "AnimeWorld")) {
+          // Extract just the anime ID from the path (e.g., "hoshizora-kiseki.pVq2r" from "/play/hoshizora-kiseki.pVq2r/80Aihn")
+          const pathParts = path.split("/").filter(Boolean)
+          const animeId = pathParts[1] // parts[0] is "play", parts[1] is the anime ID
+          mappedSources = [{ name: "AnimeWorld", url: `https://www.animeworld.ac${path}`, id: animeId }]
+        }
+
         setSources(mappedSources)
         setLoadingSources(false)
 
