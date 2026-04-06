@@ -486,7 +486,7 @@ export function ListsClient() {
                                   className={`group relative ${!expandedSections["FAVORITES"] ? "flex-none w-[160px] snap-start" : ""}`}
                                 >
                                   <Link
-                                    href={`https://anilist.co/${activeMediaType}/${item.id}`}
+                                    href={`https://anilist.co/anime/${item.id}`}
                                     target="_blank"
                                     className="block"
                                   >
@@ -605,7 +605,7 @@ export function ListsClient() {
                                   className={`group relative ${!isExpanded ? "flex-none w-[160px] snap-start" : ""}`}
                                 >
                                   <Link
-                                    href={`https://anilist.co/${activeMediaType}/${entry.media.id}`}
+                                    href={`https://anilist.co/anime/${entry.media.id}`}
                                     target="_blank"
                                     className="block"
                                   >
